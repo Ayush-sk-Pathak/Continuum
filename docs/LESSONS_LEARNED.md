@@ -2,7 +2,7 @@
 
 > **Purpose:** A living document tracking assumptions that caused errors, their corrections, and how to avoid repeating them. Update this whenever a new mismatch is discovered.
 >
-> **Last Updated:** 2025-12-16 (Added Sonic module lessons #11-17)
+> **Last Updated:** 2025-12-16 (Added Claude judgment errors J1-J4)
 
 ---
 
@@ -15,20 +15,29 @@ Before writing code that uses these interfaces, **always check these files first
 | Renderer | `src/renderers/base.py` | `BaseRenderer`, `RenderResult`, `JobSpec`, `CharacterRef` |
 | Scene Graph | `src/director/scene_graph.py` | `SceneGraph`, `Scene`, `Shot`, `Chunk`, `EntityRef` |
 | Consistency Dict | `src/director/consistency_dict.py` | `ConsistencyDict`, `CharacterEntity`, `LocationEntity` |
+| World State | `src/director/world_state.py` | `WorldState`, `SceneSetup`, `TrackedObject`, `StateEvent` |
+| Pacer | `src/director/pacer.py` | `Pacer`, `PacingStyle`, `ShotPacingPlan`, `ChunkTiming` |
 | Bridge Engine | `src/studio/bridge_engine.py` | `BaseBridgeEngine`, `BridgeSpec`, `BridgeResult` |
+| Pass 1 Generator | `src/studio/pass1_generator.py` | `Pass1Generator`, `GenerationConfig`, `ChunkOutput`, `ShotOutput` |
 | Pass 2 Refiner | `src/studio/pass2_refiner.py` | `BaseRefiner`, `RefineSpec`, `RefineResult` |
 | RIFE Interpolator | `src/studio/rife_interpolator.py` | `BaseInterpolator`, `InterpolationSpec`, `InterpolationResult` |
 | Identity Checker | `src/audit/identity_checker.py` | `BaseIdentityChecker`, `IdentityComparison`, `FrameFaces` |
+| Physics Checker | `src/audit/physics_checker.py` | `BasePhysicsChecker`, `PhysicsViolation`, `TrackingResult` |
+| Reviewer | `src/audit/reviewer.py` | `Reviewer`, `ReviewRequest`, `ReviewResult`, `ReviewDecision` |
 | Sonic Types | `src/sonic/types.py` | `SonicManifest`, `DialogueLine`, `VoiceConfig`, `AmbienceSpec`, `FoleyEvent` |
 | TTS Engine | `src/sonic/tts_engine.py` | `BaseTTSEngine`, `SynthesizedDialogue` |
 | Ambience | `src/sonic/ambience.py` | `BaseAmbienceEngine`, `SynthesizedAmbience` |
 | Foley | `src/sonic/foley.py` | `BaseFoleyEngine`, `SynthesizedFoley`, `FoleyMatch` |
 | Mixer | `src/sonic/mixer.py` | `AudioMixer`, `MixSpec`, `MixResult` |
 | Lip Sync | `src/sonic/lip_sync.py` | `BaseLipSyncEngine`, `LipSyncSpec`, `DialogueSegment` |
+| Visual RAG | `src/memory/visual_rag.py` | `VisualRAG`, `EmbeddingRecord`, `SearchResult`, `SimilarityCheck` |
+| Cache | `src/memory/cache.py` | `CacheManager`, `MemoryCache`, `DiskCache`, `CacheEntry` |
+| Asset Store | `src/memory/asset_store.py` | `AssetStore`, `AssetMetadata`, `LocalStorageBackend` |
 | Config | `src/core/config.py` | `Config`, `GenerationConfig`, `AuditConfig` |
 | Job State | `src/core/job_state.py` | `JobStatus`, `JobCheckpoint`, `AuditResult` |
 | Error Recovery | `src/core/error_recovery.py` | `RetryConfig`, `DegradationLadder` |
 | Workflow Loader | `src/comfy_client/workflow_loader.py` | `WorkflowLoader`, `WorkflowTemplate` (load by NAME, not path) |
+| Main Orchestrator | `src/main.py` | `ContinuumOrchestrator`, `PipelineConfig`, `PipelineResult` |
 
 ---
 
@@ -91,7 +100,7 @@ RenderResult(
 )
 ```
 
-**Prevention:** When mocking a dataclass, check ALL fields. Dataclass field order matters â€” required fields come before optional ones with defaults.
+**Prevention:** When mocking a dataclass, check ALL fields. Dataclass field order matters Ã¢â‚¬â€ required fields come before optional ones with defaults.
 
 ---
 
@@ -266,7 +275,7 @@ grep -A 20 "class RetryConfig" src/core/error_recovery.py
 3. Then run full tests: `pytest tests/file.py -v`
 
 ### When Tests Fail
-1. Read the **exact error message** â€” it usually names the missing field/method
+1. Read the **exact error message** Ã¢â‚¬â€ it usually names the missing field/method
 2. Check the **source of truth file** for correct interface
 3. Fix the **actual bug** (might be in test mock OR in production code)
 4. **Update this document** with the lesson learned
@@ -327,7 +336,7 @@ client.submit_workflow(workflow)  # FAILS
 # Export from ComfyUI with "Save (API Format)" or convert
 ```
 
-**Prevention:** Check if workflow has `"nodes"` key â€” if yes, it's UI format and needs conversion.
+**Prevention:** Check if workflow has `"nodes"` key Ã¢â‚¬â€ if yes, it's UI format and needs conversion.
 
 ---
 
@@ -572,6 +581,62 @@ if str(project_root) not in sys.path:
 ```
 
 **Note:** This worked in Claude's sandbox because `python -m pytest` adds current dir to path. Direct `pytest` command doesn't always do this.
+
+---
+
+## Claude Judgment Errors (Likely to Repeat)
+
+> **Purpose:** Patterns where Claude's instincts lead to suboptimal decisions. These are likely to recur as the codebase grows more complex. Review before major sessions.
+
+### J1. Hiding Warnings Instead of Questioning Them
+
+**Error:** When IDE showed "Import 'clip' could not be resolved", immediately reached for `# type: ignore` to suppress warning.
+
+**Better Approach:** Ask "Are these warnings useful?" - in this case, warnings served as documentation that optional dependencies aren't installed.
+
+**Pattern to Watch:** Claude defaults to "fix the red squiggles" rather than evaluating whether warnings provide value.
+
+---
+
+### J2. Putting Annotations on Wrong Lines
+
+**Error:** Added `# type: ignore` to the fallback `= None` lines instead of the actual `import` lines causing warnings.
+
+```python
+# WRONG - comment on fallback line doesn't help
+except ImportError:
+    clip_module = None  # type: ignore  <- This line isn't the problem
+
+# RIGHT - comment on import line
+try:
+    import clip  # type: ignore[import-not-found]  <- This is what triggers warning
+```
+
+**Pattern to Watch:** When unfamiliar with syntax/tooling, Claude may place annotations mechanically without verifying they're in the correct location.
+
+---
+
+### J3. Over-Engineering Before Questioning Necessity
+
+**Error:** Built elaborate optional dependency handling (module-level flags, fallback patterns, mock implementations) before asking "should we just install these dependencies?"
+
+**Better Approach:** Ask user's intent first. Sometimes `pip install Pillow` is the right answer, not 50 lines of fallback code.
+
+**Pattern to Watch:** Claude tends toward comprehensive solutions when simple ones suffice. As codebase grows, this creates unnecessary complexity.
+
+---
+
+### J4. Assuming Previous Code is Correct
+
+**Error:** When building `pass1_generator.py`, initially trusted that existing interfaces in other files were complete and correct without verification.
+
+**Better Approach:** Always `view` the actual source files before building integrations. Interfaces evolve and documentation may lag.
+
+**Pattern to Watch:** As file count grows, Claude may rely on memory of files from earlier in conversation rather than re-checking current state.
+
+---
+
+*Add new judgment errors above this line as they're discovered.*
 
 ---
 

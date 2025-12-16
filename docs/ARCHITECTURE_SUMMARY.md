@@ -135,9 +135,9 @@ continuum/
 │   │   ├── color_match.py  # Histogram matching to Master Shot
 │   │   ├── audio_ducker.py      # Lower music during dialogue
 │   │   └── stitcher.py          # FFmpeg final assembly
-        └── ffmpeg_wrapper.py          
-│   │
-│   └── main.py                  # Entry point / orchestrator
+    └── ffmpeg_wrapper.py          
+│   
+│--- ── main.py                  # Entry point / orchestrator
 │
 ├── workflows/                   # ComfyUI JSON workflows
 │   ├── pass1_structural.json
