@@ -2,7 +2,7 @@
 
 > **Purpose:** A living document tracking assumptions that caused errors, their corrections, and how to avoid repeating them. Update this whenever a new mismatch is discovered.
 >
-> **Last Updated:** 2025-12-15
+> **Last Updated:** 2025-12-16 (Added Sonic module lessons #11-17)
 
 ---
 
@@ -16,10 +16,19 @@ Before writing code that uses these interfaces, **always check these files first
 | Scene Graph | `src/director/scene_graph.py` | `SceneGraph`, `Scene`, `Shot`, `Chunk`, `EntityRef` |
 | Consistency Dict | `src/director/consistency_dict.py` | `ConsistencyDict`, `CharacterEntity`, `LocationEntity` |
 | Bridge Engine | `src/studio/bridge_engine.py` | `BaseBridgeEngine`, `BridgeSpec`, `BridgeResult` |
+| Pass 2 Refiner | `src/studio/pass2_refiner.py` | `BaseRefiner`, `RefineSpec`, `RefineResult` |
+| RIFE Interpolator | `src/studio/rife_interpolator.py` | `BaseInterpolator`, `InterpolationSpec`, `InterpolationResult` |
 | Identity Checker | `src/audit/identity_checker.py` | `BaseIdentityChecker`, `IdentityComparison`, `FrameFaces` |
+| Sonic Types | `src/sonic/types.py` | `SonicManifest`, `DialogueLine`, `VoiceConfig`, `AmbienceSpec`, `FoleyEvent` |
+| TTS Engine | `src/sonic/tts_engine.py` | `BaseTTSEngine`, `SynthesizedDialogue` |
+| Ambience | `src/sonic/ambience.py` | `BaseAmbienceEngine`, `SynthesizedAmbience` |
+| Foley | `src/sonic/foley.py` | `BaseFoleyEngine`, `SynthesizedFoley`, `FoleyMatch` |
+| Mixer | `src/sonic/mixer.py` | `AudioMixer`, `MixSpec`, `MixResult` |
+| Lip Sync | `src/sonic/lip_sync.py` | `BaseLipSyncEngine`, `LipSyncSpec`, `DialogueSegment` |
 | Config | `src/core/config.py` | `Config`, `GenerationConfig`, `AuditConfig` |
 | Job State | `src/core/job_state.py` | `JobStatus`, `JobCheckpoint`, `AuditResult` |
 | Error Recovery | `src/core/error_recovery.py` | `RetryConfig`, `DegradationLadder` |
+| Workflow Loader | `src/comfy_client/workflow_loader.py` | `WorkflowLoader`, `WorkflowTemplate` (load by NAME, not path) |
 
 ---
 
@@ -82,7 +91,7 @@ RenderResult(
 )
 ```
 
-**Prevention:** When mocking a dataclass, check ALL fields. Dataclass field order matters — required fields come before optional ones with defaults.
+**Prevention:** When mocking a dataclass, check ALL fields. Dataclass field order matters â€” required fields come before optional ones with defaults.
 
 ---
 
@@ -257,7 +266,7 @@ grep -A 20 "class RetryConfig" src/core/error_recovery.py
 3. Then run full tests: `pytest tests/file.py -v`
 
 ### When Tests Fail
-1. Read the **exact error message** — it usually names the missing field/method
+1. Read the **exact error message** â€” it usually names the missing field/method
 2. Check the **source of truth file** for correct interface
 3. Fix the **actual bug** (might be in test mock OR in production code)
 4. **Update this document** with the lesson learned
@@ -290,6 +299,291 @@ grep -A 20 "class RetryConfig" src/core/error_recovery.py
 
 **Prevention:** How to avoid this in future
 ```
+
+---
+
+---
+
+### 7. ComfyUI Workflow Format: UI vs API
+
+| | |
+|---|---|
+| **Date** | 2025-12-16 |
+| **Error** | `{"error": {"type": "invalid_prompt", "message": "Cannot execute because a node is missing the class_type property."}}` |
+| **Wrong Assumption** | Workflow JSON files work directly with `/prompt` endpoint |
+| **Correct Interface** | ComfyUI has TWO formats: UI format (`{"nodes": [...]}`) and API format (`{"node_id": {"class_type": ...}}`) |
+| **Source of Truth** | ComfyUI API docs |
+
+**Wrong:**
+```python
+# Submitting UI-format workflow (has "nodes" array)
+workflow = json.load(open("workflow.json"))  # UI format
+client.submit_workflow(workflow)  # FAILS
+```
+
+**Correct:**
+```python
+# Must use API format (node IDs as keys)
+# Export from ComfyUI with "Save (API Format)" or convert
+```
+
+**Prevention:** Check if workflow has `"nodes"` key â€” if yes, it's UI format and needs conversion.
+
+---
+
+### 8. WorkflowLoader Returns Object, Not Dict
+
+| | |
+|---|---|
+| **Date** | 2025-12-16 |
+| **Error** | `TypeError: object of type 'WorkflowTemplate' has no len()` |
+| **Wrong Assumption** | `loader.load()` returns a dict |
+| **Correct Interface** | Returns `WorkflowTemplate` object with `.workflow` attribute |
+| **Source of Truth** | `src/comfy_client/workflow_loader.py` |
+
+**Wrong:**
+```python
+workflow = loader.load("t2v_wan21.json")
+print(len(workflow))  # FAILS
+```
+
+**Correct:**
+```python
+template = loader.load("t2v_wan21.json")
+workflow = template.workflow  # Get the actual dict
+print(len(workflow))  # Works
+```
+
+---
+
+### 9. ComfyClient Requires Explicit connect()
+
+| | |
+|---|---|
+| **Date** | 2025-12-16 |
+| **Error** | `ComfyConnectionError: Not connected to ComfyUI` |
+| **Wrong Assumption** | Client connects automatically on first request |
+| **Correct Interface** | Must call `await client.connect()` before submitting |
+| **Source of Truth** | `src/comfy_client/client.py` |
+
+**Wrong:**
+```python
+client = ComfyClient(host=url)
+await client.submit_workflow(workflow)  # FAILS
+```
+
+**Correct:**
+```python
+client = ComfyClient(host=url)
+await client.connect()  # REQUIRED
+await client.submit_workflow(workflow)
+```
+
+---
+
+### 10. ComfyClient Method Names
+
+| | |
+|---|---|
+| **Date** | 2025-12-16 |
+| **Error** | `AttributeError: 'ComfyClient' object has no attribute 'queue_prompt'` |
+| **Wrong Assumption** | Method names match ComfyUI API names |
+| **Correct Interface** | Our wrapper uses different names |
+| **Source of Truth** | `src/comfy_client/client.py` |
+
+| Wrong | Correct |
+|-------|---------|
+| `ComfyUIClient` | `ComfyClient` |
+| `queue_prompt()` | `submit_workflow()` |
+| `get_status()` | `get_history()` |
+| `load_workflow()` | `load()` |
+
+**Prevention:** Always check: `print([m for m in dir(ComfyClient) if not m.startswith('_')])`
+
+---
+
+### 11. Sonic Module: AmbienceSpec Uses `type` Not `ambience_type`
+
+| | |
+|---|---|
+| **Date** | 2025-12-16 |
+| **Error** | `TypeError: AmbienceSpec.__init__() got an unexpected keyword argument 'ambience_type'` |
+| **Wrong Assumption** | Field is named `ambience_type` for clarity |
+| **Correct Interface** | Field is simply `type` (matches enum name) |
+| **Source of Truth** | `src/sonic/types.py` line 216 |
+
+**Wrong:**
+```python
+AmbienceSpec(ambience_id="amb_001", ambience_type=AmbienceType.INTERIOR_QUIET, ...)
+```
+
+**Correct:**
+```python
+AmbienceSpec(ambience_id="amb_001", type=AmbienceType.INTERIOR_QUIET, ...)
+```
+
+**Prevention:** Check dataclass field names with: `grep -A 10 "class AmbienceSpec" src/sonic/types.py`
+
+---
+
+### 12. Sonic Module: SonicManifest Uses `manifest_id` Not `job_id`
+
+| | |
+|---|---|
+| **Date** | 2025-12-16 |
+| **Error** | `TypeError: SonicManifest.__init__() got an unexpected keyword argument 'job_id'` |
+| **Wrong Assumption** | Uses `job_id` like other job-related classes |
+| **Correct Interface** | Uses `manifest_id` and `project_id` |
+| **Source of Truth** | `src/sonic/types.py` lines 358-364 |
+
+**Wrong:**
+```python
+SonicManifest(job_id="job_001", shot_plans=[...])
+```
+
+**Correct:**
+```python
+SonicManifest(manifest_id="manifest_001", project_id="proj_001", shot_plans=[...])
+```
+
+---
+
+### 13. Sonic Module: VoiceConfig Uses `speaking_rate` Not `speed`
+
+| | |
+|---|---|
+| **Date** | 2025-12-16 |
+| **Error** | `AttributeError: 'VoiceConfig' object has no attribute 'speed'` |
+| **Wrong Assumption** | Simple names: `speed`, `pitch` |
+| **Correct Interface** | Explicit names: `speaking_rate`, `pitch_shift` |
+| **Source of Truth** | `src/sonic/types.py` lines 101-107 |
+
+**Wrong:**
+```python
+config.speed  # FAILS
+config.pitch  # FAILS
+```
+
+**Correct:**
+```python
+config.speaking_rate  # 0.5 to 2.0
+config.pitch_shift    # -12 to +12 semitones
+```
+
+---
+
+### 14. WorkflowLoader.load() Takes NAME, Not Path
+
+| | |
+|---|---|
+| **Date** | 2025-12-16 |
+| **Error** | Workflow not found or wrong type |
+| **Wrong Assumption** | `load()` takes a `Path` object |
+| **Correct Interface** | `load()` takes workflow NAME as string (no extension, no path) |
+| **Source of Truth** | `src/comfy_client/workflow_loader.py` |
+
+**Wrong:**
+```python
+loader.load(Path("workflows/refine_freelong.json"))
+loader.load("workflows/refine_freelong.json")
+```
+
+**Correct:**
+```python
+loader.load("refine_freelong")  # Just the name, loader finds the file
+```
+
+**Prevention:** WorkflowLoader manages its own workflow directory internally.
+
+---
+
+### 15. Cross-Module Imports Use `..` for Parent Directory
+
+| | |
+|---|---|
+| **Date** | 2025-12-16 |
+| **Error** | `ModuleNotFoundError: No module named 'client'` |
+| **Wrong Assumption** | Can use `.client` for any sibling module |
+| **Correct Interface** | Use `..module_name.file` for different parent directories |
+| **Source of Truth** | Python relative import rules |
+
+**Wrong (in src/studio/pass2_refiner.py):**
+```python
+from .client import ComfyClient  # FAILS - client.py is in comfy_client/, not studio/
+```
+
+**Correct:**
+```python
+from ..comfy_client.client import ComfyClient  # Go up to src/, then into comfy_client/
+```
+
+**Pattern:**
+- `.module` = same directory
+- `..module` = parent's sibling directory
+- `...module` = grandparent's sibling (avoid if possible)
+
+---
+
+### 16. TTSProvider Has No MOCK Value
+
+| | |
+|---|---|
+| **Date** | 2025-12-16 |
+| **Error** | `AttributeError: type object 'TTSProvider' has no attribute 'MOCK'` |
+| **Wrong Assumption** | All provider enums have a MOCK variant |
+| **Correct Interface** | `TTSProvider` only has `ELEVENLABS`, `OPENAI`, `LOCAL` |
+| **Source of Truth** | `src/sonic/types.py` lines 26-30 |
+
+**Wrong:**
+```python
+engine = get_tts_engine(TTSProvider.MOCK, ...)  # FAILS
+```
+
+**Correct:**
+```python
+# Create your own mock class for testing
+class MockTTSEngine:
+    provider = TTSProvider.ELEVENLABS  # Pretend to be real provider
+    async def synthesize(self, line, config): ...
+```
+
+**Note:** `AmbienceProvider` and `FoleyProvider` DO have `.MOCK` variants. TTSProvider doesn't.
+
+---
+
+### 17. tests/conftest.py Needs Path Setup for `src` Imports
+
+| | |
+|---|---|
+| **Date** | 2025-12-16 |
+| **Error** | `ModuleNotFoundError: No module named 'src'` |
+| **Wrong Assumption** | pytest automatically finds `src/` |
+| **Correct Interface** | Must add project root to `sys.path` in conftest.py |
+| **Source of Truth** | Python import system |
+
+**Required in tests/conftest.py:**
+```python
+import sys
+from pathlib import Path
+
+project_root = Path(__file__).parent.parent  # tests/ -> project root
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+```
+
+**Note:** This worked in Claude's sandbox because `python -m pytest` adds current dir to path. Direct `pytest` command doesn't always do this.
+
+---
+
+## Sonic Module Quick Reference
+
+| Class | Required Fields | Common Mistakes |
+|-------|-----------------|-----------------|
+| `DialogueLine` | `line_id`, `character_id`, `text`, `start_time_sec` | `emotion` default is `None`, not `NEUTRAL` |
+| `VoiceConfig` | `character_id` | `speaking_rate` not `speed`, `pitch_shift` not `pitch` |
+| `AmbienceSpec` | `ambience_id`, `type`, `description`, `duration_sec` | `type` not `ambience_type` |
+| `SonicManifest` | `manifest_id`, `project_id` | Not `job_id` |
+| `ShotAudioPlan` | `shot_id`, `scene_id`, `duration_sec` | No `.validate()` method (it's on `SonicManifest`) |
 
 ---
 

@@ -132,9 +132,10 @@ continuum/
 │   │   └── job_queue.py         # Submit, poll, retry logic
 │   │
 │   ├── post/                    # Post-production
-│   │   ├── color_normalizer.py  # Histogram matching to Master Shot
+│   │   ├── color_match.py  # Histogram matching to Master Shot
 │   │   ├── audio_ducker.py      # Lower music during dialogue
 │   │   └── stitcher.py          # FFmpeg final assembly
+        └── ffmpeg_wrapper.py          
 │   │
 │   └── main.py                  # Entry point / orchestrator
 │
