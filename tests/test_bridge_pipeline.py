@@ -234,8 +234,9 @@ class BridgeFramePipeline:
         
         # Import workflow utilities
         # When running from project root: python -m tests.test_bridge_pipeline
-        sys.path.insert(0, str(Path(__file__).parent.parent / "src" / "studio"))
-        from workflow_utils import WanWorkflowLoader, T2VParams, I2VParams
+        # Add project root to path for imports
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from src.studio.workflow_utils import WanWorkflowLoader, T2VParams, I2VParams
         
         self.workflow_loader = WanWorkflowLoader(config.workflows_dir)
         self.T2VParams = T2VParams

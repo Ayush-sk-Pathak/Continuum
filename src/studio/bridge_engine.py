@@ -507,7 +507,7 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
             logger.error(f"Bridge engine health check failed: {e}")
             return False
     
-    @retry_async(RetryConfig(max_attempts=3, base_delay=1.0))
+    @retry_async(RetryConfig(max_attempts=3, base_delay_sec=1.0))
     async def generate(
         self,
         spec: BridgeSpec,
