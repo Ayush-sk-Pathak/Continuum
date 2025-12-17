@@ -170,8 +170,8 @@ continuum/
 |   |-- post/                    # Post-production
 |   |   |-- color_match.py  # Histogram matching to Master Shot
 |   |   |-- audio_ducker.py      # Lower music during dialogue
-|   |   +-- stitcher.py          # FFmpeg final assembly
-    +-- ffmpeg_wrapper.py          
+|   |   |-- stitcher.py          # FFmpeg final assembly
+|   |   |-- ffmpeg_wrapper.py          
 |   
 +-- main.py                  # Entry point / orchestrator
 |

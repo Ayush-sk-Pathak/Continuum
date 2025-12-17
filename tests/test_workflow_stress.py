@@ -97,6 +97,13 @@ def get_node_output_count(class_type: str) -> int:
         "IPAdapterModelLoader": 1,
         "LoraLoader": 2,  # model, clip
         
+        # Video loaders (VHS nodes)
+        "VHS_LoadVideo": 3,  # images, frame_count, audio
+        "VHS_VideoCombine": 1,  # video
+        
+        # RIFE interpolation
+        "RIFE VFI": 1,  # interpolated frames
+        
         # Encoders
         "CLIPTextEncode": 1,
         "CLIPVisionEncode": 1,
@@ -1024,6 +1031,10 @@ class TestPlaceholderInjectionSimulation:
         "START_TIME": 0.0,
         "END_TIME": 5.0,
         "FACE_THRESHOLD": 0.5,
+        
+        # RIFE Interpolation
+        "MULTIPLIER": 2,  # 12fps -> 24fps
+        "TARGET_FPS": 24,
     }
     
     def _inject_placeholders(self, workflow: Dict) -> Dict:

@@ -145,6 +145,15 @@ def musetalk_lipsync(workflows_dir: Path) -> Dict[str, Any]:
     return json.loads(path.read_text())
 
 
+@pytest.fixture
+def rife_interpolation(workflows_dir: Path) -> Dict[str, Any]:
+    """Load rife_interpolation.json (Frame interpolation 12fps -> 24fps)."""
+    path = workflows_dir / "rife_interpolation.json"
+    if not path.exists():
+        pytest.skip("rife_interpolation.json not found")
+    return json.loads(path.read_text())
+
+
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
@@ -823,6 +832,112 @@ class TestLipSyncEngineContract:
         )
         assert "{{" in str(end_time), (
             f"end_time should be placeholder, got: {end_time}"
+        )
+
+
+# =============================================================================
+# SECTION 6B: RIFE INTERPOLATOR CONTRACT
+# =============================================================================
+
+class TestRIFEInterpolatorContract:
+    """
+    Test that RIFE workflow accepts parameters from ComfyRIFEInterpolator.
+    
+    Source of Truth: rife_interpolator.py lines 460-465 (params dict in interpolate method)
+    
+    RIFE takes 12fps video and interpolates to 24fps for smooth playback.
+    This is the last GPU step before post-production (color match, stitch).
+    """
+    
+    # Parameters that ComfyRIFEInterpolator sends
+    RIFE_PARAMS = {
+        "INPUT_VIDEO",
+        "MULTIPLIER",
+        "TARGET_FPS",
+    }
+    
+    def test_rife_has_required_placeholders(self, rife_interpolation: Dict):
+        """rife_interpolation.json should have all RIFE placeholders."""
+        placeholders = extract_placeholders(rife_interpolation)
+        missing = self.RIFE_PARAMS - placeholders
+        assert len(missing) == 0, f"Missing placeholders: {missing}"
+    
+    def test_rife_loads_video(self, rife_interpolation: Dict):
+        """RIFE must load video input."""
+        class_types = set(get_node_class_types(rife_interpolation).values())
+        
+        assert "VHS_LoadVideo" in class_types, "Should load video with VHS_LoadVideo"
+        
+        # Verify video_loader uses placeholder
+        video_loader = rife_interpolation.get("video_loader", {})
+        video_input = video_loader.get("inputs", {}).get("video", "")
+        assert "{{INPUT_VIDEO}}" in str(video_input), (
+            f"video_loader should use INPUT_VIDEO placeholder, got {video_input}"
+        )
+    
+    def test_rife_has_interpolation_node(self, rife_interpolation: Dict):
+        """RIFE must have the RIFE VFI interpolation node."""
+        class_types = set(get_node_class_types(rife_interpolation).values())
+        
+        assert "RIFE VFI" in class_types, "Should have RIFE VFI node for interpolation"
+    
+    def test_rife_multiplier_is_parameterized(self, rife_interpolation: Dict):
+        """Multiplier must be a placeholder (not hardcoded)."""
+        rife_node = rife_interpolation.get("rife_interpolate", {})
+        inputs = rife_node.get("inputs", {})
+        multiplier = inputs.get("multiplier", "")
+        
+        assert "{{MULTIPLIER}}" in str(multiplier), (
+            f"multiplier should be placeholder, got: {multiplier}"
+        )
+    
+    def test_rife_outputs_video(self, rife_interpolation: Dict):
+        """RIFE must output video using VHS_VideoCombine."""
+        class_types = set(get_node_class_types(rife_interpolation).values())
+        
+        assert "VHS_VideoCombine" in class_types, (
+            "Should output video with VHS_VideoCombine"
+        )
+    
+    def test_rife_target_fps_is_parameterized(self, rife_interpolation: Dict):
+        """TARGET_FPS must be a placeholder in video combine."""
+        video_combine = rife_interpolation.get("video_combine", {})
+        inputs = video_combine.get("inputs", {})
+        frame_rate = inputs.get("frame_rate", "")
+        
+        assert "{{TARGET_FPS}}" in str(frame_rate), (
+            f"frame_rate should be TARGET_FPS placeholder, got: {frame_rate}"
+        )
+    
+    def test_rife_preserves_audio(self, rife_interpolation: Dict):
+        """RIFE should pass audio through unchanged."""
+        video_combine = rife_interpolation.get("video_combine", {})
+        inputs = video_combine.get("inputs", {})
+        audio = inputs.get("audio", [])
+        
+        # Audio should come from video_loader output index 2
+        assert audio == ["video_loader", 2], (
+            f"audio should passthrough from video_loader[2], got: {audio}"
+        )
+    
+    def test_rife_interpolate_receives_frames(self, rife_interpolation: Dict):
+        """RIFE node should receive frames from video loader."""
+        rife_node = rife_interpolation.get("rife_interpolate", {})
+        inputs = rife_node.get("inputs", {})
+        frames = inputs.get("frames", [])
+        
+        assert frames == ["video_loader", 0], (
+            f"frames should come from video_loader[0], got: {frames}"
+        )
+    
+    def test_rife_video_combine_receives_interpolated(self, rife_interpolation: Dict):
+        """Video combine should receive interpolated frames from RIFE."""
+        video_combine = rife_interpolation.get("video_combine", {})
+        inputs = video_combine.get("inputs", {})
+        images = inputs.get("images", [])
+        
+        assert images == ["rife_interpolate", 0], (
+            f"images should come from rife_interpolate[0], got: {images}"
         )
 
 

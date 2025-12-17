@@ -100,7 +100,7 @@ RenderResult(
 )
 ```
 
-**Prevention:** When mocking a dataclass, check ALL fields. Dataclass field order matters ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â required fields come before optional ones with defaults.
+**Prevention:** When mocking a dataclass, check ALL fields. Dataclass field order matters ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â required fields come before optional ones with defaults.
 
 ---
 
@@ -275,7 +275,7 @@ grep -A 20 "class RetryConfig" src/core/error_recovery.py
 3. Then run full tests: `pytest tests/file.py -v`
 
 ### When Tests Fail
-1. Read the **exact error message** ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â it usually names the missing field/method
+1. Read the **exact error message** ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â it usually names the missing field/method
 2. Check the **source of truth file** for correct interface
 3. Fix the **actual bug** (might be in test mock OR in production code)
 4. **Update this document** with the lesson learned
@@ -336,7 +336,7 @@ client.submit_workflow(workflow)  # FAILS
 # Export from ComfyUI with "Save (API Format)" or convert
 ```
 
-**Prevention:** Check if workflow has `"nodes"` key ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â if yes, it's UI format and needs conversion.
+**Prevention:** Check if workflow has `"nodes"` key ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â if yes, it's UI format and needs conversion.
 
 ---
 
@@ -636,6 +636,30 @@ try:
 
 ---
 
+### J5. Assuming Module Paths Match Logical Grouping
+
+**Error:** Wrote `from src.studio.lip_sync import ...` but file is in `src/sonic/`. Same with `src.types` → `src/sonic/types`.
+
+**Why:** Lip sync feels like "video" but lives in `sonic/` because it's audio-driven (syncing to dialogue).
+
+**Prevention:** Check file tree before imports. Don't assume location from conceptual grouping.
+
+---
+
+### J6. Conditional Import Type Aliases Fail in Type Hints
+
+**Error:** 
+```python
+except ImportError:
+    ColorMatcher = Any  # Runtime variable, NOT a type alias
+
+self.x: Optional[ColorMatcher] = None  # Pylance error: "Variable not allowed in type expression"
+```
+
+**Fix:** Use `Optional[Any]` directly with a comment noting the intended type.
+
+---
+
 *Add new judgment errors above this line as they're discovered.*
 
 ---
@@ -678,27 +702,27 @@ try:
 ### The Bridge Frame Problem
 ```
 Shot A (ends)                    Shot B (starts)
-     │                                │
-     ▼                                ▼
-┌─────────┐                    ┌─────────┐
-│Frame 144│ ──── BRIDGE ────▶ │Frame 1  │
-└─────────┘                    └─────────┘
-     │                                │
-     │ Extract last frame             │ Must match:
-     │                                │  - Visual continuity (I2V)
-     ▼                                │  - Character identity (LoRA)
-┌─────────────────────────────────────┴───────────────┐
-│           pass1_img2vid_lora.json  ◀── THIS FILE    │
-│                                                      │
-│  Inputs:                                             │
-│    - INIT_IMAGE: last frame of Shot A               │
-│    - LORA_PATH: alice_v1.safetensors                │
-│    - PROMPT: "Alice walks to the door"              │
-│                                                      │
-│  Guarantees:                                         │
-│    - Frame 1 of Shot B visually matches Frame 144   │
-│    - Alice's face remains consistent                 │
-└──────────────────────────────────────────────────────┘
+     â”‚                                â”‚
+     â–¼                                â–¼
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”                    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚Frame 144â”‚ â”€â”€â”€â”€ BRIDGE â”€â”€â”€â”€â–¶ â”‚Frame 1  â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+     â”‚                                â”‚
+     â”‚ Extract last frame             â”‚ Must match:
+     â”‚                                â”‚  - Visual continuity (I2V)
+     â–¼                                â”‚  - Character identity (LoRA)
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚           pass1_img2vid_lora.json  â—€â”€â”€ THIS FILE    â”‚
+â”‚                                                      â”‚
+â”‚  Inputs:                                             â”‚
+â”‚    - INIT_IMAGE: last frame of Shot A               â”‚
+â”‚    - LORA_PATH: alice_v1.safetensors                â”‚
+â”‚    - PROMPT: "Alice walks to the door"              â”‚
+â”‚                                                      â”‚
+â”‚  Guarantees:                                         â”‚
+â”‚    - Frame 1 of Shot B visually matches Frame 144   â”‚
+â”‚    - Alice's face remains consistent                 â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
 
 ### 20. Early Return Hides Subsequent Logic Paths
@@ -754,10 +778,10 @@ def _select_workflow_template(self, job):
 ```
 
 **Why Contract Tests Missed It:**
-- JSON valid ✓
-- Node has class_type ✓
-- Node connections valid ✓
-- No dangling references ✓
+- JSON valid âœ“
+- Node has class_type âœ“
+- Node connections valid âœ“
+- No dangling references âœ“
 
 **Why Stress Test Caught It:**
 - Traced backwards from SaveImage

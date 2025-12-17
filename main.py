@@ -37,6 +37,7 @@ Usage:
 import argparse
 import asyncio
 import logging
+import os
 import sys
 import time
 from dataclasses import dataclass, field
@@ -127,8 +128,32 @@ from src.studio.pass1_generator import (
     get_pass1_generator,
 )
 # from src.studio.pass2_refiner import Pass2Refiner
-from src.studio.pass2_refiner import RefinerFactory, ComfyRefiner, BaseRefiner
-from src.studio.rife_interpolator import RIFEInterpolator
+from src.studio.pass2_refiner import (
+    RefinerFactory,
+    ComfyRefiner,
+    BaseRefiner,
+    PassthroughRefiner,
+    RefinementSpec,
+    RefinementResult,
+    RefinementMethod,
+    RefinementQuality,
+    RefinementProgress,
+)
+from src.studio.rife_interpolator import (
+    BaseInterpolator,
+    ComfyRIFEInterpolator,
+    InterpolatorFactory,
+    InterpolationSpec,
+    InterpolationResult,
+)
+from src.sonic.lip_sync import (
+    BaseLipSyncEngine,
+    LipSyncFactory,
+    LipSyncSpec,
+    LipSyncResult,
+    DialogueSegment,
+    PassthroughLipSyncEngine,
+)
 
 # =============================================================================
 # IMPORTS - Audit (Quality Control)
@@ -156,9 +181,37 @@ from src.audit.reviewer import (
 # =============================================================================
 
 try:
-    from src.sonic.mixer import AudioMixer, get_mixer
-    from src.sonic.tts_engine import TTSEngine
-    from src.sonic.ambience import AmbienceGenerator
+    from src.sonic.mixer import AudioMixer
+    from src.sonic.tts_engine import (
+        BaseTTSEngine,
+        get_tts_engine,
+        synthesize_batch,
+    )
+    from src.sonic.ambience import (
+        BaseAmbienceEngine,
+        get_ambience_engine,
+        MockAmbienceEngine,
+    )
+    from src.sonic.foley import (
+        BaseFoleyEngine,
+        get_foley_engine,
+        MockFoleyEngine,
+    )
+    from src.sonic.types import (
+        TTSProvider,
+        AmbienceProvider,
+        FoleyProvider,
+        DialogueLine,
+        SynthesizedDialogue,
+        VoiceConfig,
+        AmbienceSpec,
+        AmbienceType,
+        SynthesizedAmbience,
+        FoleyEvent,
+        FoleyCategory,
+        SynthesizedFoley,
+        AudioGenerationStatus,
+    )
     SONIC_AVAILABLE = True
 except ImportError:
     SONIC_AVAILABLE = False
@@ -168,9 +221,19 @@ except ImportError:
 # =============================================================================
 
 try:
-    from src.post.color_match import ColorMatcher
-    from src.post.audio_ducker import AudioDucker
-    from src.post.stitcher import VideoStitcher
+    from src.post.color_match import ColorMatcher, ColorProfile, ColorMatchResult
+    from src.post.audio_ducker import AudioDucker, DuckingParams, DuckResult
+    from src.post.stitcher import Stitcher
+    from src.post import (
+        VideoClip,
+        AudioTrack,
+        AudioTrackType,
+        TransitionSpec,
+        TransitionType,
+        StitchJob,
+        StitchResult,
+        ColorMatchMethod,
+    )
     POST_AVAILABLE = True
 except ImportError:
     POST_AVAILABLE = False
@@ -244,6 +307,11 @@ class PipelineConfig:
     enable_audio: bool = True
     enable_post: bool = True
     enable_pass2: bool = True
+    enable_lipsync: bool = True
+    enable_interpolation: bool = True
+    
+    # Interpolation settings
+    target_fps: int = 24  # 12fps → 24fps (multiplier = 2)
     
     # Retry settings
     max_reroll_attempts: int = 3
@@ -467,15 +535,23 @@ class ContinuumOrchestrator:
         self.bridge_engine: Optional[BaseBridgeEngine] = None
         self.pass1_generator: Optional[Pass1Generator] = None
         self.pass2_refiner: Optional[BaseRefiner] = None
+        self.lip_sync_engine: Optional[BaseLipSyncEngine] = None
+        self.interpolator: Optional[BaseInterpolator] = None
         
         # Audit components (verification)
         self.reviewer: Optional[Reviewer] = None
         
-        # Sonic components (audio)
-        self.audio_mixer: Optional[Any] = None  # AudioMixer
+        # Sonic components (audio) - Track B
+        self.tts_engine: Optional[BaseTTSEngine] = None
+        self.ambience_engine: Optional[BaseAmbienceEngine] = None
+        self.foley_engine: Optional[BaseFoleyEngine] = None
+        self.audio_mixer: Optional[AudioMixer] = None
         
         # Post components (final assembly)
-        self.stitcher: Optional[Any] = None  # VideoStitcher
+        # Note: Using Any type hint because these imports are conditional
+        self.color_matcher: Optional[Any] = None  # ColorMatcher when available
+        self.audio_ducker: Optional[Any] = None   # AudioDucker when available
+        self.stitcher: Optional[Any] = None       # Stitcher when available
         
         # Infrastructure
         self.checkpoint_manager: Optional[CheckpointManager] = None
@@ -635,21 +711,183 @@ class ContinuumOrchestrator:
         logger.info(f"  Output Dir: {gen_config.output_dir}")
         logger.info(f"  Max Rerolls: {gen_config.max_reroll_attempts}")
         
-        self.progress.report("setup", 0.7, "Initializing audio system...")
+        self.progress.report("setup", 0.62, "Initializing Pass 2 refiner...")
         
         # -----------------------------------------------------------------
-        # 9. Initialize Audio System (optional)
+        # 9. Initialize Pass 2 Refiner
+        # -----------------------------------------------------------------
+        if self.pipeline_config.enable_pass2:
+            refine_output = (
+                self.pipeline_config.output_dir or
+                self.config.paths.output_dir
+            ) / self.scene_graph.project_id / "refined"
+            refine_output.mkdir(parents=True, exist_ok=True)
+            
+            if self.pipeline_config.dry_run:
+                logger.info("DRY RUN: Using passthrough refiner")
+                self.pass2_refiner = PassthroughRefiner(refine_output)
+            else:
+                logger.info("Initializing Refiner Factory")
+                factory = RefinerFactory(
+                    comfy_host=self.config.comfyui.host,
+                    output_dir=refine_output,
+                )
+                self.pass2_refiner = await factory.get_refiner()
+            
+            logger.info(f"  Refinement Output: {refine_output}")
+            logger.info(f"  Method: {self.pass2_refiner.method.value if hasattr(self.pass2_refiner, 'method') else 'passthrough'}")
+        
+        self.progress.report("setup", 0.65, "Initializing lip sync engine...")
+        
+        # -----------------------------------------------------------------
+        # 10. Initialize Lip Sync Engine
+        # -----------------------------------------------------------------
+        if self.pipeline_config.enable_lipsync:
+            lipsync_output = (
+                self.pipeline_config.output_dir or
+                self.config.paths.output_dir
+            ) / self.scene_graph.project_id / "lipsync"
+            lipsync_output.mkdir(parents=True, exist_ok=True)
+            
+            if self.pipeline_config.dry_run:
+                logger.info("DRY RUN: Using passthrough lip sync")
+                self.lip_sync_engine = PassthroughLipSyncEngine(lipsync_output)
+            else:
+                logger.info("Initializing Lip Sync Factory")
+                factory = LipSyncFactory(
+                    comfy_host=self.config.comfyui.host,
+                    output_dir=lipsync_output,
+                )
+                self.lip_sync_engine = await factory.get_engine()
+            
+            logger.info(f"  Lip Sync Output: {lipsync_output}")
+        
+        self.progress.report("setup", 0.7, "Initializing frame interpolator...")
+        
+        # -----------------------------------------------------------------
+        # 10. Initialize RIFE Interpolator
+        # -----------------------------------------------------------------
+        if self.pipeline_config.enable_interpolation:
+            interp_output = (
+                self.pipeline_config.output_dir or
+                self.config.paths.output_dir
+            ) / self.scene_graph.project_id / "interpolated"
+            interp_output.mkdir(parents=True, exist_ok=True)
+            
+            if self.pipeline_config.dry_run:
+                logger.info("DRY RUN: Using passthrough interpolator")
+                from src.studio.rife_interpolator import PassthroughInterpolator
+                self.interpolator = PassthroughInterpolator(interp_output)
+            else:
+                logger.info("Initializing Interpolator Factory")
+                factory = InterpolatorFactory(
+                    comfy_host=self.config.comfyui.host,
+                    output_dir=interp_output,
+                )
+                self.interpolator = await factory.get_interpolator()
+            
+            logger.info(f"  Interpolation Output: {interp_output}")
+            logger.info(f"  Target FPS: {self.pipeline_config.target_fps}")
+        
+        self.progress.report("setup", 0.75, "Initializing audio system...")
+        
+        # -----------------------------------------------------------------
+        # 11. Initialize Audio System (Track B - optional)
         # -----------------------------------------------------------------
         if self.pipeline_config.enable_audio and SONIC_AVAILABLE:
+            audio_output = (
+                self.pipeline_config.output_dir or
+                self.config.paths.output_dir
+            ) / self.scene_graph.project_id / "audio"
+            audio_output.mkdir(parents=True, exist_ok=True)
+            
             if self.pipeline_config.dry_run:
-                logger.info("DRY RUN: Audio generation disabled")
+                logger.info("DRY RUN: Using mock audio engines")
+                self.ambience_engine = MockAmbienceEngine(audio_output / "ambience")
+                self.foley_engine = MockFoleyEngine(audio_output / "foley")
+                # TTS is API-only, skip in dry run
             else:
-                logger.info("Initializing audio mixer")
-                self.audio_mixer = get_mixer()
+                logger.info("Initializing audio engines")
+                
+                # TTS Engine (for dialogue synthesis)
+                try:
+                    self.tts_engine = get_tts_engine(
+                        TTSProvider.ELEVENLABS,
+                        output_dir=audio_output / "dialogue",
+                        api_key=os.environ.get("ELEVENLABS_API_KEY"),
+                    )
+                    logger.info("  TTS: ElevenLabs")
+                except Exception as e:
+                    logger.warning(f"  TTS: Failed to initialize ({e}), dialogue disabled")
+                
+                # Ambience Engine (for background sounds)
+                try:
+                    self.ambience_engine = get_ambience_engine(
+                        AmbienceProvider.REPLICATE,
+                        output_dir=audio_output / "ambience",
+                        api_token=os.environ.get("REPLICATE_API_TOKEN"),
+                    )
+                    logger.info("  Ambience: Replicate AudioLDM")
+                except Exception as e:
+                    logger.warning(f"  Ambience: Failed ({e}), using mock")
+                    self.ambience_engine = MockAmbienceEngine(audio_output / "ambience")
+                
+                # Foley Engine (for sound effects)
+                try:
+                    self.foley_engine = get_foley_engine(
+                        FoleyProvider.FREESOUND,
+                        output_dir=audio_output / "foley",
+                        api_key=os.environ.get("FREESOUND_API_KEY"),
+                    )
+                    logger.info("  Foley: Freesound")
+                except Exception as e:
+                    logger.warning(f"  Foley: Failed ({e}), using mock")
+                    self.foley_engine = MockFoleyEngine(audio_output / "foley")
+                
+                # Audio Mixer (combines all tracks)
+                self.audio_mixer = AudioMixer(output_dir=audio_output / "mixed")
+                logger.info("  Mixer: FFmpeg-based")
+            
+            logger.info(f"  Audio Output: {audio_output}")
         elif not SONIC_AVAILABLE:
             logger.info("Audio system not available (missing dependencies)")
         
-        self.progress.report("setup", 0.8, "Initializing checkpoint system...")
+        self.progress.report("setup", 0.82, "Initializing post-production...")
+        
+        # -----------------------------------------------------------------
+        # 13. Initialize Post-Production Components
+        # -----------------------------------------------------------------
+        if self.pipeline_config.enable_post and POST_AVAILABLE:
+            post_output = (
+                self.pipeline_config.output_dir or
+                self.config.paths.output_dir
+            ) / self.scene_graph.project_id / "post"
+            post_output.mkdir(parents=True, exist_ok=True)
+            
+            # Color Matcher - normalizes colors across shots
+            self.color_matcher = ColorMatcher(
+                method=ColorMatchMethod.MEAN_STD,  # Fast and good enough
+                temp_dir=post_output / "color_temp",
+            )
+            logger.info("  Color Matcher: Mean/Std method")
+            
+            # Audio Ducker - lowers music during dialogue
+            self.audio_ducker = AudioDucker(
+                default_params=DuckingParams.standard(),
+            )
+            logger.info("  Audio Ducker: Standard preset (-12dB)")
+            
+            # Stitcher - final video assembly
+            self.stitcher = Stitcher(
+                temp_dir=post_output / "stitch_temp",
+            )
+            logger.info("  Stitcher: FFmpeg-based")
+            
+            logger.info(f"  Post Output: {post_output}")
+        elif not POST_AVAILABLE:
+            logger.info("Post-production not available (missing dependencies)")
+        
+        self.progress.report("setup", 0.85, "Initializing checkpoint system...")
         
         # -----------------------------------------------------------------
         # 10. Initialize Checkpoint Manager
@@ -672,6 +910,12 @@ class ContinuumOrchestrator:
             await self.renderer.shutdown()
         if self.bridge_engine:
             await self.bridge_engine.shutdown()
+        if self.pass2_refiner and hasattr(self.pass2_refiner, 'shutdown'):
+            await self.pass2_refiner.shutdown()
+        if self.lip_sync_engine and hasattr(self.lip_sync_engine, 'shutdown'):
+            await self.lip_sync_engine.shutdown()
+        if self.interpolator and hasattr(self.interpolator, 'shutdown'):
+            await self.interpolator.shutdown()
         if self.reviewer:
             # Reviewer may have async cleanup
             pass
@@ -749,6 +993,33 @@ class ContinuumOrchestrator:
                 self.pipeline_config.mode in [PipelineMode.FULL, PipelineMode.VIDEO_ONLY]):
                 self.progress.report("refine", 0.0, "Running Pass 2 refinement...")
                 await self._run_pass2_refinement(result.scene_results)
+            
+            # -----------------------------------------------------------------
+            # Phase 2.4: TTS Dialogue Synthesis (required for Lip Sync)
+            # -----------------------------------------------------------------
+            # TTS runs BEFORE Lip Sync because lip sync needs dialogue audio
+            # to know when/how to animate mouths
+            if (self.pipeline_config.enable_audio and
+                self.pipeline_config.enable_lipsync and
+                self.pipeline_config.mode in [PipelineMode.FULL, PipelineMode.VIDEO_ONLY]):
+                self.progress.report("tts", 0.0, "Synthesizing dialogue...")
+                await self._run_tts_synthesis(result.scene_results)
+            
+            # -----------------------------------------------------------------
+            # Phase 2.5: Lip Sync (optional)
+            # -----------------------------------------------------------------
+            if (self.pipeline_config.enable_lipsync and
+                self.pipeline_config.mode in [PipelineMode.FULL, PipelineMode.VIDEO_ONLY]):
+                self.progress.report("lipsync", 0.0, "Running lip sync...")
+                await self._run_lip_sync(result.scene_results)
+            
+            # -----------------------------------------------------------------
+            # Phase 2.6: Frame Interpolation (optional)
+            # -----------------------------------------------------------------
+            if (self.pipeline_config.enable_interpolation and
+                self.pipeline_config.mode in [PipelineMode.FULL, PipelineMode.VIDEO_ONLY]):
+                self.progress.report("interpolate", 0.0, "Running RIFE interpolation...")
+                await self._run_interpolation(result.scene_results)
             
             # -----------------------------------------------------------------
             # Phase 3: Audio Generation (optional)
@@ -857,9 +1128,9 @@ class ContinuumOrchestrator:
                 
                 # Log result
                 if shot_output.all_success:
-                    logger.info(f"✓ Shot {shot.shot_id}: {len(shot_output.chunk_outputs)} chunks")
+                    logger.info(f"âœ“ Shot {shot.shot_id}: {len(shot_output.chunk_outputs)} chunks")
                 else:
-                    logger.warning(f"✗ Shot {shot.shot_id} had failures")
+                    logger.warning(f"âœ— Shot {shot.shot_id} had failures")
             
             # Build scene result
             scene_duration = time.time() - scene_start
@@ -976,29 +1247,766 @@ class ContinuumOrchestrator:
         self, 
         scene_results: List[SceneResult],
     ) -> None:
-        """Run Pass 2 vid2vid refinement."""
+        """
+        Run Pass 2 vid2vid refinement on all generated videos.
+        
+        Pass 2 reduces AI "flicker" and improves temporal consistency
+        without changing the structure or composition from Pass 1.
+        
+        Data flow:
+            Pass 1 video (12fps, flickery) → Pass 2 → Refined video (12fps, smooth)
+        
+        Why this step exists:
+            - Diffusion models generate each frame semi-independently
+            - This causes frame-to-frame inconsistencies (texture flicker, edge jitter)
+            - Vid2vid refinement uses temporal context to smooth these artifacts
+            - Low denoise (0.3-0.5) preserves structure while fixing flicker
+        
+        Architecture note:
+            This runs BEFORE Lip Sync because:
+            1. Lip sync modifies mouth regions - we want those modifications
+               applied to already-smooth video
+            2. Flicker in mouth area would make lip sync harder
+        """
         if not self.pass2_refiner:
             logger.info("Pass 2 refiner not configured, skipping")
             return
         
-        # TODO: Implement Pass 2 refinement
-        logger.info("Pass 2 refinement: Not yet implemented")
+        # Count total chunks for progress
+        total_chunks = sum(
+            len(shot_output.chunk_outputs)
+            for scene_result in scene_results
+            if scene_result.success
+            for shot_output in scene_result.shot_outputs
+        )
+        
+        if total_chunks == 0:
+            logger.info("No video chunks to refine")
+            return
+        
+        processed = 0
+        succeeded = 0
+        failed = 0
+        
+        logger.info(f"Starting Pass 2 refinement: {total_chunks} chunks")
+        
+        for scene_result in scene_results:
+            if not scene_result.success:
+                continue
+            
+            scene = self.scene_graph.get_scene(scene_result.scene_id)
+            
+            for shot_output in scene_result.shot_outputs:
+                shot = self.scene_graph.get_shot(shot_output.shot_id)
+                
+                for chunk_output in shot_output.chunk_outputs:
+                    processed += 1
+                    progress = processed / total_chunks
+                    
+                    # Skip if no video was generated
+                    if not chunk_output.video_path or not chunk_output.video_path.exists():
+                        logger.debug(f"Skipping {chunk_output.chunk_id}: no video")
+                        continue
+                    
+                    self.progress.report(
+                        "refine",
+                        progress,
+                        f"Refining {chunk_output.chunk_id}",
+                        scene_id=scene_result.scene_id,
+                        shot_id=shot_output.shot_id,
+                    )
+                    
+                    # Build refinement spec
+                    output_path = chunk_output.video_path.parent / f"{chunk_output.video_path.stem}_refined.mp4"
+                    
+                    # Determine quality based on pipeline config
+                    quality = self._map_quality_to_refinement(self.pipeline_config.quality)
+                    
+                    spec = RefinementSpec(
+                        input_path=chunk_output.video_path,
+                        output_path=output_path,
+                        shot_id=shot_output.shot_id,
+                        quality=quality,
+                        denoise_strength=0.35,  # Low to preserve structure
+                        preserve_motion=True,
+                        temporal_window=16,
+                    )
+                    
+                    # Create progress callback
+                    def refine_progress(rp: RefinementProgress):
+                        self.progress.report(
+                            f"refine.{rp.stage}",
+                            progress + (rp.progress * (1 / total_chunks)),
+                            rp.message,
+                        )
+                    
+                    try:
+                        result = await self.pass2_refiner.refine(spec, refine_progress)
+                        
+                        if result.success:
+                            # Store refined path on chunk output
+                            chunk_output.refined_video_path = result.output_path
+                            succeeded += 1
+                            logger.info(
+                                f"✓ Refined {chunk_output.chunk_id}: "
+                                f"{result.method_used.value} ({result.processing_time_sec:.1f}s)"
+                            )
+                        else:
+                            failed += 1
+                            logger.warning(
+                                f"✗ Refinement failed {chunk_output.chunk_id}: {result.error}"
+                            )
+                            # Keep using original video if refinement fails
+                            
+                    except Exception as e:
+                        failed += 1
+                        logger.error(f"Refinement error {chunk_output.chunk_id}: {e}")
+                
+                # After refining all chunks, update shot-level refined path
+                # Use the last chunk's refined video as the "shot" refined video
+                # (In practice, shots are usually single-chunk after stitching)
+                refined_paths = [
+                    c.refined_video_path 
+                    for c in shot_output.chunk_outputs 
+                    if hasattr(c, 'refined_video_path') and c.refined_video_path
+                ]
+                if refined_paths:
+                    shot_output.refined_video_path = refined_paths[-1]
+        
+        logger.info(
+            f"Pass 2 refinement complete: "
+            f"{succeeded} succeeded, {failed} failed, {total_chunks} total"
+        )
+    
+    def _map_quality_to_refinement(self, quality: str) -> RefinementQuality:
+        """Map pipeline quality setting to refinement quality."""
+        mapping = {
+            "draft": RefinementQuality.DRAFT,
+            "standard": RefinementQuality.STANDARD,
+            "high": RefinementQuality.HIGH,
+        }
+        return mapping.get(quality.lower(), RefinementQuality.STANDARD)
     
     # -------------------------------------------------------------------------
-    # AUDIO GENERATION (PHASE 3)
+    # LIP SYNC (PHASE 2.5)
+    # -------------------------------------------------------------------------
+    
+    async def _run_lip_sync(
+        self,
+        scene_results: List[SceneResult],
+    ) -> None:
+        """
+        Run lip sync on all shots with dialogue.
+        
+        For each shot that has dialogue, syncs the character's mouth movements
+        to the pre-generated TTS audio. Shots without dialogue pass through.
+        
+        Data flow:
+            Pass2 video → Lip Sync → Video with synced mouths
+            
+        The lip sync engine:
+        1. Detects faces in the video
+        2. Matches dialogue audio to mouth shapes
+        3. Composites synced face back into video
+        """
+        if not self.lip_sync_engine:
+            logger.info("Lip sync engine not configured, skipping")
+            return
+        
+        total_shots = sum(len(sr.shot_outputs) for sr in scene_results)
+        processed = 0
+        
+        for scene_result in scene_results:
+            if not scene_result.success:
+                continue
+            
+            for shot_output in scene_result.shot_outputs:
+                processed += 1
+                progress = processed / max(total_shots, 1)
+                
+                # Get video path (prefer refined, fall back to pass1)
+                video_path = self._get_latest_video_path(shot_output)
+                if not video_path:
+                    logger.warning(f"No video found for shot {shot_output.shot_id}")
+                    continue
+                
+                # Check if shot has dialogue
+                dialogue_segments = self._get_dialogue_segments(shot_output)
+                if not dialogue_segments:
+                    logger.debug(f"Shot {shot_output.shot_id}: No dialogue, skipping lip sync")
+                    continue
+                
+                self.progress.report(
+                    "lipsync", 
+                    progress,
+                    f"Syncing {shot_output.shot_id}",
+                )
+                
+                # Build lip sync spec
+                output_path = video_path.parent / f"{video_path.stem}_lipsync{video_path.suffix}"
+                
+                spec = LipSyncSpec(
+                    input_video=video_path,
+                    output_video=output_path,
+                    shot_id=shot_output.shot_id,
+                    dialogue_segments=dialogue_segments,
+                )
+                
+                try:
+                    result = await self.lip_sync_engine.sync(spec)
+                    
+                    if result.success:
+                        # Update shot output with lip-synced video path
+                        shot_output.lipsync_video_path = result.output_video
+                        logger.info(f"✓ Lip sync {shot_output.shot_id}: {result.output_video}")
+                    else:
+                        logger.warning(f"✗ Lip sync {shot_output.shot_id}: {result.error}")
+                        
+                except Exception as e:
+                    logger.error(f"Lip sync failed for {shot_output.shot_id}: {e}")
+        
+        logger.info(f"Lip sync complete: processed {processed} shots")
+    
+    def _get_latest_video_path(self, shot_output: ShotOutput) -> Optional[Path]:
+        """
+        Get the most recent video path for a shot.
+        
+        Priority: refined → pass1
+        """
+        # Check for refined video first
+        if hasattr(shot_output, 'refined_video_path') and shot_output.refined_video_path:
+            return shot_output.refined_video_path
+        
+        # Fall back to pass1 video
+        if shot_output.video_paths:
+            return shot_output.video_paths[-1]  # Last chunk is full shot
+        
+        return None
+    
+    def _get_dialogue_segments(self, shot_output: ShotOutput) -> List[DialogueSegment]:
+        """
+        Extract dialogue segments for a shot.
+        
+        In a full implementation, this would come from:
+        1. TTS engine output (synthesized audio files)
+        2. Scene graph dialogue lines
+        3. Timing from pacer
+        
+        For now, returns empty list (no dialogue) unless shot has audio.
+        """
+        # TODO: Wire to TTS engine output and scene graph dialogue
+        # This is a placeholder - real implementation needs:
+        # - Access to synthesized dialogue from TTS engine
+        # - Timing information from scene graph
+        
+        if hasattr(shot_output, 'dialogue_segments'):
+            return shot_output.dialogue_segments
+        
+        return []
+    
+    # -------------------------------------------------------------------------
+    # FRAME INTERPOLATION (PHASE 2.6)
+    # -------------------------------------------------------------------------
+    
+    async def _run_interpolation(
+        self,
+        scene_results: List[SceneResult],
+    ) -> None:
+        """
+        Run RIFE frame interpolation to upscale 12fps → 24fps.
+        
+        This is the LAST GPU-intensive step. After this, we only do
+        CPU-based post-production (color grading, audio mixing, stitching).
+        
+        Why interpolate:
+        - AI video models produce 12fps (compute efficient)
+        - Human perception needs 24fps (smooth motion)
+        - RIFE is cheaper than generating 2x frames
+        
+        Data flow:
+            Lip-synced video (12fps) → RIFE → Smooth video (24fps)
+        """
+        if not self.interpolator:
+            logger.info("Interpolator not configured, skipping")
+            return
+        
+        target_fps = self.pipeline_config.target_fps
+        
+        total_shots = sum(len(sr.shot_outputs) for sr in scene_results)
+        processed = 0
+        
+        for scene_result in scene_results:
+            if not scene_result.success:
+                continue
+            
+            for shot_output in scene_result.shot_outputs:
+                processed += 1
+                progress = processed / max(total_shots, 1)
+                
+                # Get video path (prefer lip-synced, then refined, then pass1)
+                video_path = self._get_video_for_interpolation(shot_output)
+                if not video_path:
+                    logger.warning(f"No video found for shot {shot_output.shot_id}")
+                    continue
+                
+                self.progress.report(
+                    "interpolate",
+                    progress,
+                    f"Interpolating {shot_output.shot_id} to {target_fps}fps",
+                )
+                
+                # Build interpolation spec
+                output_path = video_path.parent / f"{video_path.stem}_{target_fps}fps{video_path.suffix}"
+                
+                spec = InterpolationSpec(
+                    input_path=video_path,
+                    output_path=output_path,
+                    target_fps=target_fps,
+                    source_fps=12,  # Our pipeline standard
+                )
+                
+                try:
+                    result = await self.interpolator.interpolate(spec)
+                    
+                    if result.success:
+                        # Update shot output with interpolated video path
+                        shot_output.interpolated_video_path = result.output_path
+                        logger.info(
+                            f"✓ Interpolated {shot_output.shot_id}: "
+                            f"{result.source_fps}fps → {result.output_fps}fps"
+                        )
+                    else:
+                        logger.warning(f"✗ Interpolation {shot_output.shot_id}: {result.error}")
+                        
+                except Exception as e:
+                    logger.error(f"Interpolation failed for {shot_output.shot_id}: {e}")
+        
+        logger.info(f"Interpolation complete: processed {processed} shots to {target_fps}fps")
+    
+    def _get_video_for_interpolation(self, shot_output: ShotOutput) -> Optional[Path]:
+        """
+        Get the video path to interpolate.
+        
+        Priority: lipsync → refined → pass1
+        
+        This ensures we interpolate the most processed version.
+        """
+        # Check for lip-synced video first
+        if hasattr(shot_output, 'lipsync_video_path') and shot_output.lipsync_video_path:
+            return shot_output.lipsync_video_path
+        
+        # Then refined
+        if hasattr(shot_output, 'refined_video_path') and shot_output.refined_video_path:
+            return shot_output.refined_video_path
+        
+        # Fall back to pass1
+        if shot_output.video_paths:
+            return shot_output.video_paths[-1]
+        
+        return None
+    
+    # -------------------------------------------------------------------------
+    # TTS SYNTHESIS (PHASE 2.4)
+    # -------------------------------------------------------------------------
+    
+    async def _run_tts_synthesis(
+        self,
+        scene_results: List[SceneResult],
+    ) -> None:
+        """
+        Synthesize dialogue audio from script text.
+        
+        This runs BEFORE Lip Sync because lip sync needs the audio files
+        to determine mouth movements. The dialogue_segments are attached
+        to shot_outputs so lip sync can read them.
+        
+        Data flow:
+            SceneGraph.Shot.dialogue → TTS Engine → DialogueSegment
+                                                         ↓
+                                           ShotOutput.dialogue_segments
+                                                         ↓
+                                                    Lip Sync reads this
+        """
+        if not self.tts_engine:
+            logger.info("TTS engine not configured, skipping dialogue synthesis")
+            return
+        
+        total_lines = 0
+        synthesized = 0
+        failed = 0
+        
+        for scene_result in scene_results:
+            if not scene_result.success:
+                continue
+            
+            scene = self.scene_graph.get_scene(scene_result.scene_id)
+            if not scene:
+                continue
+            
+            for shot_output in scene_result.shot_outputs:
+                shot = self.scene_graph.get_shot(shot_output.shot_id)
+                if not shot or not shot.has_dialogue:
+                    continue
+                
+                # Convert shot.dialogue to DialogueLine objects
+                dialogue_lines = self._extract_dialogue_lines(shot)
+                total_lines += len(dialogue_lines)
+                
+                # Get voice configs from consistency dict
+                voice_configs = self._get_voice_configs(shot)
+                
+                # Synthesize each line
+                dialogue_segments = []
+                for line in dialogue_lines:
+                    self.progress.report(
+                        "tts",
+                        synthesized / max(total_lines, 1),
+                        f"Synthesizing: {line.character_id}",
+                    )
+                    
+                    voice_config = voice_configs.get(line.character_id)
+                    if not voice_config:
+                        logger.warning(f"No voice config for {line.character_id}, skipping")
+                        continue
+                    
+                    try:
+                        result = await self.tts_engine.synthesize(line, voice_config)
+                        
+                        if result.status == AudioGenerationStatus.COMPLETED:
+                            # Create DialogueSegment for lip sync
+                            segment = DialogueSegment(
+                                audio_path=result.audio_path,
+                                start_time_sec=line.start_time_sec,
+                                end_time_sec=line.start_time_sec + result.actual_duration_sec,
+                                character_id=line.character_id,
+                                line_id=line.line_id,
+                            )
+                            dialogue_segments.append(segment)
+                            synthesized += 1
+                            logger.debug(f"✓ TTS {line.line_id}: {result.actual_duration_sec:.1f}s")
+                        else:
+                            failed += 1
+                            logger.warning(f"✗ TTS {line.line_id}: {result.error}")
+                            
+                    except Exception as e:
+                        failed += 1
+                        logger.error(f"TTS failed for {line.line_id}: {e}")
+                
+                # Attach dialogue segments to shot output for lip sync to read
+                shot_output.dialogue_segments = dialogue_segments
+        
+        logger.info(f"TTS complete: {synthesized} synthesized, {failed} failed, {total_lines} total")
+    
+    def _extract_dialogue_lines(self, shot: Shot) -> List[DialogueLine]:
+        """
+        Convert shot.dialogue dicts to DialogueLine objects.
+        
+        shot.dialogue is: [{"character": "alice", "line": "Hello"}, ...]
+        We need to convert to DialogueLine with timing information.
+        """
+        lines = []
+        current_time = 0.0
+        
+        for i, d in enumerate(shot.dialogue):
+            character_id = d.get("character", "unknown")
+            text = d.get("line", "")
+            
+            if not text:
+                continue
+            
+            line = DialogueLine(
+                line_id=f"{shot.shot_id}_line_{i:02d}",
+                character_id=character_id,
+                text=text,
+                start_time_sec=current_time,
+                emotion=None,  # Could extract from d.get("emotion")
+                direction=d.get("direction"),
+                shot_id=shot.shot_id,
+                scene_id=shot.scene_id if hasattr(shot, 'scene_id') else "",
+            )
+            lines.append(line)
+            
+            # Advance time by estimated duration + small gap
+            current_time += line.estimated_duration_sec + 0.3
+        
+        return lines
+    
+    def _get_voice_configs(self, shot: Shot) -> Dict[str, VoiceConfig]:
+        """
+        Get voice configurations for all characters in a shot.
+        
+        Reads from consistency_dict which stores character voice settings.
+        """
+        configs = {}
+        
+        for char in shot.characters:
+            char_id = char.entity_id if hasattr(char, 'entity_id') else str(char)
+            
+            # Try to get voice config from consistency dict
+            if self.consistency_dict:
+                char_data = self.consistency_dict.get_character(char_id)
+                if char_data and char_data.voice_id:
+                    configs[char_id] = VoiceConfig(
+                        character_id=char_id,
+                        voice_id=char_data.voice_id,
+                        provider=TTSProvider.ELEVENLABS,
+                    )
+                    continue
+            
+            # Default voice config if not in consistency dict
+            configs[char_id] = VoiceConfig(
+                character_id=char_id,
+                voice_id="",  # Use provider default
+                provider=TTSProvider.ELEVENLABS,
+            )
+        
+        return configs
+    
+    # -------------------------------------------------------------------------
+    # AUDIO GENERATION (PHASE 3) - Ambience, Foley, Mix
     # -------------------------------------------------------------------------
     
     async def _run_audio_generation(
         self, 
         scene_results: List[SceneResult],
     ) -> None:
-        """Generate audio for all scenes."""
+        """
+        Generate ambient and foley audio, then mix all tracks.
+        
+        Note: TTS (dialogue) is handled separately in _run_tts_synthesis()
+        because it must complete before Lip Sync.
+        
+        This phase generates:
+        1. Ambience - Background soundscapes per scene
+        2. Foley - Sound effects for actions
+        3. Mix - Combines dialogue + ambience + foley per shot
+        """
+        # Check dependencies
         if not self.audio_mixer:
-            logger.info("Audio mixer not configured, skipping")
+            logger.info("Audio mixer not configured, skipping audio generation")
             return
         
-        # TODO: Implement audio generation
-        logger.info("Audio generation: Not yet implemented")
+        # -----------------------------------------------------------------
+        # Step 1: Generate Ambience (per scene)
+        # -----------------------------------------------------------------
+        if self.ambience_engine:
+            await self._generate_scene_ambience(scene_results)
+        else:
+            logger.info("Ambience engine not configured, skipping")
+        
+        # -----------------------------------------------------------------
+        # Step 2: Generate Foley (per shot action)
+        # -----------------------------------------------------------------
+        if self.foley_engine:
+            await self._generate_shot_foley(scene_results)
+        else:
+            logger.info("Foley engine not configured, skipping")
+        
+        # -----------------------------------------------------------------
+        # Step 3: Mix all tracks (per shot)
+        # -----------------------------------------------------------------
+        await self._mix_audio_tracks(scene_results)
+        
+        logger.info("Audio generation complete")
+    
+    async def _generate_scene_ambience(
+        self,
+        scene_results: List[SceneResult],
+    ) -> None:
+        """Generate ambient background audio for each scene."""
+        for scene_result in scene_results:
+            if not scene_result.success:
+                continue
+            
+            scene = self.scene_graph.get_scene(scene_result.scene_id)
+            if not scene:
+                continue
+            
+            # Build ambience spec from scene location
+            location_desc = ""
+            if scene.location:
+                location_id = scene.location.entity_id if hasattr(scene.location, 'entity_id') else str(scene.location)
+                if self.consistency_dict:
+                    loc_data = self.consistency_dict.get_location(location_id)
+                    if loc_data:
+                        location_desc = loc_data.description or loc_data.name
+                if not location_desc:
+                    location_desc = location_id
+            
+            # Determine ambience type from location
+            ambience_type = self._infer_ambience_type(location_desc)
+            
+            spec = AmbienceSpec(
+                ambience_id=f"{scene.scene_id}_ambience",
+                type=ambience_type,
+                description=f"ambient background sounds for {location_desc}",
+                duration_sec=scene.total_duration_sec,
+                intensity=0.5,
+                loop=True,
+                scene_id=scene.scene_id,
+            )
+            
+            self.progress.report("audio", 0.3, f"Generating ambience for {scene.scene_id}")
+            
+            try:
+                result = await self.ambience_engine.generate(spec)
+                if result.status == AudioGenerationStatus.COMPLETED:
+                    scene_result.ambience_path = result.audio_path
+                    logger.info(f"✓ Ambience {scene.scene_id}: {result.actual_duration_sec:.1f}s")
+                else:
+                    logger.warning(f"✗ Ambience {scene.scene_id}: {result.error}")
+            except Exception as e:
+                logger.error(f"Ambience generation failed for {scene.scene_id}: {e}")
+    
+    def _infer_ambience_type(self, location_desc: str) -> AmbienceType:
+        """Infer ambience type from location description."""
+        desc_lower = location_desc.lower()
+        
+        if any(x in desc_lower for x in ["forest", "jungle", "woods"]):
+            return AmbienceType.NATURE
+        elif any(x in desc_lower for x in ["city", "street", "urban"]):
+            return AmbienceType.URBAN
+        elif any(x in desc_lower for x in ["office", "room", "indoor"]):
+            return AmbienceType.INTERIOR
+        elif any(x in desc_lower for x in ["ocean", "beach", "water"]):
+            return AmbienceType.WATER
+        elif any(x in desc_lower for x in ["cafe", "restaurant", "bar"]):
+            return AmbienceType.CROWD
+        else:
+            return AmbienceType.INTERIOR  # Default
+    
+    async def _generate_shot_foley(
+        self,
+        scene_results: List[SceneResult],
+    ) -> None:
+        """Generate foley sound effects for shot actions."""
+        for scene_result in scene_results:
+            if not scene_result.success:
+                continue
+            
+            for shot_output in scene_result.shot_outputs:
+                shot = self.scene_graph.get_shot(shot_output.shot_id)
+                if not shot:
+                    continue
+                
+                # Extract foley events from shot description
+                foley_events = self._extract_foley_events(shot)
+                if not foley_events:
+                    continue
+                
+                shot_foley = []
+                for event in foley_events:
+                    try:
+                        result = await self.foley_engine.retrieve(event)
+                        if result.status == AudioGenerationStatus.COMPLETED:
+                            shot_foley.append(result)
+                            logger.debug(f"✓ Foley {event.event_id}")
+                        else:
+                            logger.warning(f"✗ Foley {event.event_id}: {result.error}")
+                    except Exception as e:
+                        logger.error(f"Foley failed for {event.event_id}: {e}")
+                
+                shot_output.foley_tracks = shot_foley
+    
+    def _extract_foley_events(self, shot: Shot) -> List[FoleyEvent]:
+        """
+        Extract foley events from shot description.
+        
+        This is a simplified extraction. A full implementation would
+        use NLP to parse action verbs and map to foley categories.
+        """
+        events = []
+        desc_lower = shot.description.lower()
+        
+        # Simple keyword matching for common foley
+        foley_keywords = {
+            "walk": (FoleyCategory.FOOTSTEPS, "walking footsteps"),
+            "run": (FoleyCategory.FOOTSTEPS, "running footsteps"),
+            "door": (FoleyCategory.DOORS, "door opening or closing"),
+            "knock": (FoleyCategory.DOORS, "knocking on door"),
+            "drink": (FoleyCategory.HANDLING, "drinking from glass"),
+            "eat": (FoleyCategory.HANDLING, "eating food sounds"),
+            "type": (FoleyCategory.HANDLING, "keyboard typing"),
+            "phone": (FoleyCategory.ELECTRONICS, "phone ringing"),
+        }
+        
+        for keyword, (category, description) in foley_keywords.items():
+            if keyword in desc_lower:
+                event = FoleyEvent(
+                    event_id=f"{shot.shot_id}_foley_{keyword}",
+                    category=category,
+                    description=description,
+                    trigger_time_sec=0.5,  # Simplified: mid-shot
+                    duration_sec=1.0,
+                    shot_id=shot.shot_id,
+                )
+                events.append(event)
+        
+        return events
+    
+    async def _mix_audio_tracks(
+        self,
+        scene_results: List[SceneResult],
+    ) -> None:
+        """Mix dialogue, ambience, and foley into final audio per shot."""
+        for scene_result in scene_results:
+            if not scene_result.success:
+                continue
+            
+            for shot_output in scene_result.shot_outputs:
+                shot = self.scene_graph.get_shot(shot_output.shot_id)
+                if not shot:
+                    continue
+                
+                # Gather audio components
+                dialogue = getattr(shot_output, 'dialogue_segments', [])
+                ambience = getattr(scene_result, 'ambience_path', None)
+                foley = getattr(shot_output, 'foley_tracks', [])
+                
+                if not any([dialogue, ambience, foley]):
+                    logger.debug(f"No audio to mix for {shot_output.shot_id}")
+                    continue
+                
+                self.progress.report("audio", 0.8, f"Mixing {shot_output.shot_id}")
+                
+                try:
+                    # Convert dialogue segments to SynthesizedDialogue format
+                    synth_dialogue = [
+                        SynthesizedDialogue(
+                            line_id=seg.line_id,
+                            audio_path=seg.audio_path,
+                            actual_duration_sec=seg.end_time_sec - seg.start_time_sec,
+                            status=AudioGenerationStatus.COMPLETED,
+                        )
+                        for seg in dialogue
+                    ]
+                    
+                    # Convert ambience path to SynthesizedAmbience
+                    synth_ambience = None
+                    if ambience:
+                        synth_ambience = SynthesizedAmbience(
+                            ambience_id=f"{scene_result.scene_id}_ambience",
+                            audio_path=ambience,
+                            actual_duration_sec=shot.duration_sec,
+                            status=AudioGenerationStatus.COMPLETED,
+                        )
+                    
+                    result = await self.audio_mixer.mix_shot(
+                        shot_id=shot_output.shot_id,
+                        duration_sec=shot.duration_sec,
+                        dialogue=synth_dialogue,
+                        ambience=synth_ambience,
+                        foley=foley,
+                    )
+                    
+                    if result.success:
+                        shot_output.mixed_audio_path = result.output_path
+                        logger.info(f"✓ Mixed {shot_output.shot_id}")
+                    else:
+                        logger.warning(f"✗ Mix {shot_output.shot_id}: {result.error}")
+                        
+                except Exception as e:
+                    logger.error(f"Audio mixing failed for {shot_output.shot_id}: {e}")
     
     # -------------------------------------------------------------------------
     # POST-PRODUCTION (PHASE 4)
@@ -1008,10 +2016,354 @@ class ContinuumOrchestrator:
         self, 
         scene_results: List[SceneResult],
     ) -> Optional[Path]:
-        """Run post-production and stitch final output."""
-        # TODO: Implement post-production
-        logger.info("Post-production: Not yet implemented")
+        """
+        Run post-production pipeline and stitch final output.
+        
+        This is the LAST phase of the pipeline. It takes all the generated
+        and processed videos and combines them into a single final output.
+        
+        Data flow:
+            Interpolated videos (24fps) ─┬─→ Color Match ─→ Color-matched videos
+                                         │
+            Dialogue + Ambience + Music ─┼─→ Audio Duck ─→ Ducked audio mix
+                                         │
+                                         └─→ Stitcher ─→ final_output.mp4
+        
+        Why this order:
+            1. Color matching BEFORE stitching - each shot needs normalization
+            2. Audio ducking BEFORE stitching - balance tracks first
+            3. Stitching LAST - combines everything into final deliverable
+        
+        Architecture alignment:
+            From ARCHITECTURE_SUMMARY.md:
+            - Auto-Color Match (Histogram → Master Shot)
+            - Audio Ducking (-12dB during dialogue)
+            - Final Stitch (FFmpeg)
+        """
+        if not self.stitcher:
+            logger.warning("Stitcher not available, skipping post-production")
+            return None
+        
+        # Collect all video paths in scene/shot order
+        video_paths = self._collect_final_video_paths(scene_results)
+        
+        if not video_paths:
+            logger.error("No videos to stitch")
+            return None
+        
+        logger.info(f"Starting post-production: {len(video_paths)} videos")
+        
+        # Determine output path
+        output_dir = (
+            self.pipeline_config.output_dir or
+            self.config.paths.output_dir
+        ) / self.scene_graph.project_id
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        final_output = output_dir / "final_output.mp4"
+        
+        # -----------------------------------------------------------------
+        # Step 1: Color Matching (normalize colors to master shot)
+        # -----------------------------------------------------------------
+        color_matched_paths = video_paths  # Default: use original if no matcher
+        
+        if self.color_matcher and len(video_paths) > 1:
+            self.progress.report("post", 0.1, "Analyzing master shot for color reference...")
+            
+            try:
+                color_matched_paths = await self._run_color_matching(
+                    video_paths, 
+                    output_dir / "color_matched"
+                )
+                logger.info(f"✓ Color matched {len(color_matched_paths)} videos")
+            except Exception as e:
+                logger.warning(f"Color matching failed: {e}, using original colors")
+                color_matched_paths = video_paths
+        
+        # -----------------------------------------------------------------
+        # Step 2: Audio Ducking (lower music during dialogue)
+        # -----------------------------------------------------------------
+        ducked_audio_path = None
+        
+        if self.audio_ducker and self.pipeline_config.enable_audio:
+            self.progress.report("post", 0.4, "Ducking audio tracks...")
+            
+            try:
+                ducked_audio_path = await self._run_audio_ducking(
+                    scene_results,
+                    output_dir / "audio_ducked"
+                )
+                if ducked_audio_path:
+                    logger.info(f"✓ Audio ducked: {ducked_audio_path}")
+            except Exception as e:
+                logger.warning(f"Audio ducking failed: {e}, using unducked audio")
+        
+        # -----------------------------------------------------------------
+        # Step 3: Final Stitch (assemble everything)
+        # -----------------------------------------------------------------
+        self.progress.report("post", 0.6, "Stitching final video...")
+        
+        try:
+            stitch_result = await self._run_final_stitch(
+                video_paths=color_matched_paths,
+                audio_path=ducked_audio_path,
+                output_path=final_output,
+            )
+            
+            if stitch_result.success:
+                logger.info(f"✓ Final output: {final_output}")
+                logger.info(f"  Duration: {stitch_result.duration_sec:.1f}s")
+                logger.info(f"  Resolution: {stitch_result.resolution}")
+                logger.info(f"  Processing time: {stitch_result.processing_time_sec:.1f}s")
+                
+                self.progress.report("post", 1.0, "Post-production complete!")
+                return final_output
+            else:
+                logger.error(f"Stitching failed: {stitch_result.error}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Post-production failed: {e}")
+            return None
+    
+    def _collect_final_video_paths(
+        self, 
+        scene_results: List[SceneResult]
+    ) -> List[Path]:
+        """
+        Collect final video paths from all shots in scene order.
+        
+        Priority: interpolated → lipsync → refined → pass1
+        
+        This order reflects the pipeline stages:
+        - interpolated: After RIFE (24fps, smoothest)
+        - lipsync: After lip sync but before RIFE
+        - refined: After Pass 2 but before lip sync
+        - pass1: Raw Pass 1 output (fallback)
+        """
+        paths = []
+        
+        for scene_result in scene_results:
+            if not scene_result.success:
+                continue
+            
+            for shot_output in scene_result.shot_outputs:
+                path = self._get_best_video_path(shot_output)
+                if path and path.exists():
+                    paths.append(path)
+                else:
+                    logger.warning(f"No video found for {shot_output.shot_id}")
+        
+        return paths
+    
+    def _get_best_video_path(self, shot_output: ShotOutput) -> Optional[Path]:
+        """
+        Get the best available video path for a shot.
+        
+        Priority order (highest to lowest quality):
+        1. interpolated_video_path - 24fps, fully processed
+        2. lipsync_video_path - Has lip sync, 12fps
+        3. refined_video_path - Pass 2 refined, 12fps
+        4. video_paths[-1] - Last chunk from Pass 1
+        """
+        # Check in priority order
+        if hasattr(shot_output, 'interpolated_video_path') and shot_output.interpolated_video_path:
+            return shot_output.interpolated_video_path
+        
+        if hasattr(shot_output, 'lipsync_video_path') and shot_output.lipsync_video_path:
+            return shot_output.lipsync_video_path
+        
+        if hasattr(shot_output, 'refined_video_path') and shot_output.refined_video_path:
+            return shot_output.refined_video_path
+        
+        # Fall back to last chunk from Pass 1
+        if shot_output.video_paths:
+            return shot_output.video_paths[-1]
+        
         return None
+    
+    async def _run_color_matching(
+        self,
+        video_paths: List[Path],
+        output_dir: Path,
+    ) -> List[Path]:
+        """
+        Match colors of all videos to the master shot.
+        
+        The master shot is the first video (index 0). All other videos
+        are adjusted to match its color profile.
+        
+        Why first shot as master:
+        - Establishes the "look" of the film
+        - Usually the widest/establishing shot
+        - Consistent with film industry practice
+        """
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        if len(video_paths) < 2:
+            return video_paths
+        
+        # Analyze master shot (first video)
+        master_path = video_paths[0]
+        self.progress.report("post.color", 0.1, f"Analyzing master: {master_path.name}")
+        
+        reference_profile = await self.color_matcher.analyze_reference(master_path)
+        
+        # Master shot doesn't need matching - just copy or reference
+        matched_paths = [master_path]
+        
+        # Match all other shots to master
+        for i, video_path in enumerate(video_paths[1:], start=1):
+            progress = 0.1 + (0.9 * i / len(video_paths))
+            self.progress.report(
+                "post.color", 
+                progress, 
+                f"Matching {video_path.name} to master"
+            )
+            
+            output_path = output_dir / f"{video_path.stem}_matched.mp4"
+            
+            try:
+                result = await self.color_matcher.match_clip(
+                    clip_path=video_path,
+                    reference=reference_profile,
+                    output_path=output_path,
+                )
+                
+                if result.success:
+                    matched_paths.append(output_path)
+                    logger.debug(f"✓ Color matched: {video_path.name}")
+                else:
+                    logger.warning(f"Color match failed for {video_path.name}: {result.error}")
+                    matched_paths.append(video_path)  # Use original
+                    
+            except Exception as e:
+                logger.warning(f"Color match error for {video_path.name}: {e}")
+                matched_paths.append(video_path)  # Use original
+        
+        return matched_paths
+    
+    async def _run_audio_ducking(
+        self,
+        scene_results: List[SceneResult],
+        output_dir: Path,
+    ) -> Optional[Path]:
+        """
+        Apply ducking to lower music/ambience during dialogue.
+        
+        This uses dialogue as the "sidechain" - when dialogue is present,
+        the music and ambience are automatically lowered.
+        
+        Returns path to the final mixed and ducked audio, or None if
+        no audio tracks are available.
+        """
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Collect all audio tracks
+        dialogue_paths = []
+        ambience_paths = []
+        music_path = None  # TODO: Wire to score generation
+        
+        for scene_result in scene_results:
+            if not scene_result.success:
+                continue
+            
+            # Collect scene-level ambience
+            if hasattr(scene_result, 'ambience_path') and scene_result.ambience_path:
+                ambience_paths.append(scene_result.ambience_path)
+            
+            # Collect shot-level dialogue
+            for shot_output in scene_result.shot_outputs:
+                if hasattr(shot_output, 'mixed_audio_path') and shot_output.mixed_audio_path:
+                    dialogue_paths.append(shot_output.mixed_audio_path)
+                elif hasattr(shot_output, 'dialogue_segments'):
+                    for seg in shot_output.dialogue_segments:
+                        if seg.audio_path and seg.audio_path.exists():
+                            dialogue_paths.append(seg.audio_path)
+        
+        if not dialogue_paths and not ambience_paths:
+            logger.info("No audio tracks to duck")
+            return None
+        
+        # If we have both dialogue and background audio, apply ducking
+        if dialogue_paths and (ambience_paths or music_path):
+            # Concatenate dialogue into single track for ducking reference
+            dialogue_concat = output_dir / "dialogue_concat.wav"
+            # TODO: Implement audio concatenation with proper timing
+            
+            # For now, just use the mixed audio from shots
+            # Full implementation would use audio_ducker.duck() here
+            logger.info("Audio ducking: Using pre-mixed shot audio")
+        
+        return None  # Return None until full audio concatenation is implemented
+    
+    async def _run_final_stitch(
+        self,
+        video_paths: List[Path],
+        audio_path: Optional[Path],
+        output_path: Path,
+    ) -> StitchResult:
+        """
+        Stitch all videos into final output.
+        
+        This is the final assembly step. It concatenates all video clips
+        and optionally adds a separate audio track.
+        
+        Uses hard cuts between shots (TransitionType.CUT) by default.
+        Dissolves and other transitions can be added via scene graph metadata.
+        """
+        # Build VideoClip objects for each path
+        from src.post.ffmpeg_wrapper import probe_video
+        
+        clips = []
+        for i, path in enumerate(video_paths):
+            try:
+                info = await probe_video(path)
+                clip = VideoClip(
+                    path=path,
+                    shot_id=f"shot_{i:03d}",
+                    duration_sec=info.duration_sec,
+                    resolution=info.resolution,
+                    fps=info.fps,
+                    has_audio=info.has_audio,
+                )
+                clips.append(clip)
+            except Exception as e:
+                logger.error(f"Failed to probe {path}: {e}")
+                return StitchResult.failed(f"Failed to probe {path}: {e}")
+        
+        if not clips:
+            return StitchResult.failed("No valid clips to stitch")
+        
+        # Build stitch job
+        # Default to hard cuts between all clips
+        transitions = [TransitionSpec.cut() for _ in range(len(clips) - 1)]
+        
+        # Build audio tracks if we have ducked audio
+        audio_tracks = []
+        if audio_path and audio_path.exists():
+            audio_tracks.append(AudioTrack(
+                path=audio_path,
+                track_type=AudioTrackType.MASTER,
+                volume_db=0.0,
+            ))
+        
+        job = StitchJob(
+            clips=clips,
+            output_path=output_path,
+            transitions=transitions,
+            target_fps=self.pipeline_config.target_fps,
+            audio_tracks=audio_tracks,
+            normalize_color=False,  # Already done in color matching step
+            normalize_audio=True,
+        )
+        
+        # Execute stitch
+        self.progress.report("post.stitch", 0.5, f"Stitching {len(clips)} clips...")
+        
+        result = await self.stitcher.stitch(job)
+        
+        return result
     
     # -------------------------------------------------------------------------
     # UTILITIES

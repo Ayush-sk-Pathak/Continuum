@@ -457,10 +457,12 @@ class ComfyRIFEInterpolator(BaseInterpolator):
             
             report_progress("interpolating", 0.3, "Preparing workflow...")
             
-            # Inject parameters
+            
+            # Inject parameters - must match rife_interpolation.json placeholders
             params = {
+                "INPUT_VIDEO": str(spec.input_path),
                 "MULTIPLIER": int(multiplier) if multiplier == int(multiplier) else multiplier,
-                "SCENE_DETECT": spec.scene_detect,
+                "TARGET_FPS": spec.target_fps,
             }
             inject_result = self._loader.inject(template, params)
             workflow = inject_result.workflow if hasattr(inject_result, 'workflow') else inject_result
