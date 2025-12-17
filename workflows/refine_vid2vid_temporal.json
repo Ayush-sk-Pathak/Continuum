@@ -1,0 +1,100 @@
+{
+  "video_loader": {
+    "class_type": "VHS_LoadVideo",
+    "inputs": {
+      "video": "{{INPUT_VIDEO}}",
+      "force_rate": 0,
+      "force_size": "Disabled",
+      "custom_width": 0,
+      "custom_height": 0,
+      "frame_load_cap": "{{TEMPORAL_WINDOW}}",
+      "skip_first_frames": 0,
+      "select_every_nth": 1
+    }
+  },
+
+  "checkpoint_loader": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "sd_xl_base_1.0.safetensors"
+    }
+  },
+
+  "positive_prompt": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "{{POSITIVE_PROMPT}}",
+      "clip": ["checkpoint_loader", 1]
+    }
+  },
+
+  "negative_prompt": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "{{NEGATIVE_PROMPT}}",
+      "clip": ["checkpoint_loader", 1]
+    }
+  },
+
+  "vae_encode": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": ["video_loader", 0],
+      "vae": ["checkpoint_loader", 2]
+    }
+  },
+
+  "batch_sampler": {
+    "class_type": "KSamplerBatch",
+    "inputs": {
+      "seed": "{{SEED}}",
+      "control_after_generate": "fixed",
+      "steps": "{{STEPS}}",
+      "cfg": "{{CFG_SCALE}}",
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": "{{DENOISE_STRENGTH}}",
+      "model": ["checkpoint_loader", 0],
+      "positive": ["positive_prompt", 0],
+      "negative": ["negative_prompt", 0],
+      "latent_image": ["vae_encode", 0],
+      "batch_size": "{{TEMPORAL_WINDOW}}",
+      "temporal_coherence": true
+    }
+  },
+
+  "vae_decode": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["batch_sampler", 0],
+      "vae": ["checkpoint_loader", 2]
+    }
+  },
+
+  "temporal_smooth": {
+    "class_type": "TemporalSmooth",
+    "inputs": {
+      "images": ["vae_decode", 0],
+      "window_size": 3,
+      "strength": 0.3
+    }
+  },
+
+  "create_video": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "fps": "{{FPS}}",
+      "images": ["temporal_smooth", 0]
+    }
+  },
+
+  "save_video": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "continuum/refined_temporal",
+      "format": "auto",
+      "codec": "auto",
+      "video": ["create_video", 0]
+    }
+  }
+}

@@ -17,6 +17,11 @@ Pass 2 (Refinement): Visual flicker reduction and detail enhancement using vid2v
 Pass 3 (Post-Production): The Post-Production Engine applies Auto-Color Normalization (matching shots to a master histogram) and Smart Audio Ducking to deliver a cohesive, broadcast-ready final cut.
 The Result: This hybrid "state-aware" system gives us film-like continuity at a fraction of the cost of closed APIs like Veo/Sora, with more control and programmability.
 Hybrid Capability: Capable of ingesting footage from Veo/Sora and 'consistency-locking' it using our proprietary post-processing engine to give high quality cinematics (for pro users).
+
+Implementation References:
+- `docs/ARCHITECTURE_SUMMARY.md` -- Working dev summary (wins for implementation details)
+- `docs/MODEL_CONFIGURATION.md` -- Model tier switching (dev/standard/beast)
+- `docs/LESSONS_LEARNED.md` -- Debugging history and gotchas
 ================================================================================
 1. VISION: The "Infinite Shot" Engine
 ================================================================================
@@ -108,6 +113,7 @@ Which ComfyUI workflow template to call
 Infrastructure: RunPod / Lambda Labs / other GPU rental. Typical hardware: A10 / A100 / H100 depending on budget and scale.
 Model lane (Open Source):
 Base video model: Wan 2.x / HunyuanVideo / Mochi (pluggable).
+Model Tier System: Supports dev (1.3B, 8GB VRAM), standard (14B bf16, 24GB), and beast (14B fp16, 40GB) tiers for quality/speed tradeoffs. Configured via CONTINUUM_MODEL_TIER env var and models.json registry.
 Wired via ComfyUI custom nodes:
 StreamingT2V-style chunking
 LoRA

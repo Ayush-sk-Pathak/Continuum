@@ -1,0 +1,148 @@
+{
+  "_description": "Model variant registry for Continuum Engine. Defines which model files to use based on quality tier and available VRAM.",
+  "_version": "1.0.0",
+
+  "wan21": {
+    "_description": "Wan 2.1 video generation models (Standard Lane)",
+    
+    "t2v": {
+      "dev": {
+        "_description": "Development/testing - fast iteration, low VRAM",
+        "unet": "wan2.1_t2v_1.3B_fp16.safetensors",
+        "vae": "wan_2.1_vae.safetensors",
+        "clip": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "vram_required_gb": 8,
+        "max_resolution": "480p",
+        "quality_tier": 1
+      },
+      "standard": {
+        "_description": "Production - balanced quality/speed",
+        "unet": "wan2.1_t2v_14B_bf16.safetensors",
+        "vae": "wan_2.1_vae.safetensors",
+        "clip": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "vram_required_gb": 24,
+        "max_resolution": "720p",
+        "quality_tier": 2
+      },
+      "beast": {
+        "_description": "Demo/pilot - maximum quality for VC presentations",
+        "unet": "wan2.1_t2v_14B_fp16.safetensors",
+        "vae": "wan_2.1_vae.safetensors",
+        "clip": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "vram_required_gb": 40,
+        "max_resolution": "1080p",
+        "quality_tier": 3
+      }
+    },
+
+    "i2v": {
+      "dev": {
+        "_description": "Development/testing - fast iteration",
+        "unet": "wan2.1_i2v_480p_14B_fp16.safetensors",
+        "vae": "wan_2.1_vae.safetensors",
+        "clip": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "clip_vision": "clip_vision_h.safetensors",
+        "vram_required_gb": 16,
+        "max_resolution": "480p",
+        "quality_tier": 1
+      },
+      "standard": {
+        "_description": "Production - 720p output",
+        "unet": "wan2.1_i2v_720p_14B_bf16.safetensors",
+        "vae": "wan_2.1_vae.safetensors",
+        "clip": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "clip_vision": "clip_vision_h.safetensors",
+        "vram_required_gb": 24,
+        "max_resolution": "720p",
+        "quality_tier": 2
+      },
+      "beast": {
+        "_description": "Demo/pilot - maximum quality",
+        "unet": "wan2.1_i2v_720p_14B_fp16.safetensors",
+        "vae": "wan_2.1_vae.safetensors",
+        "clip": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "clip_vision": "clip_vision_h.safetensors",
+        "vram_required_gb": 40,
+        "max_resolution": "1080p",
+        "quality_tier": 3
+      }
+    }
+  },
+
+  "hunyuan": {
+    "_description": "Hunyuan video generation (future Standard Lane option)",
+    "_status": "placeholder",
+    
+    "t2v": {
+      "standard": {
+        "unet": "hunyuan_video_720p.safetensors",
+        "vae": "hunyuan_vae.safetensors",
+        "clip": "hunyuan_clip.safetensors",
+        "vram_required_gb": 24,
+        "max_resolution": "720p",
+        "quality_tier": 2
+      }
+    }
+  },
+
+  "mochi": {
+    "_description": "Mochi video generation (future Standard Lane option)",
+    "_status": "placeholder",
+    
+    "t2v": {
+      "standard": {
+        "unet": "mochi_preview.safetensors",
+        "vae": "mochi_vae.safetensors",
+        "vram_required_gb": 20,
+        "max_resolution": "480p",
+        "quality_tier": 2
+      }
+    }
+  },
+
+  "sdxl": {
+    "_description": "SDXL for bridge frames and refinement (image-based)",
+    
+    "base": {
+      "checkpoint": "sd_xl_base_1.0.safetensors",
+      "vae": "sdxl_vae.safetensors",
+      "vram_required_gb": 8
+    },
+    
+    "controlnets": {
+      "openpose": "controlnet-openpose-sdxl-1.0.safetensors",
+      "depth": "controlnet-depth-sdxl-1.0.safetensors",
+      "canny": "controlnet-canny-sdxl-1.0.safetensors"
+    },
+    
+    "ipadapter": {
+      "model": "ip-adapter-plus-face_sdxl_vit-h.safetensors",
+      "clip_vision": "clip_vision_h.safetensors"
+    }
+  },
+
+  "lipsync": {
+    "_description": "Lip sync models",
+    
+    "musetalk": {
+      "model": "musetalk_v1.safetensors",
+      "vram_required_gb": 4
+    },
+    
+    "wav2lip": {
+      "model": "wav2lip_gan.pth",
+      "vram_required_gb": 2
+    }
+  },
+
+  "_quality_tiers": {
+    "1": "Development - fast iteration, lower quality",
+    "2": "Production - balanced quality/performance", 
+    "3": "Demo/Pilot - maximum quality for presentations"
+  },
+
+  "_usage": {
+    "python_example": "model_config = load_models_json()['wan21']['t2v']['beast']",
+    "env_override": "CONTINUUM_MODEL_TIER=beast (overrides default 'dev')"
+  }
+}

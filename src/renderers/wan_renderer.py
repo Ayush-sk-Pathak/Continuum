@@ -4,12 +4,12 @@ Continuum Engine - Wan 2.x Renderer
 Concrete renderer implementation using Wan 2.1 (or compatible models like
 HunyuanVideo, Mochi) via ComfyUI on cloud GPUs.
 
-This is the "Standard Lane" renderer â€” OSS, cost-effective, full control.
+This is the "Standard Lane" renderer Ã¢â‚¬â€ OSS, cost-effective, full control.
 
 Design Principles:
 1. Translate JobSpec to ComfyUI workflow parameters
-2. Handle the full lifecycle: connect â†’ upload â†’ generate â†’ download
-3. Support graceful degradation (LoRA â†’ IP-Adapter â†’ prompt-only)
+2. Handle the full lifecycle: connect Ã¢â€ â€™ upload Ã¢â€ â€™ generate Ã¢â€ â€™ download
+3. Support graceful degradation (LoRA Ã¢â€ â€™ IP-Adapter Ã¢â€ â€™ prompt-only)
 4. Track costs and timing for budget management
 """
 
@@ -49,6 +49,7 @@ from ..comfy_client import (
     merge_params,
 )
 from ..core.config import get_config
+from ..core.model_loader import get_model_config, ModelTier
 from ..core.error_recovery import (
     DegradationLadder,
     retry_async,
@@ -114,6 +115,8 @@ class WanRenderer(BaseRenderer):
     WORKFLOW_WITH_LORA = "pass1_structural_lora"
     WORKFLOW_WITH_IPADAPTER = "pass1_structural_ipadapter"
     WORKFLOW_IMG2VID = "pass1_img2vid"
+    WORKFLOW_IMG2VID_LORA = "pass1_img2vid_lora"
+    WORKFLOW_IMG2VID_IPADAPTER = "pass1_img2vid_ipadapter"  # Future
     
     # Supported features
     SUPPORTED_FEATURES = {
@@ -411,20 +414,44 @@ class WanRenderer(BaseRenderer):
         return uploaded
     
     def _select_workflow_template(self, job: JobSpec) -> str:
-        """Select the appropriate workflow template for this job."""
-        # Check for init frame (img2vid)
-        if job.has_init_frame:
-            return self.WORKFLOW_IMG2VID
+        """
+        Select the appropriate workflow template for this job.
         
-        # Check for character identity method
+        Selection Matrix:
+        | Init Frame | LoRA | Face Refs | Workflow                    |
+        |------------|------|-----------|----------------------------|
+        | No         | No   | No        | pass1_structural           |
+        | No         | Yes  | -         | pass1_structural_lora      |
+        | No         | No   | Yes       | pass1_structural_ipadapter |
+        | Yes        | No   | No        | pass1_img2vid              |
+        | Yes        | Yes  | -         | pass1_img2vid_lora         |
+        | Yes        | No   | Yes       | pass1_img2vid_ipadapter    |
+        
+        Priority: LoRA > IP-Adapter > Base (LoRA is higher quality)
+        """
+        # Determine identity conditioning method
+        has_lora = False
+        has_ipadapter = False
         if job.character_refs:
             char = job.character_refs[0]  # Primary character
-            if char.has_lora():
-                return self.WORKFLOW_WITH_LORA
-            elif char.has_face_refs():
-                return self.WORKFLOW_WITH_IPADAPTER
+            has_lora = char.has_lora()
+            has_ipadapter = char.has_face_refs()
         
-        # Default workflow
+        # Image-to-Video workflows (init frame present)
+        if job.has_init_frame:
+            if has_lora:
+                return self.WORKFLOW_IMG2VID_LORA
+            elif has_ipadapter:
+                return self.WORKFLOW_IMG2VID_IPADAPTER
+            return self.WORKFLOW_IMG2VID
+        
+        # Text-to-Video workflows (no init frame)
+        if has_lora:
+            return self.WORKFLOW_WITH_LORA
+        elif has_ipadapter:
+            return self.WORKFLOW_WITH_IPADAPTER
+        
+        # Default: base T2V workflow
         return self.DEFAULT_WORKFLOW
     
     async def _build_workflow(
@@ -492,7 +519,8 @@ class WanRenderer(BaseRenderer):
     
     def _build_generation_params(self, job: JobSpec) -> Dict[str, Any]:
         """Build generation parameters from JobSpec."""
-        return {
+        # Base generation params
+        params = {
             "POSITIVE_PROMPT": job.prompt,
             "NEGATIVE_PROMPT": job.negative_prompt,
             "SEED": job.seed,
@@ -505,6 +533,12 @@ class WanRenderer(BaseRenderer):
             "DENOISE": job.denoise,
             "OUTPUT_PREFIX": f"continuum_{int(time.time())}",
         }
+        
+        # Add model paths from tier config
+        model_params = self._get_model_config(job)
+        params.update(model_params)
+        
+        return params
     
     def _build_character_params(
         self,
@@ -534,6 +568,37 @@ class WanRenderer(BaseRenderer):
         
         return params
     
+    def _get_model_config(self, job: JobSpec) -> Dict[str, Any]:
+        """
+        Get model paths based on job type and current tier.
+        
+        Determines T2V vs I2V based on init_frame presence,
+        then loads appropriate config from models.json.
+        
+        Returns dict with UNET_MODEL, VAE_MODEL, CLIP_MODEL keys.
+        """
+        # Determine model type based on job
+        model_type = "i2v" if job.has_init_frame else "t2v"
+        
+        try:
+            config = get_model_config("wan21", model_type)
+            model_params = config.to_workflow_params()
+            
+            logger.debug(
+                f"Using {model_type.upper()} models (tier={config.max_resolution}): "
+                f"unet={config.unet}"
+            )
+            return model_params
+            
+        except (ValueError, FileNotFoundError) as e:
+            # Graceful degradation: log warning but don't fail
+            # Workflow may have hardcoded fallbacks or ComfyUI defaults
+            logger.warning(
+                f"Could not load model config for {model_type}: {e}. "
+                f"Workflow will use its defaults."
+            )
+            return {}
+
     async def _download_output(self, job: ComfyJob, spec: JobSpec) -> Path:
         """
         Download the output video from ComfyUI.

@@ -126,7 +126,8 @@ from src.studio.pass1_generator import (
     ChunkResult,
     get_pass1_generator,
 )
-from src.studio.pass2_refiner import Pass2Refiner
+# from src.studio.pass2_refiner import Pass2Refiner
+from src.studio.pass2_refiner import RefinerFactory, ComfyRefiner, BaseRefiner
 from src.studio.rife_interpolator import RIFEInterpolator
 
 # =============================================================================
@@ -465,7 +466,7 @@ class ContinuumOrchestrator:
         self.renderer: Optional[BaseRenderer] = None
         self.bridge_engine: Optional[BaseBridgeEngine] = None
         self.pass1_generator: Optional[Pass1Generator] = None
-        self.pass2_refiner: Optional[Pass2Refiner] = None
+        self.pass2_refiner: Optional[BaseRefiner] = None
         
         # Audit components (verification)
         self.reviewer: Optional[Reviewer] = None

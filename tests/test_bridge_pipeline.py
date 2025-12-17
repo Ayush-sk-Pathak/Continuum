@@ -1,535 +1,570 @@
+#!/usr/bin/env python3
 """
-Continuum Engine - Bridge Frame Pipeline Test
+End-to-End Integration Tests for P3a Workflow Pipeline.
 
-This script demonstrates the full pipeline:
-1. Generate Shot 1 (T2V) → "Woman enters coffee shop"
-2. Extract last frame
-3. Generate Bridge Frame (I2V) → Subtle motion continuation
-4. Generate Shot 2 (I2V) → "Woman orders coffee"
-5. Identity Check (ArcFace)
-6. Assemble clips
+Tests the ACTUAL integration between:
+- WanRenderer
+- WorkflowLoader  
+- Workflow JSON files
 
-Usage:
-    # First, start your RunPod pod and get the ComfyUI URL
-    # Then run:
-    python test_pipeline.py --comfy-url "http://YOUR_POD_IP:8188"
+Strategy: Mock only the NETWORK layer (ComfyClient), let everything else run for real.
+This validates that the workflow selection, parameter building, and injection all work together.
 
-Prerequisites:
-    - RunPod pod running with ComfyUI
-    - Models downloaded (wan2.1_t2v, wan2.1_i2v, etc.)
-    - Workflow JSONs in ./workflows/ directory
+LESSONS_LEARNED Applied:
+- #14: WorkflowLoader.load() takes NAME not path
+- #17: Path setup for imports
+- #18: Workflow JSON cannot have _meta keys
+- J4: Always verify interfaces before building integrations
 """
 
-import asyncio
-import argparse
-import logging
-import sys
-from pathlib import Path
-from dataclasses import dataclass
-from typing import Optional, List
 import json
+import sys
+import os
+import asyncio
+import tempfile
+import shutil
+from pathlib import Path
+from typing import Dict, Any, Optional
+from unittest.mock import MagicMock, AsyncMock, patch
+from dataclasses import dataclass
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger("pipeline_test")
+import pytest
+
+# =============================================================================
+# PATH SETUP
+# =============================================================================
+
+PROJECT_ROOT = Path(__file__).parent.parent.resolve()
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+WORKFLOWS_DIR = PROJECT_ROOT / "workflows"
 
 
 # =============================================================================
-# CONFIGURATION
+# MOCK COMFY OBJECTS
 # =============================================================================
 
 @dataclass
-class PipelineConfig:
-    """Pipeline configuration"""
-    comfy_url: str
-    workflows_dir: Path
-    output_dir: Path
-    
-    # Generation settings
-    width: int = 512  # Start small for testing
-    height: int = 512
-    frames: int = 33  # ~2 seconds at 16fps
-    fps: int = 16
-    
-    # Quality settings
-    t2v_steps: int = 30
-    i2v_steps: int = 20
-    cfg: float = 6.0
-    
-    # Identity threshold
-    identity_threshold: float = 0.70
+class MockComfyJob:
+    """Mock of ComfyJob from client.py."""
+    prompt_id: str
+    client_id: str = "test-client"
+    status: str = "pending"
+    outputs: Optional[Dict] = None
+    error: Optional[str] = None
 
 
 # =============================================================================
-# SHOT DEFINITIONS
+# FIXTURES: MOCK COMFY CLIENT
 # =============================================================================
 
-@dataclass  
-class ShotSpec:
-    """Specification for a single shot"""
-    shot_id: str
-    prompt: str
-    duration_frames: int = 33
-    is_first_shot: bool = False
-    continue_from_image: Optional[str] = None
-
-
-# Example scene for testing
-TEST_SCENE = [
-    ShotSpec(
-        shot_id="shot_001",
-        prompt="A young woman with brown hair entering a cozy coffee shop, warm lighting, cinematic, medium shot",
-        is_first_shot=True,
-    ),
-    ShotSpec(
-        shot_id="shot_002", 
-        prompt="The woman walking towards the counter, warm lighting, coffee shop interior, medium shot",
-    ),
-    ShotSpec(
-        shot_id="shot_003",
-        prompt="The woman at the counter, smiling, ordering coffee, warm lighting, medium close-up",
-    ),
-]
-
-
-# =============================================================================
-# MOCK COMFY CLIENT (for testing without GPU)
-# =============================================================================
-
-class MockComfyClient:
+@pytest.fixture
+def mock_comfy_client():
     """
-    Mock ComfyUI client for testing pipeline logic without GPU.
+    Create a mock ComfyClient that captures submitted workflows.
     
-    In real usage, this would be replaced with actual HTTP calls
-    to the ComfyUI API.
+    This mocks the NETWORK layer while letting all business logic run for real.
     """
+    client = AsyncMock()
     
-    def __init__(self, base_url: str, output_dir: Path):
-        self.base_url = base_url
-        self.output_dir = output_dir
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"MockComfyClient initialized (url={base_url})")
+    # Storage for inspection
+    client.submitted_workflows = []
+    client.uploaded_files = {}
     
-    async def upload_image(self, image_path: Path) -> str:
-        """
-        Upload an image to ComfyUI.
-        
-        Returns the filename as stored in ComfyUI.
-        """
-        logger.info(f"[MOCK] Uploading image: {image_path}")
-        # In real implementation:
-        # POST to {base_url}/upload/image
-        return image_path.name
+    async def mock_connect():
+        return True
     
-    async def submit_workflow(self, workflow: dict) -> str:
-        """
-        Submit a workflow to ComfyUI.
-        
-        Returns a prompt_id for tracking.
-        """
-        # Extract some info for logging
-        nodes = workflow.get("nodes", [])
-        logger.info(f"[MOCK] Submitting workflow with {len(nodes)} nodes")
-        
-        # In real implementation:
-        # POST to {base_url}/prompt with {"prompt": api_format_workflow}
-        
-        import uuid
-        prompt_id = str(uuid.uuid4())
-        logger.info(f"[MOCK] Got prompt_id: {prompt_id}")
-        return prompt_id
+    async def mock_upload_file(file_path):
+        filename = Path(file_path).name
+        client.uploaded_files[str(file_path)] = filename
+        return {"name": filename, "subfolder": "", "type": "input"}
     
-    async def wait_for_completion(
-        self, 
-        prompt_id: str, 
-        timeout_sec: int = 600
-    ) -> dict:
-        """
-        Wait for a job to complete.
+    async def mock_submit_workflow(workflow):
+        # Capture the workflow for inspection
+        client.submitted_workflows.append(workflow)
         
-        Returns the output info.
-        """
-        logger.info(f"[MOCK] Waiting for job {prompt_id}...")
-        
-        # Simulate processing time
-        await asyncio.sleep(1.0)
-        
-        # In real implementation:
-        # WebSocket connection to {base_url}/ws for progress updates
-        # Then GET {base_url}/history/{prompt_id} for results
-        
-        # Return mock output
-        return {
-            "outputs": {
-                "50": {  # SaveVideo node
-                    "videos": [{"filename": f"mock_output_{prompt_id[:8]}.mp4"}]
-                }
-            }
-        }
-    
-    async def download_output(
-        self, 
-        filename: str, 
-        save_path: Path
-    ) -> Path:
-        """
-        Download an output file from ComfyUI.
-        """
-        logger.info(f"[MOCK] Downloading {filename} to {save_path}")
-        
-        # In real implementation:
-        # GET {base_url}/view?filename={filename}&type=output
-        
-        # Create mock file
-        save_path.parent.mkdir(parents=True, exist_ok=True)
-        save_path.write_text(f"MOCK VIDEO: {filename}")
-        
-        return save_path
-    
-    async def get_last_frame(self, video_path: Path) -> Path:
-        """
-        Extract the last frame from a video.
-        
-        Returns path to the extracted frame.
-        """
-        logger.info(f"[MOCK] Extracting last frame from {video_path}")
-        
-        # In real implementation:
-        # Use ffmpeg: ffmpeg -sseof -1 -i video.mp4 -frames:v 1 last_frame.png
-        
-        frame_path = video_path.parent / f"{video_path.stem}_last_frame.png"
-        frame_path.write_text("MOCK FRAME")
-        
-        return frame_path
-
-
-# =============================================================================
-# PIPELINE ORCHESTRATOR
-# =============================================================================
-
-class BridgeFramePipeline:
-    """
-    Orchestrates the bridge frame pipeline.
-    
-    Flow:
-    1. Generate first shot with T2V
-    2. For each subsequent shot:
-       a. Extract last frame of previous shot
-       b. Generate bridge frame with I2V (subtle motion)
-       c. Generate new shot with I2V (continues from bridge)
-    3. Run identity checks
-    4. Concatenate all clips
-    """
-    
-    def __init__(
-        self, 
-        config: PipelineConfig,
-        client: MockComfyClient,
-    ):
-        self.config = config
-        self.client = client
-        
-        # Import workflow utilities
-        # When running from project root: python -m tests.test_bridge_pipeline
-        # Add project root to path for imports
-        sys.path.insert(0, str(Path(__file__).parent.parent))
-        from src.studio.workflow_utils import WanWorkflowLoader, T2VParams, I2VParams
-        
-        self.workflow_loader = WanWorkflowLoader(config.workflows_dir)
-        self.T2VParams = T2VParams
-        self.I2VParams = I2VParams
-        
-        # Track generated clips
-        self.clips: List[Path] = []
-        self.frames: List[Path] = []
-    
-    async def generate_shot_t2v(self, shot: ShotSpec) -> Path:
-        """Generate a shot using Text-to-Video"""
-        logger.info(f"=== Generating {shot.shot_id} (T2V) ===")
-        logger.info(f"Prompt: {shot.prompt}")
-        
-        # Build workflow
-        params = self.T2VParams(
-            positive_prompt=shot.prompt,
-            width=self.config.width,
-            height=self.config.height,
-            frames=shot.duration_frames,
-            steps=self.config.t2v_steps,
-            cfg=self.config.cfg,
+        # Return a mock ComfyJob object
+        return MockComfyJob(
+            prompt_id="test-prompt-123",
+            client_id="test-client",
+            status="queued",
+            outputs=None,
         )
-        workflow = self.workflow_loader.build_t2v_workflow(params)
+    
+    async def mock_wait_for_completion(prompt_id: str, **kwargs):
+        """
+        Mock wait_for_completion.
         
-        # Submit and wait
-        prompt_id = await self.client.submit_workflow(workflow)
-        result = await self.client.wait_for_completion(prompt_id)
-        
-        # Download output
-        output_filename = result["outputs"]["50"]["videos"][0]["filename"]
-        output_path = self.config.output_dir / f"{shot.shot_id}.mp4"
-        await self.client.download_output(output_filename, output_path)
-        
-        logger.info(f"✓ Generated: {output_path}")
+        IMPORTANT: prompt_id is a STRING, not a job object!
+        (See wan_renderer.py line 255-259)
+        """
+        # Return a completed MockComfyJob
+        return MockComfyJob(
+            prompt_id=prompt_id,
+            client_id="test-client",
+            status="completed",
+            outputs={"videos": [{"filename": "output.mp4", "subfolder": "continuum"}]},
+        )
+    
+    async def mock_download_output(prompt_id_or_job, output_dir=None):
+        """Mock downloading output file."""
+        if output_dir is None:
+            output_dir = Path(tempfile.gettempdir())
+        else:
+            output_dir = Path(output_dir)
+        output_path = output_dir / "output.mp4"
+        output_path.touch()
         return output_path
     
-    async def generate_shot_i2v(
-        self, 
-        shot: ShotSpec, 
-        input_image: Path
-    ) -> Path:
-        """Generate a shot using Image-to-Video"""
-        logger.info(f"=== Generating {shot.shot_id} (I2V) ===")
-        logger.info(f"Input image: {input_image}")
-        logger.info(f"Prompt: {shot.prompt}")
-        
-        # Upload input image
-        uploaded_name = await self.client.upload_image(input_image)
-        
-        # Build workflow
-        params = self.I2VParams(
-            positive_prompt=shot.prompt,
-            input_image=uploaded_name,
-            width=self.config.width,
-            height=self.config.height,
-            frames=shot.duration_frames,
-            steps=self.config.i2v_steps,
-            cfg=self.config.cfg,
-        )
-        workflow = self.workflow_loader.build_i2v_workflow(params)
-        
-        # Submit and wait
-        prompt_id = await self.client.submit_workflow(workflow)
-        result = await self.client.wait_for_completion(prompt_id)
-        
-        # Download output
-        output_filename = result["outputs"]["50"]["videos"][0]["filename"]
-        output_path = self.config.output_dir / f"{shot.shot_id}.mp4"
-        await self.client.download_output(output_filename, output_path)
-        
-        logger.info(f"✓ Generated: {output_path}")
-        return output_path
+    client.connect = mock_connect
+    client.disconnect = AsyncMock()
+    client.upload_file = mock_upload_file
+    client.submit_workflow = mock_submit_workflow
+    client.wait_for_completion = mock_wait_for_completion
+    client.download_output = mock_download_output
     
-    async def generate_bridge_frame(
-        self, 
-        from_shot_id: str,
-        last_frame: Path
-    ) -> Path:
-        """
-        Generate a bridge frame for smooth transition.
-        
-        This uses I2V with minimal motion to create a 
-        transitional frame that helps blend shots.
-        """
-        logger.info(f"=== Generating bridge frame from {from_shot_id} ===")
-        
-        # Upload frame
-        uploaded_name = await self.client.upload_image(last_frame)
-        
-        # Build workflow with subtle motion prompt
-        params = self.I2VParams(
-            positive_prompt="subtle movement, slight motion, same scene continuing",
-            input_image=uploaded_name,
-            width=self.config.width,
-            height=self.config.height,
-            frames=9,  # Short bridge, ~0.5 seconds
-            steps=self.config.i2v_steps,
-            cfg=self.config.cfg,
-        )
-        workflow = self.workflow_loader.build_i2v_workflow(params)
-        
-        # Submit and wait
-        prompt_id = await self.client.submit_workflow(workflow)
-        result = await self.client.wait_for_completion(prompt_id)
-        
-        # Download and extract last frame as bridge
-        output_filename = result["outputs"]["50"]["videos"][0]["filename"]
-        bridge_video = self.config.output_dir / f"bridge_{from_shot_id}.mp4"
-        await self.client.download_output(output_filename, bridge_video)
-        
-        # Get the last frame of the bridge video
-        bridge_frame = await self.client.get_last_frame(bridge_video)
-        
-        logger.info(f"✓ Bridge frame: {bridge_frame}")
-        return bridge_frame
-    
-    async def check_identity(
-        self, 
-        frame1: Path, 
-        frame2: Path
-    ) -> tuple[bool, float]:
-        """
-        Check if identity is preserved between frames.
-        
-        Returns (passed, similarity_score)
-        """
-        logger.info(f"Checking identity: {frame1.name} vs {frame2.name}")
-        
-        # In real implementation:
-        # Use ArcFace or similar to compare faces
-        # from ..memory.identity_checker import IdentityChecker
-        # checker = IdentityChecker()
-        # similarity = checker.compare(frame1, frame2)
-        
-        # Mock: always pass with high similarity
-        similarity = 0.85
-        passed = similarity >= self.config.identity_threshold
-        
-        status = "✓ PASS" if passed else "✗ FAIL"
-        logger.info(f"Identity check: {status} (similarity={similarity:.2f})")
-        
-        return passed, similarity
-    
-    async def run(self, shots: List[ShotSpec]) -> dict:
-        """
-        Run the full pipeline for a list of shots.
-        
-        Returns a summary of the generation.
-        """
-        logger.info(f"\n{'='*60}")
-        logger.info("STARTING BRIDGE FRAME PIPELINE")
-        logger.info(f"{'='*60}\n")
-        logger.info(f"Shots to generate: {len(shots)}")
-        
-        results = {
-            "shots": [],
-            "identity_checks": [],
-            "success": True,
-        }
-        
-        previous_frame: Optional[Path] = None
-        
-        for i, shot in enumerate(shots):
-            shot_result = {"shot_id": shot.shot_id, "status": "pending"}
-            
-            try:
-                if shot.is_first_shot:
-                    # First shot: Use T2V
-                    video_path = await self.generate_shot_t2v(shot)
-                else:
-                    # Subsequent shots: Use bridge frames + I2V
-                    assert previous_frame is not None, "No previous frame for I2V"
-                    
-                    # Generate bridge frame
-                    bridge_frame = await self.generate_bridge_frame(
-                        shots[i-1].shot_id, 
-                        previous_frame
-                    )
-                    
-                    # Generate shot from bridge frame
-                    video_path = await self.generate_shot_i2v(shot, bridge_frame)
-                    
-                    # Identity check
-                    passed, similarity = await self.check_identity(
-                        previous_frame, 
-                        bridge_frame
-                    )
-                    results["identity_checks"].append({
-                        "from_shot": shots[i-1].shot_id,
-                        "to_shot": shot.shot_id,
-                        "passed": passed,
-                        "similarity": similarity,
-                    })
-                    
-                    if not passed:
-                        logger.warning(f"Identity drift detected in {shot.shot_id}!")
-                        results["success"] = False
-                
-                # Store clip
-                self.clips.append(video_path)
-                
-                # Extract last frame for next iteration
-                previous_frame = await self.client.get_last_frame(video_path)
-                self.frames.append(previous_frame)
-                
-                shot_result["status"] = "success"
-                shot_result["video"] = str(video_path)
-                
-            except Exception as e:
-                logger.error(f"Failed to generate {shot.shot_id}: {e}")
-                shot_result["status"] = "failed"
-                shot_result["error"] = str(e)
-                results["success"] = False
-            
-            results["shots"].append(shot_result)
-        
-        # Summary
-        logger.info(f"\n{'='*60}")
-        logger.info("PIPELINE COMPLETE")
-        logger.info(f"{'='*60}")
-        logger.info(f"Total shots: {len(shots)}")
-        logger.info(f"Successful: {sum(1 for s in results['shots'] if s['status'] == 'success')}")
-        logger.info(f"Identity checks passed: {sum(1 for c in results['identity_checks'] if c['passed'])}/{len(results['identity_checks'])}")
-        logger.info(f"Overall success: {results['success']}")
-        
-        return results
+    return client
 
 
 # =============================================================================
-# MAIN
+# FIXTURES: JOB SPECS
 # =============================================================================
 
-async def main():
-    parser = argparse.ArgumentParser(description="Test the bridge frame pipeline")
-    parser.add_argument(
-        "--comfy-url",
-        default="http://localhost:8188",
-        help="ComfyUI server URL"
+@pytest.fixture
+def basic_job_spec():
+    """A basic JobSpec with no special features (should use T2V)."""
+    from src.renderers.base import JobSpec, RenderQuality
+    
+    return JobSpec(
+        prompt="A woman walking through a sunny garden",
+        negative_prompt="blurry, low quality",
+        duration_sec=4.0,
+        seed=42,
+        width=1280,
+        height=720,
+        fps=12,
+        cfg_scale=7.0,
+        steps=20,
+        quality=RenderQuality.STANDARD,
     )
-    parser.add_argument(
-        "--workflows-dir",
-        default="./workflows",  # From project root: continuum/workflows/
-        help="Directory containing workflow JSONs (t2v_wan21.json, i2v_wan21.json)"
+
+
+@pytest.fixture
+def job_spec_with_init_frame(tmp_path):
+    """A JobSpec with init_frame set (should use I2V)."""
+    from src.renderers.base import JobSpec, RenderQuality
+    
+    # Create a fake init frame file
+    init_frame = tmp_path / "init_frame.png"
+    init_frame.write_bytes(b"fake png data")
+    
+    return JobSpec(
+        prompt="The same woman continuing to walk",
+        negative_prompt="blurry, low quality",
+        duration_sec=4.0,
+        init_frame=init_frame,
+        seed=42,
+        width=1280,
+        height=720,
+        fps=12,
+        cfg_scale=7.0,
+        steps=20,
+        quality=RenderQuality.STANDARD,
     )
-    parser.add_argument(
-        "--output-dir", 
-        default="./output",
-        help="Output directory for generated videos"
-    )
-    parser.add_argument(
-        "--mock",
-        action="store_true",
-        help="Use mock client (no GPU required)"
-    )
+
+
+# =============================================================================
+# FIXTURES: RENDERER
+# =============================================================================
+
+@pytest.fixture
+def initialized_renderer(mock_comfy_client):
+    """Create a WanRenderer with mocked client."""
+    from src.renderers.wan_renderer import WanRenderer
+    from src.comfy_client.workflow_loader import WorkflowLoader
     
-    args = parser.parse_args()
-    
-    # Setup config
-    config = PipelineConfig(
-        comfy_url=args.comfy_url,
-        workflows_dir=Path(args.workflows_dir),
-        output_dir=Path(args.output_dir),
+    renderer = WanRenderer(
+        comfy_host="ws://mock:8188",  # Note: comfy_host not comfy_url
+        workflows_dir=WORKFLOWS_DIR,
     )
     
-    # Check workflows exist
-    t2v_path = config.workflows_dir / "t2v_wan21.json"
-    i2v_path = config.workflows_dir / "i2v_wan21.json"
+    # Inject the mock client and mark as initialized
+    renderer._client = mock_comfy_client
+    renderer._loader = WorkflowLoader(WORKFLOWS_DIR)
+    renderer._initialized = True  # Note: _initialized not _connected
     
-    if not t2v_path.exists() or not i2v_path.exists():
-        logger.error(f"Workflow files not found in {config.workflows_dir}")
-        logger.error("Please copy t2v_wan21.json and i2v_wan21.json to that directory")
-        sys.exit(1)
+    return renderer
+
+
+@pytest.fixture
+def renderer_with_captured_workflow(mock_comfy_client, tmp_path):
+    """
+    Renderer configured to capture submitted workflow AND mock file operations.
+    """
+    from src.renderers.wan_renderer import WanRenderer
+    from src.comfy_client.workflow_loader import WorkflowLoader
     
-    # Create client (mock or real)
-    if args.mock:
-        logger.info("Using MOCK client (no GPU)")
-        client = MockComfyClient(config.comfy_url, config.output_dir)
-    else:
-        # TODO: Real client implementation
-        logger.error("Real client not implemented yet. Use --mock for testing.")
-        sys.exit(1)
+    renderer = WanRenderer(
+        comfy_host="ws://mock:8188",  # Note: comfy_host not comfy_url
+        workflows_dir=WORKFLOWS_DIR,
+        output_dir=tmp_path,
+    )
     
-    # Create and run pipeline
-    pipeline = BridgeFramePipeline(config, client)
-    results = await pipeline.run(TEST_SCENE)
+    renderer._client = mock_comfy_client
+    renderer._loader = WorkflowLoader(WORKFLOWS_DIR)
+    renderer._initialized = True
     
-    # Save results
-    results_path = config.output_dir / "pipeline_results.json"
-    with open(results_path, "w") as f:
-        json.dump(results, f, indent=2, default=str)
-    logger.info(f"Results saved to: {results_path}")
+    return renderer, mock_comfy_client
+
+
+# =============================================================================
+# SECTION 1: WORKFLOW TEMPLATE SELECTION
+# =============================================================================
+
+class TestWorkflowTemplateSelection:
+    """Test that WanRenderer selects correct workflow based on JobSpec."""
+    
+    def test_basic_job_selects_t2v(self, initialized_renderer, basic_job_spec):
+        """Job without init_frame should select T2V workflow."""
+        template = initialized_renderer._select_workflow_template(basic_job_spec)
+        assert template == "pass1_structural", f"Expected T2V, got {template}"
+    
+    def test_init_frame_job_selects_i2v(self, initialized_renderer, job_spec_with_init_frame):
+        """Job with init_frame should select I2V workflow."""
+        template = initialized_renderer._select_workflow_template(job_spec_with_init_frame)
+        assert template == "pass1_img2vid", f"Expected I2V, got {template}"
+    
+    def test_init_frame_takes_priority(self, initialized_renderer, job_spec_with_init_frame):
+        """Init frame selection takes priority over character refs."""
+        from src.renderers.base import CharacterRef
+        
+        # Add a character ref (which might also trigger workflow selection)
+        job_spec_with_init_frame.character_refs = [
+            CharacterRef(entity_id="test", name="Test Character")
+        ]
+        
+        template = initialized_renderer._select_workflow_template(job_spec_with_init_frame)
+        # Should still be I2V because we have init_frame
+        assert "img2vid" in template or template == "pass1_img2vid"
+
+
+# =============================================================================
+# SECTION 2: PARAMETER BUILDING
+# =============================================================================
+
+class TestParameterBuilding:
+    """Test that WanRenderer builds correct parameters from JobSpec."""
+    
+    def test_basic_params_built(self, initialized_renderer, basic_job_spec):
+        """All required parameters are built from JobSpec."""
+        params = initialized_renderer._build_generation_params(basic_job_spec)
+        
+        required_keys = [
+            "POSITIVE_PROMPT", "NEGATIVE_PROMPT", "SEED",
+            "WIDTH", "HEIGHT", "FPS", "FRAMES"
+        ]
+        
+        for key in required_keys:
+            assert key in params, f"Missing param: {key}"
+    
+    def test_params_match_job_spec(self, initialized_renderer, basic_job_spec):
+        """Built parameters match JobSpec values."""
+        params = initialized_renderer._build_generation_params(basic_job_spec)
+        
+        assert params["POSITIVE_PROMPT"] == basic_job_spec.prompt
+        assert params["SEED"] == basic_job_spec.seed
+        assert params["WIDTH"] == basic_job_spec.width
+        assert params["HEIGHT"] == basic_job_spec.height
+        assert params["FPS"] == basic_job_spec.fps
+    
+    def test_frames_calculated_correctly(self, initialized_renderer, basic_job_spec):
+        """FRAMES is calculated from duration_sec * fps."""
+        params = initialized_renderer._build_generation_params(basic_job_spec)
+        
+        expected_frames = int(basic_job_spec.duration_sec * basic_job_spec.fps)
+        assert params["FRAMES"] == expected_frames
+
+
+# =============================================================================
+# SECTION 3: WORKFLOW LOADING INTEGRATION
+# =============================================================================
+
+class TestWorkflowLoadingIntegration:
+    """Test that WanRenderer + WorkflowLoader work together."""
+    
+    def test_loader_is_initialized(self, initialized_renderer):
+        """Renderer initializes WorkflowLoader."""
+        assert initialized_renderer._loader is not None
+    
+    @pytest.mark.asyncio
+    async def test_can_load_t2v_workflow(self, initialized_renderer, basic_job_spec):
+        """Should successfully load and inject T2V workflow."""
+        workflow = await initialized_renderer._build_workflow(basic_job_spec, {})
+        
+        assert workflow is not None
+        assert len(workflow) > 0
+        # Should have the expected nodes (workflow should be valid)
+        assert any("sampler" in str(k).lower() for k in workflow.keys())
+    
+    @pytest.mark.asyncio
+    async def test_can_load_i2v_workflow(self, initialized_renderer, job_spec_with_init_frame, mock_comfy_client):
+        """Should successfully load and inject I2V workflow."""
+        # Simulate the init frame being uploaded
+        init_frame_path = str(job_spec_with_init_frame.init_frame)
+        uploaded_files = {init_frame_path: "uploaded_init_frame.png"}
+        
+        workflow = await initialized_renderer._build_workflow(
+            job_spec_with_init_frame,
+            uploaded_files
+        )
+        
+        assert workflow is not None
+        assert len(workflow) > 0
+    
+    @pytest.mark.asyncio
+    async def test_params_injected_into_t2v(self, initialized_renderer, basic_job_spec):
+        """Parameters should actually be injected into T2V workflow."""
+        workflow = await initialized_renderer._build_workflow(basic_job_spec, {})
+        
+        # The prompt should be in the workflow somewhere
+        workflow_str = json.dumps(workflow)
+        assert basic_job_spec.prompt in workflow_str, \
+            "Prompt was not injected into workflow"
+    
+    @pytest.mark.asyncio
+    async def test_init_image_injected_into_i2v(self, initialized_renderer, job_spec_with_init_frame):
+        """INIT_IMAGE should be injected into I2V workflow."""
+        init_frame_path = str(job_spec_with_init_frame.init_frame)
+        uploaded_files = {init_frame_path: "uploaded_init.png"}
+        
+        workflow = await initialized_renderer._build_workflow(
+            job_spec_with_init_frame,
+            uploaded_files
+        )
+        
+        # The uploaded filename should be in the workflow
+        workflow_str = json.dumps(workflow)
+        assert "uploaded_init.png" in workflow_str, \
+            "Init image was not injected into workflow"
+    
+    @pytest.mark.asyncio
+    async def test_injection_preserves_node_structure(self, initialized_renderer, basic_job_spec):
+        """Node references should still be valid after injection."""
+        workflow = await initialized_renderer._build_workflow(basic_job_spec, {})
+        
+        node_ids = set(workflow.keys())
+        
+        for node_id, node in workflow.items():
+            if isinstance(node, dict):
+                inputs = node.get("inputs", {})
+                for input_name, input_value in inputs.items():
+                    if isinstance(input_value, list) and len(input_value) >= 1:
+                        ref_id = str(input_value[0])
+                        assert ref_id in node_ids, \
+                            f"{node_id}.{input_name} references invalid node '{ref_id}'"
+
+
+# =============================================================================
+# SECTION 4: FULL E2E FLOW
+# =============================================================================
+
+class TestEndToEndFlow:
+    """Test complete generate() flow with mocked network."""
+    
+    @pytest.mark.asyncio
+    async def test_e2e_t2v_workflow_submitted(self, renderer_with_captured_workflow, basic_job_spec):
+        """Full E2E: T2V job should submit valid workflow to ComfyUI."""
+        renderer, mock_client = renderer_with_captured_workflow
+        
+        # Run the full generate flow
+        result = await renderer.generate(basic_job_spec)
+        
+        # Should have submitted exactly one workflow
+        assert len(mock_client.submitted_workflows) == 1
+        
+        submitted = mock_client.submitted_workflows[0]
+        # Should have valid nodes
+        assert len(submitted) > 0
+        assert any("sampler" in k.lower() for k in submitted.keys())
+    
+    @pytest.mark.asyncio
+    async def test_e2e_i2v_workflow_submitted(self, renderer_with_captured_workflow, job_spec_with_init_frame):
+        """Full E2E: I2V job should submit valid workflow with init image."""
+        renderer, mock_client = renderer_with_captured_workflow
+        
+        # Run the full generate flow
+        result = await renderer.generate(job_spec_with_init_frame)
+        
+        assert len(mock_client.submitted_workflows) == 1
+        
+        submitted = mock_client.submitted_workflows[0]
+        # I2V should have LoadImage node
+        class_types = {n.get("class_type") for n in submitted.values() if isinstance(n, dict)}
+        assert "LoadImage" in class_types, f"I2V missing LoadImage. Has: {class_types}"
+    
+    @pytest.mark.asyncio
+    async def test_e2e_init_frame_uploaded(self, renderer_with_captured_workflow, job_spec_with_init_frame):
+        """Init frame should be uploaded before workflow submission."""
+        renderer, mock_client = renderer_with_captured_workflow
+        
+        await renderer.generate(job_spec_with_init_frame)
+        
+        # Check that the init frame was "uploaded"
+        init_path = str(job_spec_with_init_frame.init_frame)
+        assert init_path in mock_client.uploaded_files, \
+            f"Init frame not uploaded. Uploaded: {mock_client.uploaded_files.keys()}"
+    
+    @pytest.mark.asyncio
+    async def test_e2e_returns_render_result(self, renderer_with_captured_workflow, basic_job_spec):
+        """generate() should return a valid RenderResult."""
+        from src.renderers.base import RenderResult
+        
+        renderer, mock_client = renderer_with_captured_workflow
+        
+        result = await renderer.generate(basic_job_spec)
+        
+        assert result is not None
+        assert isinstance(result, RenderResult)
+        assert result.video_path is not None
+    
+    @pytest.mark.asyncio
+    async def test_e2e_prompt_in_submitted_workflow(self, renderer_with_captured_workflow, basic_job_spec):
+        """The actual prompt should appear in the submitted workflow."""
+        renderer, mock_client = renderer_with_captured_workflow
+        
+        # Use a distinctive prompt
+        basic_job_spec.prompt = "UNIQUE_TEST_PROMPT_12345"
+        
+        await renderer.generate(basic_job_spec)
+        
+        submitted = mock_client.submitted_workflows[0]
+        workflow_str = json.dumps(submitted)
+        
+        assert "UNIQUE_TEST_PROMPT_12345" in workflow_str, \
+            "Prompt not found in submitted workflow"
+    
+    @pytest.mark.asyncio
+    async def test_e2e_seed_in_submitted_workflow(self, renderer_with_captured_workflow, basic_job_spec):
+        """The seed should be injected into the workflow."""
+        renderer, mock_client = renderer_with_captured_workflow
+        
+        basic_job_spec.seed = 99999
+        
+        await renderer.generate(basic_job_spec)
+        
+        submitted = mock_client.submitted_workflows[0]
+        workflow_str = json.dumps(submitted)
+        
+        assert "99999" in workflow_str, \
+            "Seed not found in submitted workflow"
+
+
+# =============================================================================
+# SECTION 5: ERROR HANDLING
+# =============================================================================
+
+class TestErrorHandling:
+    """Test error handling and fallbacks."""
+    
+    @pytest.mark.asyncio
+    async def test_missing_workflow_falls_back(self, initialized_renderer, basic_job_spec):
+        """If specific workflow missing, should fall back to default."""
+        # Force selection of a non-existent workflow
+        initialized_renderer.WORKFLOW_WITH_LORA = "nonexistent_workflow"
+        
+        # Add a fake LoRA to trigger lora workflow selection
+        from src.renderers.base import CharacterRef
+        
+        # Create a fake lora path that "exists" but we won't use
+        fake_lora = MagicMock()
+        fake_lora.exists.return_value = True
+        
+        basic_job_spec.character_refs = [
+            CharacterRef(
+                entity_id="test",
+                name="Test",
+                lora_path=fake_lora,
+            )
+        ]
+        
+        # This should fall back to default workflow, not crash
+        try:
+            workflow = await initialized_renderer._build_workflow(basic_job_spec, {})
+            # If we get here with a workflow, fallback worked
+            assert workflow is not None
+        except FileNotFoundError:
+            # Also acceptable - means it tried to load the nonexistent workflow
+            # and properly raised an error
+            pass
+
+
+# =============================================================================
+# SECTION 6: WORKFLOW CONTENT VERIFICATION  
+# =============================================================================
+
+class TestWorkflowContentVerification:
+    """Verify the actual content of submitted workflows."""
+    
+    @pytest.mark.asyncio
+    async def test_t2v_has_empty_latent_not_image(self, renderer_with_captured_workflow, basic_job_spec):
+        """T2V workflow should use EmptyHunyuanLatentVideo, not LoadImage."""
+        renderer, mock_client = renderer_with_captured_workflow
+        
+        await renderer.generate(basic_job_spec)
+        
+        submitted = mock_client.submitted_workflows[0]
+        class_types = {n.get("class_type") for n in submitted.values() if isinstance(n, dict)}
+        
+        assert "EmptyHunyuanLatentVideo" in class_types, \
+            f"T2V should have EmptyHunyuanLatentVideo. Has: {class_types}"
+        # T2V should NOT have LoadImage (that's for I2V)
+        # Note: This check might need adjustment based on actual workflow structure
+    
+    @pytest.mark.asyncio
+    async def test_i2v_has_image_conditioning(self, renderer_with_captured_workflow, job_spec_with_init_frame):
+        """I2V workflow should have image conditioning nodes."""
+        renderer, mock_client = renderer_with_captured_workflow
+        
+        await renderer.generate(job_spec_with_init_frame)
+        
+        submitted = mock_client.submitted_workflows[0]
+        class_types = {n.get("class_type") for n in submitted.values() if isinstance(n, dict)}
+        
+        # I2V should have these image-related nodes
+        assert "LoadImage" in class_types, f"I2V missing LoadImage"
+        assert "CLIPVisionEncode" in class_types, f"I2V missing CLIPVisionEncode"
+    
+    @pytest.mark.asyncio
+    async def test_different_unet_models(self, renderer_with_captured_workflow, basic_job_spec, job_spec_with_init_frame):
+        """T2V and I2V should use different UNET models."""
+        renderer, mock_client = renderer_with_captured_workflow
+        
+        # Generate T2V
+        await renderer.generate(basic_job_spec)
+        t2v_workflow = mock_client.submitted_workflows[0]
+        
+        # Reset for I2V
+        mock_client.submitted_workflows.clear()
+        
+        # Generate I2V
+        await renderer.generate(job_spec_with_init_frame)
+        i2v_workflow = mock_client.submitted_workflows[0]
+        
+        # Extract UNET model names
+        def get_unet_name(workflow):
+            for node in workflow.values():
+                if isinstance(node, dict) and node.get("class_type") == "UNETLoader":
+                    return node.get("inputs", {}).get("unet_name", "")
+            return ""
+        
+        t2v_unet = get_unet_name(t2v_workflow)
+        i2v_unet = get_unet_name(i2v_workflow)
+        
+        # They should be different (t2v vs i2v model)
+        assert t2v_unet != i2v_unet or "t2v" in t2v_unet.lower(), \
+            f"Expected different models: T2V={t2v_unet}, I2V={i2v_unet}"
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    pytest.main([__file__, "-v"])

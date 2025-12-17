@@ -1,0 +1,81 @@
+{
+  "video_loader": {
+    "class_type": "VHS_LoadVideo",
+    "inputs": {
+      "video": "{{VIDEO_PATH}}",
+      "force_rate": 0,
+      "force_size": "Disabled",
+      "custom_width": 0,
+      "custom_height": 0,
+      "frame_load_cap": 0,
+      "skip_first_frames": 0,
+      "select_every_nth": 1
+    }
+  },
+
+  "audio_loader": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "{{AUDIO_PATH}}"
+    }
+  },
+
+  "musetalk_loader": {
+    "class_type": "MuseTalkModelLoader",
+    "inputs": {
+      "model_name": "musetalk_v1.safetensors"
+    }
+  },
+
+  "face_detector": {
+    "class_type": "MuseTalkFaceDetect",
+    "inputs": {
+      "images": ["video_loader", 0],
+      "threshold": "{{FACE_THRESHOLD}}",
+      "padding": 0.2
+    }
+  },
+
+  "lip_sync": {
+    "class_type": "MuseTalkRun",
+    "inputs": {
+      "model": ["musetalk_loader", 0],
+      "images": ["video_loader", 0],
+      "audio": ["audio_loader", 0],
+      "face_data": ["face_detector", 0],
+      "start_time": "{{START_TIME}}",
+      "end_time": "{{END_TIME}}",
+      "fps": 12,
+      "batch_size": 8
+    }
+  },
+
+  "composite": {
+    "class_type": "MuseTalkComposite",
+    "inputs": {
+      "original_images": ["video_loader", 0],
+      "synced_faces": ["lip_sync", 0],
+      "face_data": ["face_detector", 0],
+      "blend_mode": "seamless",
+      "feather_amount": 5
+    }
+  },
+
+  "create_video": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "fps": 12,
+      "images": ["composite", 0]
+    }
+  },
+
+  "save_video": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "continuum/lipsync",
+      "format": "auto",
+      "codec": "auto",
+      "video": ["create_video", 0]
+    }
+  }
+}

@@ -26,11 +26,11 @@ Architecture Note:
     simpler vid2vid temporal denoising.
 
 Pipeline Position:
-    Pass 1 → Audit → **Pass 2 (this)** → Lip Sync → RIFE → Final
+    Pass 1 â†’ Audit â†’ **Pass 2 (this)** â†’ Lip Sync â†’ RIFE â†’ Final
 
 Design Principles:
     1. Workflow-agnostic: Actual ComfyUI workflow is external JSON
-    2. Degradation-ready: FreeLong++ → Vid2Vid → Passthrough fallback
+    2. Degradation-ready: FreeLong++ â†’ Vid2Vid â†’ Passthrough fallback
     3. Async-first: All refinement is async (GPU-bound)
     4. Preserves structure: Should NOT change composition or motion
 """
@@ -496,10 +496,20 @@ class ComfyRefiner(BaseRefiner):
         settings = quality_settings.get(spec.quality, quality_settings[RefinementQuality.STANDARD])
         
         return {
-            "denoise_strength": spec.denoise_strength,
-            "steps": spec.steps or settings["steps"],
-            "cfg_scale": spec.cfg_scale or settings["cfg_scale"],
-            "temporal_window": spec.temporal_window,
+            # Core refinement params (UPPERCASE to match workflow placeholders)
+            "DENOISE_STRENGTH": spec.denoise_strength,
+            "STEPS": spec.steps or settings["steps"],
+            "CFG_SCALE": spec.cfg_scale or settings["cfg_scale"],
+            "TEMPORAL_WINDOW": spec.temporal_window,
+            
+            # Video I/O
+            "INPUT_VIDEO": str(spec.input_path.name),  # Filename only, not full path
+            "FPS": 12,  # Match Pass 1 output
+            
+            # Generation params
+            "SEED": -1,  # Random seed for refinement
+            "POSITIVE_PROMPT": "high quality, detailed, sharp, consistent lighting",
+            "NEGATIVE_PROMPT": "blurry, flickering, low quality, jittery, frame inconsistency",
         }
     
     def _set_input_video(self, workflow: Dict, filename: str) -> Dict:

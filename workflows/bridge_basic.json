@@ -1,0 +1,83 @@
+{
+  "checkpoint_loader": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "sd_xl_base_1.0.safetensors"
+    }
+  },
+
+  "load_source": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "{{SOURCE_IMAGE}}"
+    }
+  },
+
+  "vae_encode": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": ["load_source", 0],
+      "vae": ["checkpoint_loader", 2]
+    }
+  },
+
+  "positive_prompt": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "{{PROMPT}}",
+      "clip": ["checkpoint_loader", 1]
+    }
+  },
+
+  "negative_prompt": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "{{NEGATIVE_PROMPT}}",
+      "clip": ["checkpoint_loader", 1]
+    }
+  },
+
+  "sampler": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": "{{SEED}}",
+      "control_after_generate": "fixed",
+      "steps": "{{STEPS}}",
+      "cfg": "{{CFG}}",
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": "{{DENOISE}}",
+      "model": ["checkpoint_loader", 0],
+      "positive": ["positive_prompt", 0],
+      "negative": ["negative_prompt", 0],
+      "latent_image": ["vae_encode", 0]
+    }
+  },
+
+  "vae_decode": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["sampler", 0],
+      "vae": ["checkpoint_loader", 2]
+    }
+  },
+
+  "image_scale": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": ["vae_decode", 0],
+      "width": "{{WIDTH}}",
+      "height": "{{HEIGHT}}",
+      "upscale_method": "lanczos",
+      "crop": "disabled"
+    }
+  },
+
+  "save_image": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "continuum/bridge",
+      "images": ["image_scale", 0]
+    }
+  }
+}

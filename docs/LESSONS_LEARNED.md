@@ -100,7 +100,7 @@ RenderResult(
 )
 ```
 
-**Prevention:** When mocking a dataclass, check ALL fields. Dataclass field order matters Ã¢â‚¬â€ required fields come before optional ones with defaults.
+**Prevention:** When mocking a dataclass, check ALL fields. Dataclass field order matters ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â required fields come before optional ones with defaults.
 
 ---
 
@@ -275,7 +275,7 @@ grep -A 20 "class RetryConfig" src/core/error_recovery.py
 3. Then run full tests: `pytest tests/file.py -v`
 
 ### When Tests Fail
-1. Read the **exact error message** Ã¢â‚¬â€ it usually names the missing field/method
+1. Read the **exact error message** ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â it usually names the missing field/method
 2. Check the **source of truth file** for correct interface
 3. Fix the **actual bug** (might be in test mock OR in production code)
 4. **Update this document** with the lesson learned
@@ -336,7 +336,7 @@ client.submit_workflow(workflow)  # FAILS
 # Export from ComfyUI with "Save (API Format)" or convert
 ```
 
-**Prevention:** Check if workflow has `"nodes"` key Ã¢â‚¬â€ if yes, it's UI format and needs conversion.
+**Prevention:** Check if workflow has `"nodes"` key ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â if yes, it's UI format and needs conversion.
 
 ---
 
@@ -649,6 +649,122 @@ try:
 | `AmbienceSpec` | `ambience_id`, `type`, `description`, `duration_sec` | `type` not `ambience_type` |
 | `SonicManifest` | `manifest_id`, `project_id` | Not `job_id` |
 | `ShotAudioPlan` | `shot_id`, `scene_id`, `duration_sec` | No `.validate()` method (it's on `SonicManifest`) |
+
+
+### 18. Edge case- Workflow JSON doesn't accept `_meta` Keys
+
+| | |
+|---|---|
+| **Date** | 2025-12-16 |
+| **Error** | `ValueError: Workflow validation failed: ["Node _meta: missing 'class_type'"]` |
+| **Wrong Assumption** | Workflow JSONs can have `_meta` key for documentation |
+| **Correct Interface** | `validate()` treats ALL keys as ComfyUI nodes |
+| **Source of Truth** | `src/comfy_client/workflow_loader.py` lines 486-493 |
+
+**Note:** Loader skips `_` prefixed FILES but NOT `_` prefixed KEYS in workflow dict.
+
+**Prevention:** Don't add metadata keys to workflow JSONs. Document in README or code comments.
+
+---
+###19
+# ASSUMPTION: LoRAs trained on wan2.1_t2v work with wan2.1_i2v
+# Both share UNet architecture. Verify if upgrading to Wan 3.x.
+```
+
+---
+
+## Role in Architecture (Systems Thinking)
+
+### The Bridge Frame Problem
+```
+Shot A (ends)                    Shot B (starts)
+     │                                │
+     ▼                                ▼
+┌─────────┐                    ┌─────────┐
+│Frame 144│ ──── BRIDGE ────▶ │Frame 1  │
+└─────────┘                    └─────────┘
+     │                                │
+     │ Extract last frame             │ Must match:
+     │                                │  - Visual continuity (I2V)
+     ▼                                │  - Character identity (LoRA)
+┌─────────────────────────────────────┴───────────────┐
+│           pass1_img2vid_lora.json  ◀── THIS FILE    │
+│                                                      │
+│  Inputs:                                             │
+│    - INIT_IMAGE: last frame of Shot A               │
+│    - LORA_PATH: alice_v1.safetensors                │
+│    - PROMPT: "Alice walks to the door"              │
+│                                                      │
+│  Guarantees:                                         │
+│    - Frame 1 of Shot B visually matches Frame 144   │
+│    - Alice's face remains consistent                 │
+└──────────────────────────────────────────────────────┘
+
+
+### 20. Early Return Hides Subsequent Logic Paths
+
+| | |
+|---|---|
+| **Date** | 2025-12-16 |
+| **Error** | I2V workflows never used LoRA even when character had trained LoRA |
+| **Wrong Assumption** | Sequential condition checks are safe |
+| **Correct Interface** | Extract ALL state first, then make compound decision |
+| **Source of Truth** | `src/renderers/wan_renderer.py` `_select_workflow_template()` |
+
+**Wrong:**
+```python
+def _select_workflow_template(self, job):
+    if job.has_init_frame:
+        return self.WORKFLOW_IMG2VID  # Returns early, never checks LoRA!
+    if job.has_lora:
+        return self.WORKFLOW_WITH_LORA
+```
+
+**Correct:**
+```python
+def _select_workflow_template(self, job):
+    has_lora = job.character_refs and job.character_refs[0].has_lora()
+    if job.has_init_frame:
+        if has_lora:
+            return self.WORKFLOW_IMG2VID_LORA
+        return self.WORKFLOW_IMG2VID
+    # ... etc
+```
+
+**Prevention:** When function has multiple independent dimensions (I2V vs T2V, LoRA vs no-LoRA), extract state into booleans first, then use decision matrix.
+
+---
+
+### 21. Orphan Nodes Waste VRAM - Stress Tests Catch What Contract Tests Miss
+
+| | |
+|---|---|
+| **Date** | 2025-12-16 |
+| **Error** | `bridge_ipadapter.json` had orphan node `encode_face_ref` that nothing used |
+| **Wrong Assumption** | If JSON is valid and nodes exist, workflow is correct |
+| **Correct Interface** | Every node must contribute to output path |
+| **Detection** | Stress test with BFS from output nodes backwards |
+
+**The Bug:**
+```json
+"encode_face_ref": { ... },  // Created but never referenced
+"apply_ipadapter": {
+    "image": ["prep_face_ref", 0]  // Uses prep, not encode!
+}
+```
+
+**Why Contract Tests Missed It:**
+- JSON valid ✓
+- Node has class_type ✓
+- Node connections valid ✓
+- No dangling references ✓
+
+**Why Stress Test Caught It:**
+- Traced backwards from SaveImage
+- Found `encode_face_ref` unreachable
+- Flagged as orphan (wastes VRAM)
+
+**Prevention:** Run orphan detection on all workflows. Orphans indicate copy-paste errors or misunderstanding of node requirements.
 
 ---
 
