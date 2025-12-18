@@ -217,6 +217,19 @@ class CheckpointManager:
         """Yield all failed jobs (convenience method)."""
         return self.get_jobs_by_status(JobStatus.FAILED)
     
+    def get_completed_scenes(self) -> set:
+        """Get set of completed scene IDs."""
+        completed = set()
+        for job in self.get_all_jobs():
+            if job.status == JobStatus.COMPLETE and job.scene_id:
+                completed.add(job.scene_id)
+        return completed
+
+    def mark_scene_complete(self, scene_id: str) -> None:
+        """Mark a scene as complete."""
+        # For now, just log - actual implementation would update persistent state
+        logger.info(f"Scene {scene_id} marked complete")
+    
     def count_by_status(self) -> Dict[str, int]:
         """Get count of jobs per status (fast, uses index)."""
         index = self._load_index()

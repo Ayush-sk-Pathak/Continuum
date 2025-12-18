@@ -197,10 +197,10 @@ try:
         get_foley_engine,
         MockFoleyEngine,
     )
+    from src.sonic.ambience import AmbienceProvider
+    from src.sonic.foley import FoleyProvider
     from src.sonic.types import (
         TTSProvider,
-        AmbienceProvider,
-        FoleyProvider,
         DialogueLine,
         SynthesizedDialogue,
         VoiceConfig,
@@ -967,7 +967,7 @@ class ContinuumOrchestrator:
         
         result = PipelineResult(
             project_id=self.scene_graph.project_id,
-            status=JobStatus.RUNNING,
+            status=JobStatus.GENERATING,
         )
         
         try:
@@ -1096,6 +1096,7 @@ class ContinuumOrchestrator:
             # Process shots in scene
             shot_outputs = []
             shots_to_process = self._filter_shots(scene.shots, shot_ids)
+            previous_chunk: Optional[ChunkOutput] = None  # Track for shot-to-shot bridge
             
             for j, shot in enumerate(shots_to_process):
                 logger.info(f"\n--- Shot {j+1}/{len(shots_to_process)}: {shot.shot_id} ---")
@@ -1114,10 +1115,14 @@ class ContinuumOrchestrator:
                 shot_output = await self.pass1_generator.generate_shot(
                     shot=shot,
                     scene=scene,
+                    previous_shot_output=previous_chunk,  # Bridge from previous shot
                     progress_callback=self._create_generation_callback(scene.scene_id),
                 )
                 
                 shot_outputs.append(shot_output)
+                # Track last chunk for next shot's bridge frame
+                if shot_output.chunk_outputs:
+                    previous_chunk = shot_output.chunk_outputs[-1]
                 
                 # Update world state with any events from this shot
                 self._update_world_state_from_shot(shot, shot_output)
@@ -1561,6 +1566,7 @@ class ContinuumOrchestrator:
                 spec = InterpolationSpec(
                     input_path=video_path,
                     output_path=output_path,
+                    shot_id=shot_output.shot_id,  # ADD THIS LINE
                     target_fps=target_fps,
                     source_fps=12,  # Our pipeline standard
                 )

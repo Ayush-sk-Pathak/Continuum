@@ -384,6 +384,26 @@ class ComfyClient:
             
             return await resp.json()
     
+    async def upload_image(
+        self,
+        image_path: Path,
+        subfolder: str = "",
+    ) -> str:
+        """
+        Upload an image to ComfyUI server and return the remote filename.
+        
+        This is a convenience wrapper around upload_file for image uploads.
+        
+        Args:
+            image_path: Local path to image file
+            subfolder: Subfolder on server (optional)
+            
+        Returns:
+            Remote filename (e.g., "image_001.png")
+        """
+        result = await self.upload_file(image_path, subfolder=subfolder, file_type="input")
+        return result.get("name", image_path.name)
+    
     async def download_output(
         self,
         filename: str,
@@ -455,6 +475,10 @@ class ComfyClient:
         logger.info(f"Submitted job: {prompt_id}")
         
         return job
+    
+    async def submit(self, workflow: Dict[str, Any]) -> ComfyJob:
+        """Alias for submit_workflow for backward compatibility."""
+        return await self.submit_workflow(workflow)
     
     async def wait_for_completion(
         self,

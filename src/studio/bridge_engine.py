@@ -22,12 +22,13 @@ Architecture:
 
 Design Principles:
     1. Workflow-agnostic: Actual ComfyUI workflow is external JSON
-    2. Degradation-ready: ControlNet → IP-Adapter → prompt-only fallback
+    2. Degradation-ready: ControlNet â†’ IP-Adapter â†’ prompt-only fallback
     3. Async-first: All generation is async
     4. Testable: Mock implementation for local testing
 """
 
 import asyncio
+import random
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -72,8 +73,8 @@ class BridgeMethod(str, Enum):
 class CameraTransition(str, Enum):
     """Types of camera angle changes between shots."""
     SAME = "same"                # Same angle (e.g., continuous action)
-    REVERSE = "reverse"          # 180° flip (e.g., conversation)
-    SIDE = "side"                # 90° move (e.g., profile to front)
+    REVERSE = "reverse"          # 180Â° flip (e.g., conversation)
+    SIDE = "side"                # 90Â° move (e.g., profile to front)
     AERIAL = "aerial"            # Ground to overhead
     GROUND = "ground"            # Overhead to ground
     CLOSEUP = "closeup"          # Wide to close
@@ -225,10 +226,10 @@ class BridgeSpec:
         wide_types = {"wide", "aerial", "group"}
         medium_or_wider = {"wide", "aerial", "group", "medium", "two_shot"}
         
-        # Moving closer (wide/medium → close)
+        # Moving closer (wide/medium â†’ close)
         if from_type in medium_or_wider and to_type in close_types:
             return CameraTransition.CLOSEUP
-        # Moving wider (close → wide/medium)  
+        # Moving wider (close â†’ wide/medium)  
         if from_type in close_types and to_type in wide_types:
             return CameraTransition.WIDEOUT
         # Aerial transitions
@@ -470,11 +471,10 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
         
         config = get_config()
         self.client = comfy_client or ComfyClient(
-            host=config.comfyui_host,
-            port=config.comfyui_port,
+            host=config.comfyui.host,
         )
         self.workflow_loader = workflow_loader or WorkflowLoader(
-            workflows_dir=Path(config.workflows_dir)
+            workflows_dir=Path(config.paths.workflows_dir)
         )
         self._initialized = False
     
@@ -579,8 +579,7 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
         
         # Load and configure workflow
         workflow_name = self._get_workflow_name(method)
-        workflow = self.workflow_loader.load(workflow_name)
-        workflow = self.workflow_loader.inject_params(workflow, params)
+        workflow = self.workflow_loader.load_and_inject(workflow_name, params)
         
         self._report_progress("generating", 0.6, "Running ComfyUI workflow")
         
@@ -646,13 +645,11 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
         remote_path = await self.client.upload_image(frame_path)
         
         # Run pose extraction workflow
-        pose_params = GenerationParams(
-            source_image=remote_path,
-        )
-        
         try:
-            pose_workflow = self.workflow_loader.load(self.WORKFLOW_POSE_EXTRACT)
-            pose_workflow = self.workflow_loader.inject_params(pose_workflow, {"SOURCE_IMAGE": remote_path})
+            pose_workflow = self.workflow_loader.load_and_inject(
+                self.WORKFLOW_POSE_EXTRACT, 
+                {"SOURCE_IMAGE": remote_path}
+            )
             
             pose_job = await self.client.submit(pose_workflow)
             pose_job = await self.client.wait_for_completion(pose_job.job_id)
@@ -670,8 +667,10 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
         
         # Run depth extraction workflow
         try:
-            depth_workflow = self.workflow_loader.load(self.WORKFLOW_DEPTH_EXTRACT)
-            depth_workflow = self.workflow_loader.inject_params(depth_workflow, {"SOURCE_IMAGE": remote_path})
+            depth_workflow = self.workflow_loader.load_and_inject(
+                self.WORKFLOW_DEPTH_EXTRACT,
+                {"SOURCE_IMAGE": remote_path}
+            )
             
             depth_job = await self.client.submit(depth_workflow)
             depth_job = await self.client.wait_for_completion(depth_job.job_id)
@@ -715,7 +714,7 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
             "SOURCE_IMAGE": remote_source,
             "WIDTH": spec.width,
             "HEIGHT": spec.height,
-            "SEED": spec.seed if spec.seed >= 0 else -1,
+            "SEED": spec.seed if spec.seed >= 0 else random.randint(0, 2**32 - 1),
             "STEPS": 20 if spec.quality == RenderQuality.STANDARD else 30,
             "CFG": 7.0,
             "DENOISE": 0.65,  # Moderate denoise to preserve source

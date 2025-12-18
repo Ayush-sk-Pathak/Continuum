@@ -2,7 +2,7 @@
 
 > **Purpose:** A living document tracking assumptions that caused errors, their corrections, and how to avoid repeating them. Update this whenever a new mismatch is discovered.
 >
-> **Last Updated:** 2025-12-16 (Added Claude judgment errors J1-J4)
+> **Last Updated:** 2025-12-17 (Added lessons 33-36: WorkflowLoader methods, ComfyClient constructor, KSampler seed, bridge architecture)
 
 ---
 
@@ -636,30 +636,6 @@ try:
 
 ---
 
-### J5. Assuming Module Paths Match Logical Grouping
-
-**Error:** Wrote `from src.studio.lip_sync import ...` but file is in `src/sonic/`. Same with `src.types` → `src/sonic/types`.
-
-**Why:** Lip sync feels like "video" but lives in `sonic/` because it's audio-driven (syncing to dialogue).
-
-**Prevention:** Check file tree before imports. Don't assume location from conceptual grouping.
-
----
-
-### J6. Conditional Import Type Aliases Fail in Type Hints
-
-**Error:** 
-```python
-except ImportError:
-    ColorMatcher = Any  # Runtime variable, NOT a type alias
-
-self.x: Optional[ColorMatcher] = None  # Pylance error: "Variable not allowed in type expression"
-```
-
-**Fix:** Use `Optional[Any]` directly with a comment noting the intended type.
-
----
-
 *Add new judgment errors above this line as they're discovered.*
 
 ---
@@ -789,6 +765,501 @@ def _select_workflow_template(self, job):
 - Flagged as orphan (wastes VRAM)
 
 **Prevention:** Run orphan detection on all workflows. Orphans indicate copy-paste errors or misunderstanding of node requirements.
+
+---
+
+### 22. Enum/Class Defined in Wrong Module - Import Path Mismatch
+
+| | |
+|---|---|
+| **Date** | 2025-12-17 |
+| **Error** | `ImportError: cannot import name 'AmbienceProvider' from 'src.sonic.types'` |
+| **Wrong Assumption** | All sonic enums/types are in `types.py` |
+| **Correct Interface** | `AmbienceProvider` is in `ambience.py`, `FoleyProvider` is in `foley.py` |
+| **Source of Truth** | Check actual file with `grep "class ClassName" src/sonic/*.py` |
+
+**Wrong:**
+```python
+from src.sonic.types import (
+    AmbienceProvider,  # NOT HERE
+    FoleyProvider,     # NOT HERE
+    DialogueLine,      # This one IS here
+)
+```
+
+**Correct:**
+```python
+from src.sonic.ambience import AmbienceProvider
+from src.sonic.foley import FoleyProvider
+from src.sonic.types import DialogueLine
+```
+
+**Prevention:** Before importing, verify location:
+```bash
+grep -r "class AmbienceProvider" src/
+```
+
+---
+
+### 23. Enum Value Doesn't Exist - Using Wrong Status Name
+
+| | |
+|---|---|
+| **Date** | 2025-12-17 |
+| **Error** | `AttributeError: type object 'JobStatus' has no attribute 'RUNNING'` |
+| **Wrong Assumption** | `JobStatus.RUNNING` exists |
+| **Correct Interface** | Use `JobStatus.GENERATING` (the actual enum value) |
+| **Source of Truth** | `src/core/job_state.py` |
+
+**Available JobStatus values:**
+```python
+PENDING = "pending"
+GENERATING = "generating"  # NOT "RUNNING"
+AUDITING = "auditing"
+FAILED = "failed"
+APPROVED = "approved"
+REFINING = "refining"
+COMPLETE = "complete"
+```
+
+**Prevention:** Check enum definition before using:
+```bash
+grep -A 10 "class JobStatus" src/core/job_state.py
+```
+
+---
+
+### 24. Mock Implementation Missing Required Interface Methods
+
+| | |
+|---|---|
+| **Date** | 2025-12-17 |
+| **Error** | `AttributeError: 'MockBridgeEngine' object has no attribute 'shutdown'` |
+| **Wrong Assumption** | Mocks only need to implement "active" methods |
+| **Correct Interface** | Mocks must implement ALL base class methods, including lifecycle |
+| **Source of Truth** | Check base class for all abstract/expected methods |
+
+**Wrong:**
+```python
+class MockBridgeEngine(BaseBridgeEngine):
+    async def generate(self, spec): ...
+    async def health_check(self): ...
+    # Missing: shutdown()
+```
+
+**Correct:**
+```python
+class MockBridgeEngine(BaseBridgeEngine):
+    async def generate(self, spec): ...
+    async def health_check(self): ...
+    async def shutdown(self) -> None:
+        """Mock shutdown - no cleanup needed."""
+        pass
+```
+
+**Prevention:** When creating mocks, grep for all methods in base class:
+```bash
+grep -n "async def\|def " src/studio/bridge_engine.py | grep -A5 "class Base"
+```
+
+---
+
+### 25. main.py Calls Methods That Don't Exist in Implementation
+
+| | |
+|---|---|
+| **Date** | 2025-12-17 |
+| **Error** | `AttributeError: 'CheckpointManager' object has no attribute 'get_completed_scenes'` |
+| **Wrong Assumption** | main.py and CheckpointManager are in sync |
+| **Correct Interface** | main.py was written expecting methods that were never implemented |
+| **Source of Truth** | `src/core/checkpointing.py` |
+
+**Methods main.py expects but didn't exist:**
+- `get_completed_scenes()` 
+- `mark_scene_complete(scene_id)`
+
+**Fix:** Add missing methods to CheckpointManager:
+```python
+def get_completed_scenes(self) -> set:
+    """Get set of completed scene IDs."""
+    completed = set()
+    for job in self.get_all_jobs():
+        if job.status == JobStatus.COMPLETE and job.scene_id:
+            completed.add(job.scene_id)
+    return completed
+
+def mark_scene_complete(self, scene_id: str) -> None:
+    """Mark a scene as complete."""
+    logger.info(f"Scene {scene_id} marked complete")
+```
+
+**Prevention:** When main.py calls a method, verify it exists:
+```bash
+grep -n "def method_name" src/core/checkpointing.py
+```
+
+---
+
+### 26. Dataclass Missing Required Argument in Constructor Call
+
+| | |
+|---|---|
+| **Date** | 2025-12-17 |
+| **Error** | `TypeError: InterpolationSpec.__init__() missing 1 required positional argument: 'shot_id'` |
+| **Wrong Assumption** | Only path and fps arguments needed |
+| **Correct Interface** | `shot_id` is required (no default value) |
+| **Source of Truth** | `src/studio/rife_interpolator.py` |
+
+**Wrong:**
+```python
+spec = InterpolationSpec(
+    input_path=video_path,
+    output_path=output_path,
+    target_fps=target_fps,
+)
+```
+
+**Correct:**
+```python
+spec = InterpolationSpec(
+    input_path=video_path,
+    output_path=output_path,
+    shot_id=shot_output.shot_id,  # Required!
+    target_fps=target_fps,
+)
+```
+
+**Prevention:** Check dataclass definition for required fields (those without `= default`):
+```bash
+grep -A 15 "class InterpolationSpec" src/studio/rife_interpolator.py
+```
+
+---
+
+### 27. JSON Schema Mismatch - EntityRef Requires Objects, Not Strings
+
+| | |
+|---|---|
+| **Date** | 2025-12-17 |
+| **Error** | `TypeError: EntityRef() argument after ** must be a mapping, not str` |
+| **Wrong Assumption** | Characters can be listed as string IDs: `["alice", "bob"]` |
+| **Correct Interface** | Characters must be EntityRef objects with `entity_id`, `entity_type`, `display_name` |
+| **Source of Truth** | `src/director/scene_graph.py` - `Shot.from_dict()` |
+
+**Wrong (sample_project.json):**
+```json
+"characters": ["alice"]
+```
+
+**Correct:**
+```json
+"characters": [
+  {
+    "entity_id": "alice",
+    "entity_type": "character",
+    "display_name": "Alice"
+  }
+]
+```
+
+**Prevention:** Always check `from_dict()` method to see expected JSON structure:
+```bash
+grep -A 20 "def from_dict" src/director/scene_graph.py
+```
+
+---
+
+### 28. I2V Workflow Node Parameter Mismatches
+
+| | |
+|---|---|
+| **Date** | 2025-12-17 |
+| **Error** | `Required input is missing: batch_size` and `unexpected keyword argument 'image'` |
+| **Wrong Assumption** | Workflow template has all required parameters |
+| **Correct Interface** | WanImageToVideo node requires `batch_size` and uses `start_image` not `image` |
+| **Source of Truth** | ComfyUI node definition / error messages |
+
+**Fixes applied to `pass1_img2vid.json`:**
+```python
+# Missing parameter
+workflow['wan_i2v']['inputs']['batch_size'] = 1
+
+# Wrong parameter name
+workflow['wan_i2v']['inputs']['start_image'] = workflow['wan_i2v']['inputs'].pop('image')
+```
+
+**Prevention:** Test workflows against actual ComfyUI before committing. Error messages tell you exactly what's wrong.
+
+---
+
+### 29. Nested Config Access - Using Wrong Attribute Path
+
+| | |
+|---|---|
+| **Date** | 2025-12-17 |
+| **Error** | `AttributeError: 'Config' object has no attribute 'comfyui_host'` |
+| **Wrong Assumption** | Config fields are flat: `config.comfyui_host` |
+| **Correct Interface** | Config is nested: `config.comfyui.host` |
+| **Source of Truth** | `src/core/config.py` |
+
+**Config structure is NESTED:**
+```python
+# Wrong - flat access
+config.comfyui_host        # ❌
+config.comfyui_port        # ❌
+config.workflows_dir       # ❌
+
+# Correct - nested access
+config.comfyui.host        # ✅
+config.comfyui.timeout_sec # ✅
+config.paths.workflows_dir # ✅
+```
+
+**Nested config classes:**
+- `config.comfyui` → `ComfyUIConfig`
+- `config.paths` → `PathsConfig`
+- `config.generation` → `GenerationConfig`
+- `config.audit` → `AuditConfig`
+- `config.sonic` → `SonicConfig`
+- `config.post` → `PostConfig`
+
+**Prevention:** Check config.py for nested structure before accessing:
+```bash
+grep -n "class.*Config" src/core/config.py
+```
+
+---
+
+### 30. Environment Variable Naming for Nested Pydantic Settings
+
+| | |
+|---|---|
+| **Date** | 2025-12-17 |
+| **Error** | Environment variable `COMFYUI_URL` ignored, still using localhost |
+| **Wrong Assumption** | Env var name matches the field name |
+| **Correct Interface** | Use `CONTINUUM_` prefix + double underscore for nesting |
+| **Source of Truth** | `src/core/config.py` line 409 |
+
+**Pydantic BaseSettings env var convention:**
+```bash
+# Pattern: {PREFIX}_{SECTION}__{FIELD}
+# Note the DOUBLE underscore between section and field
+
+# Wrong
+export COMFYUI_URL="wss://..."           # ❌ Ignored
+export COMFYUI_HOST="wss://..."          # ❌ Ignored
+
+# Correct  
+export CONTINUUM_COMFYUI__HOST="wss://..."    # ✅ Works
+export CONTINUUM_COMFYUI__TIMEOUT_SEC=600     # ✅ Works
+export CONTINUUM_PATHS__WORKFLOWS_DIR="/x"    # ✅ Works
+```
+
+**Key rules:**
+1. Prefix is `CONTINUUM_` (from Config class)
+2. Double underscore `__` separates nested config sections
+3. Field names are uppercase
+
+**Prevention:** Check config.py for `env_prefix` and examples:
+```bash
+grep -n "CONTINUUM_" src/core/config.py
+```
+
+---
+
+### 31. Passing Dict When Function Expects Dataclass
+
+| | |
+|---|---|
+| **Date** | 2025-12-17 |
+| **Error** | `'dict' object has no attribute 'source_exists'` |
+| **Wrong Assumption** | Any dict-like structure works |
+| **Correct Interface** | Must pass the actual dataclass type |
+| **Source of Truth** | Function signature |
+
+**Pattern:** Function accepts `spec: BridgeSpec` but caller passes a dict:
+```python
+# Wrong - passing a dict
+bridge_request = {
+    "source_video": previous_output.video_path,
+    "target_shot": shot,
+}
+result = await bridge_engine.generate(bridge_request)  # ❌ Fails
+
+# Correct - use the dataclass
+spec = BridgeSpec.from_shots(
+    shot_a_last_frame=last_frame_path,
+    shot_b_prompt=shot.prompt,
+    shot_b_characters=[],
+)
+result = await bridge_engine.generate(spec)  # ✅ Works
+```
+
+**Prevention:** Always check the function signature and use proper types. Look for factory methods like `Dataclass.from_something()` that make construction easier.
+
+---
+
+### 32. Method Naming Inconsistency Between Components
+
+| | |
+|---|---|
+| **Date** | 2025-12-17 |
+| **Error** | `'ComfyClient' object has no attribute 'upload_image'` and `'ComfyClient' object has no attribute 'submit'` |
+| **Component** | `bridge_engine.py`, `rife_interpolator.py` calling `client.py` |
+
+**Wrong Assumption:** Components calling `ComfyClient` assumed methods named `upload_image` and `submit` existed.
+
+**Reality:** The actual method names were:
+- `upload_file()` — generic file upload returning dict
+- `submit_workflow()` — workflow submission
+
+**Why It Happened:** Different developers or different development phases used different naming conventions. Bridge engine was written expecting simpler method names that matched the semantic action (upload_image, submit) while the client used more explicit names (upload_file, submit_workflow).
+
+**Fix:** Added alias methods to ComfyClient:
+```python
+async def upload_image(self, image_path: Path, subfolder: str = "") -> str:
+    """Alias for upload_file that returns just the filename."""
+    result = await self.upload_file(image_path, subfolder=subfolder, file_type="input")
+    return result.get("name", image_path.name)
+
+async def submit(self, workflow: Dict[str, Any]) -> ComfyJob:
+    """Alias for submit_workflow for backward compatibility."""
+    return await self.submit_workflow(workflow)
+```
+
+**Prevention:** 
+1. Define canonical method names in base classes/interfaces
+2. When adding new callers, check exact method names in the implementation
+3. Add aliases when method naming diverges to maintain backward compatibility
+
+---
+
+### 33. WorkflowLoader Method Name: `inject` not `inject_params`
+
+| | |
+|---|---|
+| **Date** | 2025-12-17 |
+| **Error** | `'WorkflowLoader' object has no attribute 'inject_params'` |
+| **Wrong Assumption** | Method is named `inject_params(workflow, params)` |
+| **Correct Interface** | Method is `inject(template, params)` or convenience method `load_and_inject(name, params)` |
+| **Source of Truth** | `src/comfy_client/workflow_loader.py` |
+
+**Wrong:**
+```python
+workflow = self.workflow_loader.load(workflow_name)
+workflow = self.workflow_loader.inject_params(workflow, params)  # ❌
+```
+
+**Correct:**
+```python
+# Option 1: Two-step
+template = self.workflow_loader.load(workflow_name)
+result = self.workflow_loader.inject(template, params)
+workflow = result.workflow
+
+# Option 2: One-step (preferred)
+workflow = self.workflow_loader.load_and_inject(workflow_name, params)  # ✅
+```
+
+**Prevention:** Check WorkflowLoader methods:
+```bash
+grep -n "def inject\|def load_and_inject" src/comfy_client/workflow_loader.py
+```
+
+---
+
+### 34. ComfyClient Constructor - Host Contains Full URL, No Port Parameter
+
+| | |
+|---|---|
+| **Date** | 2025-12-17 |
+| **Error** | `TypeError: ComfyClient.__init__() got an unexpected keyword argument 'port'` |
+| **Wrong Assumption** | Constructor takes separate `host` and `port` parameters |
+| **Correct Interface** | `host` is the full WebSocket URL including port |
+| **Source of Truth** | `src/comfy_client/client.py` |
+
+**Wrong:**
+```python
+ComfyClient(
+    host=config.comfyui.host,
+    port=config.comfyui.port,  # ❌ Parameter doesn't exist
+)
+```
+
+**Correct:**
+```python
+ComfyClient(
+    host=config.comfyui.host,  # Full URL like "wss://...proxy.runpod.net:8188"
+)
+# OR
+ComfyClient(
+    config=config.comfyui,  # Pass entire ComfyUIConfig object
+)
+```
+
+**Prevention:** The `host` field already contains the full URL with port. Check ComfyUIConfig:
+```bash
+grep -A 10 "class ComfyUIConfig" src/core/config.py
+```
+
+---
+
+### 35. ComfyUI KSampler Seed Must Be >= 0
+
+| | |
+|---|---|
+| **Date** | 2025-12-17 |
+| **Error** | `Value -1 smaller than min of 0` for seed parameter |
+| **Wrong Assumption** | Seed value `-1` means "random" (like some libraries) |
+| **Correct Interface** | KSampler requires seed >= 0, must generate random value explicitly |
+| **Source of Truth** | ComfyUI KSampler node validation |
+
+**Wrong:**
+```python
+params = {
+    "SEED": spec.seed if spec.seed >= 0 else -1,  # ❌ -1 is invalid
+}
+```
+
+**Correct:**
+```python
+import random
+params = {
+    "SEED": spec.seed if spec.seed >= 0 else random.randint(0, 2**32 - 1),  # ✅
+}
+```
+
+**Prevention:** ComfyUI nodes validate inputs strictly. Never assume sentinel values like `-1` are accepted. When in doubt, check ComfyUI node definitions or test with ComfyUI UI.
+
+---
+
+### 36. Architecture Mismatch: Wrong Model Family for Bridge Frames
+
+| | |
+|---|---|
+| **Date** | 2025-12-17 |
+| **Issue** | `bridge_basic.json` uses SDXL for bridge frame generation |
+| **Wrong Assumption** | SDXL img2img is suitable for creating continuity between Wan video shots |
+| **Correct Approach** | Use Wan I2V (Image-to-Video) to maintain visual consistency |
+
+**Why SDXL Bridge Was Wrong:**
+1. SDXL generates a single static image, not video
+2. Different model family than Wan = style mismatch risk
+3. Requires extra 6.5GB model download
+4. Generated bridge image never actually gets used by Shot 2
+
+**Correct Architecture:**
+```
+Shot 1 last frame → Wan I2V (pass1_img2vid) → Shot 2 video
+
+Instead of:
+Shot 1 last frame → SDXL img2img → Bridge image → ??? (dead end)
+```
+
+**Prevention:** When designing cross-shot continuity:
+1. Use the same model family for all shots
+2. Leverage I2V (image-to-video) capabilities of the primary renderer
+3. Don't introduce additional model dependencies without clear benefit
 
 ---
 

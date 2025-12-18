@@ -1,0 +1,77 @@
+{
+  "project_id": "bridge_test_001",
+  "title": "Bridge Frame Test",
+  "description": "Two shots to test bridge frame continuity",
+  "version": "1.0",
+  "scenes": [
+    {
+      "scene_id": "scene_01",
+      "index": 0,
+      "title": "Kitchen Conversation",
+      "description": "A woman in a kitchen across two shots",
+      "location": {
+        "entity_id": "kitchen",
+        "entity_type": "location",
+        "display_name": "Kitchen"
+      },
+      "time_of_day": "day",
+      "characters": [
+        {
+          "entity_id": "alice",
+          "entity_type": "character",
+          "display_name": "Alice"
+        }
+      ],
+      "shots": [
+        {
+          "shot_id": "shot_01",
+          "scene_id": "scene_01",
+          "index": 0,
+          "duration_sec": 4.0,
+          "description": "Medium shot of woman at kitchen table",
+          "prompt": "A beautiful woman with blond hair wearing a pink swim suit walking towards the viewer on a beach on a sunset, soft warm lighting, cinematic, 4k",
+          "shot_type": "medium",
+          "characters": [
+            {
+              "entity_id": "alice",
+              "entity_type": "character",
+              "display_name": "Alice"
+            }
+          ],
+          "location": {
+            "entity_id": "kitchen",
+            "entity_type": "location",
+            "display_name": "Kitchen"
+          },
+          "props": [],
+          "chunks": [],
+          "dialogue": []
+        },
+        {
+          "shot_id": "shot_02",
+          "scene_id": "scene_01",
+          "index": 1,
+          "duration_sec": 4.0,
+          "description": "Close-up of the same woman smiling",
+          "prompt": "Close-up of a young woman with blond hair wearing a pink swim suit, laughing heartily, soft warm lighting, cinematic, 4k",
+          "shot_type": "close",
+          "characters": [
+            {
+              "entity_id": "alice",
+              "entity_type": "character",
+              "display_name": "Alice"
+            }
+          ],
+          "location": {
+            "entity_id": "kitchen",
+            "entity_type": "location",
+            "display_name": "Kitchen"
+          },
+          "props": [],
+          "chunks": [],
+          "dialogue": []
+        }
+      ]
+    }
+  ]
+}

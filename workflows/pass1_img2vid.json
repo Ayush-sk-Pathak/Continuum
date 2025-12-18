@@ -7,14 +7,12 @@
       "device": "default"
     }
   },
-
   "vae_loader": {
     "class_type": "VAELoader",
     "inputs": {
       "vae_name": "{{VAE_MODEL}}"
     }
   },
-
   "unet_loader": {
     "class_type": "UNETLoader",
     "inputs": {
@@ -22,68 +20,91 @@
       "weight_dtype": "default"
     }
   },
-
   "clip_vision_loader": {
     "class_type": "CLIPVisionLoader",
     "inputs": {
       "clip_name": "{{CLIP_VISION_MODEL}}"
     }
   },
-
   "model_sampling": {
     "class_type": "ModelSamplingSD3",
     "inputs": {
       "shift": 8,
-      "model": ["unet_loader", 0]
+      "model": [
+        "unet_loader",
+        0
+      ]
     }
   },
-
   "load_image": {
     "class_type": "LoadImage",
     "inputs": {
       "image": "{{INIT_IMAGE}}"
     }
   },
-
   "clip_vision_encode": {
     "class_type": "CLIPVisionEncode",
     "inputs": {
       "crop": "none",
-      "clip_vision": ["clip_vision_loader", 0],
-      "image": ["load_image", 0]
+      "clip_vision": [
+        "clip_vision_loader",
+        0
+      ],
+      "image": [
+        "load_image",
+        0
+      ]
     }
   },
-
   "positive_prompt": {
     "class_type": "CLIPTextEncode",
     "inputs": {
       "text": "{{POSITIVE_PROMPT}}",
-      "clip": ["clip_loader", 0]
+      "clip": [
+        "clip_loader",
+        0
+      ]
     }
   },
-
   "negative_prompt": {
     "class_type": "CLIPTextEncode",
     "inputs": {
       "text": "{{NEGATIVE_PROMPT}}",
-      "clip": ["clip_loader", 0]
+      "clip": [
+        "clip_loader",
+        0
+      ]
     }
   },
-
   "wan_i2v": {
     "class_type": "WanImageToVideo",
     "inputs": {
       "width": "{{WIDTH}}",
       "height": "{{HEIGHT}}",
       "length": "{{FRAMES}}",
-      "positive": ["positive_prompt", 0],
-      "negative": ["negative_prompt", 0],
-      "vae": ["vae_loader", 0],
-      "clip_vision_output": ["clip_vision_encode", 0],
-      "image": ["load_image", 0]
+      "batch_size": 1,
+      "positive": [
+        "positive_prompt",
+        0
+      ],
+      "negative": [
+        "negative_prompt",
+        0
+      ],
+      "vae": [
+        "vae_loader",
+        0
+      ],
+      "clip_vision_output": [
+        "clip_vision_encode",
+        0
+      ],
+      "start_image": [
+        "load_image",
+        0
+      ]
     }
   },
-
   "sampler": {
     "class_type": "KSampler",
     "inputs": {
@@ -94,36 +115,57 @@
       "sampler_name": "uni_pc",
       "scheduler": "simple",
       "denoise": 1,
-      "model": ["model_sampling", 0],
-      "positive": ["wan_i2v", 0],
-      "negative": ["wan_i2v", 1],
-      "latent_image": ["wan_i2v", 2]
+      "model": [
+        "model_sampling",
+        0
+      ],
+      "positive": [
+        "wan_i2v",
+        0
+      ],
+      "negative": [
+        "wan_i2v",
+        1
+      ],
+      "latent_image": [
+        "wan_i2v",
+        2
+      ]
     }
   },
-
   "vae_decode": {
     "class_type": "VAEDecode",
     "inputs": {
-      "samples": ["sampler", 0],
-      "vae": ["vae_loader", 0]
+      "samples": [
+        "sampler",
+        0
+      ],
+      "vae": [
+        "vae_loader",
+        0
+      ]
     }
   },
-
   "create_video": {
     "class_type": "CreateVideo",
     "inputs": {
       "fps": "{{FPS}}",
-      "images": ["vae_decode", 0]
+      "images": [
+        "vae_decode",
+        0
+      ]
     }
   },
-
   "save_video": {
     "class_type": "SaveVideo",
     "inputs": {
       "filename_prefix": "continuum/i2v",
       "format": "auto",
       "codec": "auto",
-      "video": ["create_video", 0]
+      "video": [
+        "create_video",
+        0
+      ]
     }
   }
 }

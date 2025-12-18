@@ -23,10 +23,10 @@ The Solution:
     6. Return approved result or surface failure to user
 
 Architecture Position:
-    Director (planning) → Pass1Generator (execution) → Audit (verification)
-                                    ↓
+    Director (planning) Ã¢â€ â€™ Pass1Generator (execution) Ã¢â€ â€™ Audit (verification)
+                                    Ã¢â€ â€œ
                             BridgeEngine + Renderer
-                                    ↓
+                                    Ã¢â€ â€œ
                             Pass2Refiner (next stage)
 
 Design Principles:
@@ -34,7 +34,7 @@ Design Principles:
     2. Renderer-agnostic: Works with any BaseRenderer implementation
     3. Fail-safe: Always returns or surfaces error, never hangs
     4. Observable: Progress callbacks at each stage
-    5. Idempotent: Same chunk + seed → same result
+    5. Idempotent: Same chunk + seed Ã¢â€ â€™ same result
 """
 
 import asyncio
@@ -394,9 +394,10 @@ class Pass1Generator:
             )
             
             try:
-                # Step 1: Generate bridge frame if needed
+                # Step 1: Extract continuity frame if needed
+                # (bridge_engine reserved for future camera transitions)
                 bridge_frame_path = None
-                if self.config.enable_bridge and self.bridge_engine:
+                if self.config.enable_bridge:
                     bridge_frame_path = await self._generate_bridge_frame(
                         chunk, shot, previous_chunk_output, progress_callback
                     )
@@ -506,6 +507,7 @@ class Pass1Generator:
         self,
         shot: Any,  # Shot from scene_graph
         scene: Optional[Any] = None,
+        previous_shot_output: Optional[ChunkOutput] = None,  # Last chunk from previous shot
         progress_callback: Optional[Callable[[GenerationProgress], None]] = None,
     ) -> ShotOutput:
         """
@@ -527,7 +529,7 @@ class Pass1Generator:
         logger.info(f"Generating shot {shot_id}: {len(chunks)} chunks")
         
         output = ShotOutput(shot_id=shot_id)
-        previous_output: Optional[ChunkOutput] = None
+        previous_output: Optional[ChunkOutput] = previous_shot_output
         
         for i, chunk in enumerate(chunks):
             logger.info(f"Processing chunk {i+1}/{len(chunks)}")
@@ -573,15 +575,22 @@ class Pass1Generator:
         logger.info(f"Generating scene {scene_id}: {len(shots)} shots")
         
         outputs = []
+        previous_chunk: Optional[ChunkOutput] = None
+        
         for i, shot in enumerate(shots):
             logger.info(f"Processing shot {i+1}/{len(shots)}")
             
             shot_output = await self.generate_shot(
                 shot=shot,
                 scene=scene,
+                previous_shot_output=previous_chunk,
                 progress_callback=progress_callback,
             )
             outputs.append(shot_output)
+            
+            # Track last chunk for next shot's bridge
+            if shot_output.chunk_outputs:
+                previous_chunk = shot_output.chunk_outputs[-1]
             
             # Stop if critical failure
             if shot_output.has_failures:
@@ -667,42 +676,55 @@ class Pass1Generator:
         progress_callback: Optional[Callable],
     ) -> Optional[Path]:
         """
-        Generate bridge frame from previous chunk.
+        Extract last frame from previous chunk for shot continuity.
+        
+        This frame is passed to WanRenderer as init_frame, which triggers
+        I2V (Image-to-Video) workflow instead of T2V. Wan I2V naturally
+        continues from the frame, preserving expression, pose, and style
+        in the same latent space.
         
         Returns None if:
-        - This is the first chunk
-        - Previous chunk failed
-        - Bridge engine not available
+        - This is the first chunk (no previous output)
+        - Previous chunk failed (no video path)
+        
+        Note: For camera angle transitions (future), this method can be
+        extended to use bridge_engine with ControlNet for pose transfer.
         """
         if not previous_output or not previous_output.video_path:
-            return None
-        
-        if not self.bridge_engine:
             return None
         
         self._report_progress(
             GenerationStage.BRIDGE,
             0.1,
-            "Generating bridge frame...",
+            "Extracting continuity frame...",
             self._get_chunk_id(chunk),
             1,
             progress_callback,
         )
         
         try:
-            # Extract last frame from previous chunk
-            # Generate bridge frame for current chunk's perspective
-            bridge_request = {
-                "source_video": previous_output.video_path,
-                "target_shot": shot,
-                "chunk": chunk,
-            }
+            # Import here to avoid circular dependency
+            from src.post.ffmpeg_wrapper import extract_last_frame
             
-            bridge_result = await self.bridge_engine.generate(bridge_request)
-            return bridge_result.bridge_frame_path
+            # Extract last frame from previous chunk's video
+            chunk_id = self._get_chunk_id(chunk)
+            bridge_dir = self.config.output_dir / "bridge" if self.config.output_dir else Path("workspace/output/bridge")
+            bridge_dir.mkdir(parents=True, exist_ok=True)
+            last_frame_path = bridge_dir / f"{chunk_id}_source.png"
+            
+            await extract_last_frame(
+                Path(previous_output.video_path),
+                last_frame_path
+            )
+            
+            logger.info(f"Extracted continuity frame: {last_frame_path}")
+            
+            # Return raw frame - WanRenderer will use I2V workflow
+            # when it sees init_frame, preserving visual continuity
+            return last_frame_path
             
         except Exception as e:
-            logger.warning(f"Bridge frame generation failed: {e}")
+            logger.warning(f"Continuity frame extraction failed: {e}")
             return None
     
     async def _render_chunk(

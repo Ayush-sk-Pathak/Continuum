@@ -1,6 +1,6 @@
 # Continuum Engine - Architecture Summary (Dev Facing)
 
-**Version:** 2025.12  
+**Version:** 2025.12.4  
 **Status:** Working Summary for Implementation  
 **Project Codename:** "Pixar-on-Demand"
 
@@ -28,8 +28,30 @@ We are building a **neuro-symbolic AI filmmaking engine** (not just a video gene
 
 | Layer | Hardware | Responsibilities |
 |-------|----------|------------------|
-| **Brain (Local)** | MacBook Air M4 | Director Agent, Orchestration, UI, Job Dispatch |
+| **Brain (Local)** | MacBook Air M4 | Python orchestration, job dispatch, UI |
+| **Brain (Cloud)** | LLM APIs | Director Agent intelligence (script parsing, planning, reasoning) |
 | **Muscle (Cloud)** | RunPod/Lambda GPUs | ComfyUI, Video Inference, LoRA Training, QA Models |
+
+### Director Agent (LLM Configuration)
+
+The Director Agent is the "intelligence" of the system. It runs as **cloud LLM API calls** dispatched from the Mac — the Mac runs Python orchestration code, NOT local model inference.
+
+| Mode | Provider | Model | Cost | Use Case |
+|------|----------|-------|------|----------|
+| **Primary** | Anthropic | Claude Opus 4.5 / Claude Sonnet 4.5 | ~$0.003/1K tokens | Complex reasoning, script parsing |
+| **Primary** | OpenAI | GPT-5.2 / GPT-5.2-mini | ~$0.002/1K tokens | Fast structured output |
+| **Primary** | Google | Gemini 3 Pro / Flash | ~$0.001/1K tokens | Long context, multimodal |
+| **Fallback** | Local (Ollama) | Llama 3.1 8B | Free | Offline/privacy mode only |
+
+**Cost Impact:** ~$0.02-0.10 per 5-minute film (negligible vs. GPU rendering at $5-50/film)
+
+**Director Agent Responsibilities:**
+- Parse scripts → Scene Graph JSON
+- Maintain Consistency Dictionary (entity → asset mappings)
+- Validate continuity ("Does Alice still have the sword?")
+- Generate shot compositions and camera decisions
+- Enrich prompts with cinematic detail
+- Orchestrate render jobs and audit results
 
 ### Two-Lane Rendering Model
 
@@ -46,10 +68,31 @@ The architecture supports hot-swapping between lanes via `BaseRenderer` abstract
 
 ### Principle 1: Smart-Cut > Infinite Streaming
 We do **not** rely on one model to generate 5 minutes continuously.  
-We use a **"Max-Duration + Bridge"** strategy:
+We use a **"Max-Duration + Bridge Frame"** strategy:
 - Render stable chunks (~12 seconds max)
-- Generate a synthetic **Bridge Frame** (mathematically perfect transition)
-- Start the next shot from the Bridge Frame
+- Extract the **last frame** from each chunk (captures pose, expression)
+- Generate a **Bridge Frame** that re-anchors identity while preserving pose
+- Start the next chunk using **Wan I2V** with the Bridge Frame as `init_image`
+
+**Why Bridge Frames Matter (Drift Correction):**
+```
+Without Bridge (drift accumulates):
+  Shot 1 → Shot 2 → Shot 3 → Shot 4 → Shot 5
+  100%     98%      94%      88%      80%  ← identity degrades
+
+With Bridge (re-anchored each cut):
+  Shot 1 → Bridge → Shot 2 → Bridge → Shot 3
+  100%     100%     100%     100%     100%  ← identity locked
+```
+
+The Bridge Frame uses:
+- **ControlNet (OpenPose):** Extracts pose/expression from last frame
+- **IP-Adapter + LoRA:** Re-injects canonical identity from Bible refs
+
+This ensures every shot starts fresh from ground truth, not from accumulated drift.
+
+**⚠️ MVP Limitation (Current Implementation):**
+The current MVP uses raw last frame → Wan I2V (bypassing Bridge Engine). This works for short tests but will accumulate drift over many shots. Proper bridge integration (`bridge_full.json`) is required for production.
 
 ### Principle 2: Trust but Verify (Automated QA)
 Every generated chunk is audited **before** the user sees it:
@@ -127,6 +170,7 @@ continuum/
 |   |   +-- model_loader.py      # Model tier system (dev/standard/beast)
 |   |
 |   |-- director/                # The Brain (LLM-powered)
+|   |   |-- llm_client.py        # Cloud LLM interface (Claude/GPT/Gemini)
 |   |   |-- scene_graph.py       # Script -> Scenes -> Shots -> Chunks
 |   |   |-- consistency_dict.py  # Entity -> Asset mappings (static)
 |   |   |-- world_state.py       # Object states & positions (dynamic)
@@ -177,14 +221,14 @@ continuum/
 |
 |-- workflows/                   # ComfyUI JSON workflows
 |   |-- models.json              # Model registry (tier configs)
-|   |-- pass1_structural.json    # T2V base
+|   |-- pass1_structural.json    # T2V base (no init_frame)
 |   |-- pass1_structural_lora.json  # T2V + LoRA
-|   |-- pass1_img2vid.json       # I2V base
+|   |-- pass1_img2vid.json       # I2V base (uses Bridge Frame as init_image)
 |   |-- pass1_img2vid_lora.json  # I2V + LoRA
-|   |-- bridge_basic.json        # Prompt-only transition
-|   |-- bridge_ipadapter.json    # + face reference
-|   |-- bridge_pose_only.json    # + pose ControlNet
-|   |-- bridge_full.json         # + pose + depth
+|   |-- bridge_basic.json        # ❌ BROKEN: SDXL img2img only (no pose/identity)
+|   |-- bridge_ipadapter.json    # Partial: IP-Adapter identity only
+|   |-- bridge_pose_only.json    # Partial: ControlNet pose only  
+|   |-- bridge_full.json         # ✅ CORRECT: ControlNet pose + IP-Adapter identity
 |   |-- refine_vid2vid_simple.json   # Frame-by-frame refinement
 |   |-- refine_vid2vid_temporal.json # Batched temporal refinement
 |   +-- musetalk_lipsync.json    # Lip sync via Musetalk
@@ -207,7 +251,7 @@ continuum/
 | Module | Role | Key Classes/Functions |
 |--------|------|----------------------|
 | `core/` | Shared infrastructure | `JobState`, `Checkpoint`, `Config` |
-| `director/` | The Brain -- planning & orchestration | `SceneGraph`, `ConsistencyDict`, `WorldState`, `Pacer` |
+| `director/` | The Brain — LLM-powered planning & orchestration | `SceneGraph`, `ConsistencyDict`, `WorldState`, `Pacer`, `LLMClient` |
 | `memory/` | Asset storage & retrieval | `VisualRAG`, `AssetStore`, `get_asset(entity_id)` |
 | `renderers/` | Pluggable video generation | `BaseRenderer`, `WanRenderer`, `RunwayRenderer` |
 | `studio/` | Video pipeline stages | `BridgeEngine`, `Pass1Generator`, `Pass2Refiner`, `RIFE` |
@@ -298,7 +342,7 @@ Ordered by **what unblocks the next thing**, not by architectural importance.
 | **P2** | `director/scene_graph.py` | Script -> Shots parser | Know what to generate |
 | **P3a** | `workflows/` + I2V integration | I2V workflow + ref image injection | **Instant identity (Tier 1)** |
 | **P3b** | `memory/` + LoRA workflow | LoRA injection when available | Enhanced identity (Tier 2) |
-| **P4** | `studio/bridge_engine.py` | Connect Shot A -> Shot B | **THIS IS THE CORE VALUE** |
+| **P4** | `studio/bridge_engine.py` | Bridge Frame generation (drift correction) | **THIS IS THE CORE VALUE** |
 | **P5** | `audit/identity_checker.py` | ArcFace similarity check | Verify bridge maintains identity |
 | **P6** | `sonic/tts_engine.py` + `lip_sync.py` | Dialogue with moving lips | Audio for demo |
 | **P7** | `studio/pass2_refiner.py` + `rife_interpolator.py` | Polish & frame rate | Quality pass |
@@ -308,6 +352,27 @@ Ordered by **what unblocks the next thing**, not by architectural importance.
 **Can you generate Shot A, then Shot B, and have them look like the same character in the same world?**
 
 This requires: P0 -> P1 -> P2 -> P3a -> P4 -> P5. Everything else is optimization.
+
+**How P4 Works (Bridge Frame for Drift Correction):**
+
+*Correct Flow (Production):*
+```
+Shot A video → Extract last frame → bridge_full.json → Bridge Frame → Wan I2V → Shot B
+                     │                     │
+                     │                     ├─ ControlNet: extracts POSE
+                     │                     └─ IP-Adapter: re-anchors IDENTITY
+                     │
+                     └─ Captures expression, body position
+```
+
+*Current MVP Flow (Temporary):*
+```
+Shot A video → Extract last frame → (skip bridge) → Wan I2V → Shot B
+                                          │
+                                          └─ ⚠️ Drift will accumulate
+```
+
+The MVP shortcut works for 2-3 shot tests. Production requires proper bridge integration.
 
 ---
 
@@ -494,17 +559,40 @@ Use the degradation ladder:
 
 ---
 
+## 7b. Known MVP Limitations
+
+**These are intentional shortcuts in the current implementation. They must be fixed for production.**
+
+| Limitation | Current MVP | Production Requirement | Impact |
+|------------|-------------|------------------------|--------|
+| **Bridge Frame** | Raw last frame → I2V (no re-anchoring) | `bridge_full.json` with ControlNet + IP-Adapter | Drift accumulates over 5+ shots |
+| **Director Agent** | Manual scene graph JSON | LLM parses script automatically | No script-to-video pipeline |
+| **Identity Audit** | Stubbed (always passes) | Real ArcFace similarity check | Drift not caught automatically |
+| **Sonic Engine** | Stubbed interfaces | TTS + Lip Sync + Ambience | Silent films only |
+| **Pass 2 Refinement** | Partial (workflow exists) | Full vid2vid flicker reduction | Visual quality not polished |
+| **World State** | Stubbed data structures | Actual object position tracking | Props may teleport |
+
+**Priority for Production:** Bridge Frame > Identity Audit > Director Agent > Sonic Engine
+
+---
+
 ## 8. Configuration
 
 ### Environment Variables (secrets.yaml)
 ```yaml
-# API Keys
-OPENAI_API_KEY: "sk-..."
-ELEVENLABS_API_KEY: "..."
-PINECONE_API_KEY: "..."
+# LLM API Keys (Director Agent - choose one or more)
+ANTHROPIC_API_KEY: "sk-ant-..."     # Claude (recommended for complex reasoning)
+OPENAI_API_KEY: "sk-..."            # GPT-4o (fast structured output)
+GOOGLE_API_KEY: "..."               # Gemini (long context, multimodal)
+
+# Audio API Keys
+ELEVENLABS_API_KEY: "..."           # TTS for dialogue
+
+# Memory/RAG
+PINECONE_API_KEY: "..."             # Visual RAG (optional)
 
 # Cloud Infrastructure  
-COMFYUI_HOST: "ws://your-runpod-instance:8188"
+COMFYUI_HOST: "wss://your-runpod-instance:8188"
 S3_BUCKET: "continuum-assets"
 AWS_ACCESS_KEY_ID: "..."
 AWS_SECRET_ACCESS_KEY: "..."
@@ -513,6 +601,10 @@ AWS_SECRET_ACCESS_KEY: "..."
 # See docs/MODEL_CONFIGURATION.md for tier switching
 CONTINUUM_MODEL_TIER: "dev"  # Options: dev, standard, beast
 DEFAULT_LORA_DIR: "/models/loras/"
+
+# Director Agent LLM Selection
+CONTINUUM_LLM_PROVIDER: "anthropic"  # Options: anthropic, openai, google, ollama
+CONTINUUM_LLM_MODEL: "claude-opus-4-5-20251101"  # Model name for selected provider
 ```
 
 ### Runtime Config (default.yaml)
@@ -543,15 +635,19 @@ post:
 
 | Term | Definition |
 |------|------------|
-| **Bridge Frame** | Synthetic image generated to start Shot B, derived from end of Shot A |
+| **Bridge Frame** | Synthetic image generated via ControlNet (pose) + IP-Adapter (identity) that re-anchors character identity while preserving pose/expression from last frame. Prevents drift accumulation. |
 | **Consistency Dictionary** | Static mapping of entity IDs to their canonical assets (LoRAs, refs) |
 | **World State** | Dynamic tracking of object positions and states (changes over time) |
 | **Smart Cut** | Intentional camera change triggered before model drift occurs |
-| **Pass 1** | Structural generation " composition, motion, identity |
-| **Pass 2** | Refinement " flicker reduction, detail enhancement |
+| **Pass 1** | Structural generation — composition, motion, identity |
+| **Pass 2** | Refinement — flicker reduction, detail enhancement |
 | **Pacer** | Logic that decides when to cut (Max_Duration or pacing demand) |
 | **Standard Lane** | OSS-only rendering path (~$0.50/min) |
 | **Pro Lane** | Premium API + OSS repair path (~$6-12/min) |
+| **T2V** | Text-to-Video — generates video from text prompt only |
+| **I2V** | Image-to-Video — generates video starting from an init_image (Bridge Frame) |
+| **Bible Refs** | Canonical reference images for a character/location stored in Consistency Dictionary |
+| **Drift** | Gradual degradation of character identity over multiple generation cycles |
 
 ---
 
@@ -559,6 +655,9 @@ post:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2025.12.4 | Dec 2025 | **Bridge strategy correction:** Restored proper Bridge Frame concept (ControlNet pose + IP-Adapter identity re-anchoring). Clarified MVP uses raw frame shortcut (causes drift). Documented that `bridge_full.json` is required for production. |
+| 2025.12.3 | Dec 2025 | **LLM clarification:** Added Director Agent LLM configuration section. Cloud APIs (Claude/GPT/Gemini) are primary; local Ollama is fallback only. Updated Hardware Strategy table to separate Brain (Local orchestration) from Brain (Cloud LLM). |
+| 2025.12.2 | Dec 2025 | **Bridge strategy update:** Shot continuity now uses raw frame → Wan I2V instead of SDXL bridge. Bridge engine reserved for camera transitions (Phase 2). Updated priority table, glossary, workflow annotations. |
 | 2025.12.1 | Dec 2025 | Added model tier system (models.json, model_loader.py). Updated workflow list to match implementation. Added related docs links. |
 | 2025.12 | Dec 2025 | Initial working summary. Split State/Memory. Added Two-Lane model. Revised priority order. Added code standards. |
 

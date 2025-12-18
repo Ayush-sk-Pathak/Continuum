@@ -1,0 +1,52 @@
+{
+  "project_id": "test_001",
+  "title": "Identity Test",
+  "description": "Testing identity preservation across shots",
+  "scenes": [
+    {
+      "scene_id": "scene_01",
+      "index": 0,
+      "title": "Kitchen Scene",
+      "description": "A woman in a kitchen",
+      "location": {
+        "entity_id": "kitchen",
+        "entity_type": "location",
+        "display_name": "Kitchen"
+      },
+      "time_of_day": "day",
+      "characters": [
+        {
+          "entity_id": "alice",
+          "entity_type": "character",
+          "display_name": "Alice"
+        }
+      ],
+      "shots": [
+        {
+          "shot_id": "shot_01",
+          "scene_id": "scene_01",
+          "index": 0,
+          "duration_sec": 4.0,
+          "description": "A woman sits at a kitchen table, smiling warmly",
+          "prompt": "A young Indian woman with long black hair sits at a kitchen table, smiling warmly, soft lighting, cinematic",
+          "shot_type": "medium",
+          "characters": [
+            {
+              "entity_id": "alice",
+              "entity_type": "character",
+              "display_name": "Alice"
+            }
+          ],
+          "location": {
+            "entity_id": "kitchen",
+            "entity_type": "location",
+            "display_name": "Kitchen"
+          },
+          "props": [],
+          "chunks": [],
+          "dialogue": []
+        }
+      ]
+    }
+  ]
+}
