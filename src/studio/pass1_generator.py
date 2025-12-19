@@ -45,8 +45,15 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 import hashlib
+
+# Conditional import to avoid circular dependency
+# Reviewer depends on identity_checker and physics_checker
+# Pass1Generator uses Reviewer for audit
+# Note: Reviewer is in src.audit, not src.studio
+if TYPE_CHECKING:
+    from src.audit.reviewer import ReviewRequest, Reviewer
 
 logger = logging.getLogger(__name__)
 
@@ -855,38 +862,73 @@ class Pass1Generator:
         video_path: Path,
         reference_frame: Optional[Path],
         shot: Any,
+        previous_shot_path: Optional[Path] = None,
     ) -> Dict[str, Any]:
         """
         Run audit on generated chunk.
         
+        The audit system verifies:
+        1. Identity preservation (ArcFace similarity check)
+        2. Physics plausibility (object tracking, gravity)
+        
+        Args:
+            video_path: Path to the rendered video chunk
+            reference_frame: Face reference image for identity check
+            shot: Shot object containing character info
+            previous_shot_path: Previous shot video for cross-shot audit
+        
         Returns dict with:
-        - passed: bool
-        - reason: str (if failed)
-        - details: audit flags
+            - passed: bool
+            - reason: str (if failed)
+            - should_reroll: bool
+            - details: audit flags and scores
         """
         if not self.reviewer:
             return {"passed": True, "reason": "Audit disabled"}
         
         try:
-            # Build review request
-            review_request = {
-                "video_path": video_path,
-                "reference_frame": reference_frame,
-                "shot_id": self._get_shot_id(shot),
-            }
+            # Import here to avoid circular dependency at module load time
+            # Reviewer is in src.audit, not src.studio
+            from src.audit.reviewer import ReviewRequest
+            
+            # Extract character IDs from shot for identity checking
+            character_ids = self._get_character_ids(shot)
+            
+            # Build proper ReviewRequest object
+            review_request = ReviewRequest(
+                video_path=video_path,
+                reference_frame=reference_frame,
+                previous_shot_path=previous_shot_path,
+                shot_id=self._get_shot_id(shot),
+                character_ids=character_ids,
+                # checks_enabled uses default [IDENTITY, PHYSICS]
+            )
             
             result = await self.reviewer.review(review_request)
             
+            # Extract identity score from check results if available
+            identity_score = None
+            details = {}
+            for check_result in result.check_results:
+                if check_result.check_type.value == "identity":
+                    identity_score = check_result.score
+                    details["identity"] = check_result.details
+                elif check_result.check_type.value == "physics":
+                    details["physics"] = check_result.details
+            
             return {
                 "passed": result.passed,
-                "reason": result.recommendation if hasattr(result, 'recommendation') else "",
-                "should_reroll": result.should_reroll if hasattr(result, 'should_reroll') else not result.passed,
-                "details": result.to_dict() if hasattr(result, 'to_dict') else {},
+                "reason": result.audit_result.recommendation,
+                "should_reroll": result.should_reroll,
+                "details": details,
+                "identity_score": identity_score,
+                "flags": [f.to_dict() if hasattr(f, 'to_dict') else str(f) for f in result.audit_result.flags],
             }
             
         except Exception as e:
             logger.error(f"Audit error: {e}")
             # On audit error, assume pass to avoid blocking
+            # This allows pipeline to continue; user can review later
             return {"passed": True, "reason": f"Audit error: {e}"}
     
     def _report_progress(
@@ -1001,6 +1043,34 @@ class Pass1Generator:
             ))
         
         return refs
+    
+    def _get_character_ids(self, shot: Any) -> List[str]:
+        """
+        Extract character entity IDs from shot.
+        
+        Used for identity checking - the reviewer needs to know which
+        characters to look for in the generated video.
+        
+        Args:
+            shot: Shot object or dict with characters field
+            
+        Returns:
+            List of character entity IDs (e.g., ["alice", "bob"])
+        """
+        characters = []
+        
+        if hasattr(shot, 'characters'):
+            characters = shot.characters
+        elif isinstance(shot, dict):
+            characters = shot.get('characters', [])
+        
+        entity_ids = []
+        for char in characters:
+            entity_id = char.entity_id if hasattr(char, 'entity_id') else char.get('entity_id', '')
+            if entity_id:
+                entity_ids.append(entity_id)
+        
+        return entity_ids
     
     def _get_location_refs(self, shot: Any) -> List[Any]:
         """Get location references from shot via consistency dict."""

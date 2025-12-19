@@ -52,6 +52,11 @@ class AmbienceType(Enum):
     EXTERIOR_WEATHER = auto() # Rain, wind, thunder
     CROWD = auto()           # Stadium, concert
     INDUSTRIAL = auto()      # Factory, construction
+    # Aliases for simpler usage in main.py
+    INTERIOR = auto()        # General interior
+    URBAN = auto()           # General urban  
+    NATURE = auto()          # General nature
+    WATER = auto()           # Water sounds
 
 
 class FoleyCategory(Enum):

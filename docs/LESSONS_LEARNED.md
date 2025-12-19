@@ -1470,4 +1470,19 @@ ls /workspace/runpod-slim/ComfyUI/custom_nodes/
 
 ---
 
+
+### 43. Relative Import Across Package Boundaries
+
+| | |
+|---|---|
+| **Date** | 2025-12-19 |
+| **Error** | `No module named 'src.studio.reviewer'` |
+| **Wrong Assumption** | Used `from .reviewer import ReviewRequest` in `pass1_generator.py` |
+| **Correct Interface** | Reviewer is in `src/audit/`, not `src/studio/` — use `from src.audit.reviewer import ReviewRequest` |
+| **Source of Truth** | Check import statements in `main.py` to see actual module paths |
+| **Prevention** | Relative imports (`.module`) only work within same package. Cross-package requires absolute import. |
+
+---
+---
+
 *Add new entries above this line as they're discovered.*
