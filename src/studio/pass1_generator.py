@@ -23,10 +23,12 @@ The Solution:
     6. Return approved result or surface failure to user
 
 Architecture Position:
-    Director (planning) Ã¢â€ â€™ Pass1Generator (execution) Ã¢â€ â€™ Audit (verification)
-                                    Ã¢â€ â€œ
+
+    Director (planning) --> Pass1Generator (execution) --> Audit (verification)
+                                    |
                             BridgeEngine + Renderer
-                                    Ã¢â€ â€œ
+                                    |
+                                    v
                             Pass2Refiner (next stage)
 
 Design Principles:
@@ -34,9 +36,8 @@ Design Principles:
     2. Renderer-agnostic: Works with any BaseRenderer implementation
     3. Fail-safe: Always returns or surfaces error, never hangs
     4. Observable: Progress callbacks at each stage
-    5. Idempotent: Same chunk + seed Ã¢â€ â€™ same result
+    5. Idempotent: Same chunk + seed --> same result
 """
-
 import asyncio
 import logging
 import time
@@ -676,28 +677,51 @@ class Pass1Generator:
         progress_callback: Optional[Callable],
     ) -> Optional[Path]:
         """
-        Extract last frame from previous chunk for shot continuity.
+        Generate a bridge frame that re-anchors identity while preserving pose.
         
-        This frame is passed to WanRenderer as init_frame, which triggers
-        I2V (Image-to-Video) workflow instead of T2V. Wan I2V naturally
-        continues from the frame, preserving expression, pose, and style
-        in the same latent space.
+        WARNING: This is the CORE VALUE of Continuum. Do NOT bypass.
+        See ARCHITECTURE.md Section 3B for full specification.
         
-        Returns None if:
-        - This is the first chunk (no previous output)
-        - Previous chunk failed (no video path)
+        Without bridge frames, identity drifts:
         
-        Note: For camera angle transitions (future), this method can be
-        extended to use bridge_engine with ControlNet for pose transfer.
+          Shot 1 --> Shot 2 --> Shot 3 --> Shot 4 --> Shot 5
+          100%       98%        94%        88%        80%   <-- identity degrades
+        
+        With bridge frames (re-anchored each cut):
+        
+          Shot 1 --> BRIDGE --> Shot 2 --> BRIDGE --> Shot 3
+          100%       100%       100%       100%       100%  <-- identity locked
+        
+        The bridge frame uses:
+        - ControlNet (OpenPose): Extracts pose/expression from last frame
+        - IP-Adapter + LoRA: Re-injects canonical identity from Bible refs
+        
+        Args:
+            chunk: Current chunk being generated
+            shot: Parent shot for context (prompt, characters)
+            previous_output: Output from previous chunk (for continuity)
+            progress_callback: Optional progress reporting
+        
+        Returns:
+            Path to bridge frame if generated successfully
+            Path to raw source frame if bridge engine unavailable (Tier 4 fallback)
+            None if this is the first chunk or previous chunk failed
+        
+        Degradation Behavior (per ARCHITECTURE.md 3B.7):
+            - Tier 1-3: bridge_engine handles internally (full/pose/ipadapter)
+            - Tier 4: Raw frame fallback WITH WARNING (drift will occur)
+            - Never silently degrades - always logs warning
         """
         if not previous_output or not previous_output.video_path:
             return None
         
+        chunk_id = self._get_chunk_id(chunk)
+        
         self._report_progress(
             GenerationStage.BRIDGE,
             0.1,
-            "Extracting continuity frame...",
-            self._get_chunk_id(chunk),
+            "Extracting source frame for bridge...",
+            chunk_id,
             1,
             progress_callback,
         )
@@ -705,9 +729,9 @@ class Pass1Generator:
         try:
             # Import here to avoid circular dependency
             from src.post.ffmpeg_wrapper import extract_last_frame
+            from ..studio.bridge_engine import BridgeSpec, BridgeError
             
-            # Extract last frame from previous chunk's video
-            chunk_id = self._get_chunk_id(chunk)
+            # Step 1: Extract last frame from previous chunk's video
             bridge_dir = self.config.output_dir / "bridge" if self.config.output_dir else Path("workspace/output/bridge")
             bridge_dir.mkdir(parents=True, exist_ok=True)
             last_frame_path = bridge_dir / f"{chunk_id}_source.png"
@@ -717,14 +741,87 @@ class Pass1Generator:
                 last_frame_path
             )
             
-            logger.info(f"Extracted continuity frame: {last_frame_path}")
+            logger.info(f"Extracted source frame: {last_frame_path}")
             
-            # Return raw frame - WanRenderer will use I2V workflow
-            # when it sees init_frame, preserving visual continuity
-            return last_frame_path
+            # Step 2: Check if bridge engine is available
+            if not self.bridge_engine:
+                logger.warning(
+                    "Bridge engine not configured - using raw frame. "
+                    "Identity will drift over multiple shots!"
+                )
+                return last_frame_path
+            
+            self._report_progress(
+                GenerationStage.BRIDGE,
+                0.3,
+                "Generating identity-locked bridge frame...",
+                chunk_id,
+                1,
+                progress_callback,
+            )
+            
+            # Step 3: Get character refs for identity re-anchoring
+            character_refs = self._get_character_refs(shot)
+            
+            # Step 4: Get shot type for camera transition inference
+            shot_type = "medium"  # Default
+            if hasattr(shot, 'shot_type'):
+                shot_type = shot.shot_type
+            elif isinstance(shot, dict):
+                shot_type = shot.get('shot_type', 'medium')
+            
+            # Step 5: Build BridgeSpec
+            prompt = self._get_chunk_prompt(chunk, shot)
+            spec = BridgeSpec.from_shots(
+                shot_a_last_frame=last_frame_path,
+                shot_b_prompt=prompt,
+                shot_b_characters=character_refs,
+                shot_b_type=shot_type,
+                seed=self.config.get_seed_for_attempt(chunk_id, 1),
+            )
+            
+            # Step 6: Generate bridge frame via ComfyUI
+            # This uses bridge_full.json with ControlNet + IP-Adapter
+            self._report_progress(
+                GenerationStage.BRIDGE,
+                0.5,
+                "Running bridge workflow (ControlNet + IP-Adapter)...",
+                chunk_id,
+                1,
+                progress_callback,
+            )
+            
+            bridge_result = await self.bridge_engine.generate(spec)
+            
+            self._report_progress(
+                GenerationStage.BRIDGE,
+                0.9,
+                f"Bridge frame generated via {bridge_result.method.value}",
+                chunk_id,
+                1,
+                progress_callback,
+            )
+            
+            logger.info(
+                f"Bridge frame generated: {bridge_result.frame_path} "
+                f"(method={bridge_result.method.value}, time={bridge_result.generation_time_sec:.1f}s)"
+            )
+            
+            return bridge_result.frame_path
+            
+        except BridgeError as e:
+            # Bridge-specific error - fall back to raw frame with warning
+            logger.warning(
+                f"Bridge generation failed: {e}. "
+                "Falling back to raw frame - identity may drift!"
+            )
+            # Return the raw source frame as fallback
+            if last_frame_path.exists():
+                return last_frame_path
+            return None
             
         except Exception as e:
-            logger.warning(f"Continuity frame extraction failed: {e}")
+            logger.error(f"Bridge frame extraction failed: {e}")
             return None
     
     async def _render_chunk(

@@ -1,0 +1,41 @@
+{
+  "project_id": "bridge_quick_test",
+  "title": "Bridge Quick Test",
+  "version": "1.0",
+  "scenes": [
+    {
+      "scene_id": "scene_01",
+      "index": 0,
+      "title": "Quick Test",
+      "description": "Testing bridge frame mechanism",
+      "shots": [
+        {
+          "shot_id": "shot_01",
+          "scene_id": "scene_01",
+          "index": 0,
+          "duration_sec": 1.0,
+          "description": "Medium shot of Alice",
+          "prompt": "A beautiful woman with blond hair wearing a pink dress standing in a sunlit kitchen, medium shot, soft warm lighting, cinematic, 4k",
+          "shot_type": "medium",
+          "characters": [{"entity_id": "alice", "entity_type": "character"}],
+          "props": [],
+          "chunks": [],
+          "dialogue": []
+        },
+        {
+          "shot_id": "shot_02",
+          "scene_id": "scene_01",
+          "index": 1,
+          "duration_sec": 1.0,
+          "description": "Alice turns and smiles",
+          "prompt": "The same woman with blond hair wearing a pink dress, turning and smiling at camera, soft warm lighting, cinematic, 4k",
+          "shot_type": "medium",
+          "characters": [{"entity_id": "alice", "entity_type": "character"}],
+          "props": [],
+          "chunks": [],
+          "dialogue": []
+        }
+      ]
+    }
+  ]
+}

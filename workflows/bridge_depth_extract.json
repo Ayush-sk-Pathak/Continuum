@@ -1,0 +1,25 @@
+{
+  "load_image": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "{{SOURCE_IMAGE}}"
+    }
+  },
+
+  "depth_estimator": {
+    "class_type": "DepthAnythingV2Preprocessor",
+    "inputs": {
+      "ckpt_name": "depth_anything_v2_vitl.pth",
+      "resolution": 1024,
+      "image": ["load_image", 0]
+    }
+  },
+
+  "save_image": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "continuum/depth",
+      "images": ["depth_estimator", 0]
+    }
+  }
+}

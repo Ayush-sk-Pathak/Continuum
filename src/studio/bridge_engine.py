@@ -22,7 +22,7 @@ Architecture:
 
 Design Principles:
     1. Workflow-agnostic: Actual ComfyUI workflow is external JSON
-    2. Degradation-ready: ControlNet â†’ IP-Adapter â†’ prompt-only fallback
+    2. Degradation-ready: ControlNet Ã¢â€ â€™ IP-Adapter Ã¢â€ â€™ prompt-only fallback
     3. Async-first: All generation is async
     4. Testable: Mock implementation for local testing
 """
@@ -73,8 +73,8 @@ class BridgeMethod(str, Enum):
 class CameraTransition(str, Enum):
     """Types of camera angle changes between shots."""
     SAME = "same"                # Same angle (e.g., continuous action)
-    REVERSE = "reverse"          # 180Â° flip (e.g., conversation)
-    SIDE = "side"                # 90Â° move (e.g., profile to front)
+    REVERSE = "reverse"          # 180Ã‚Â° flip (e.g., conversation)
+    SIDE = "side"                # 90Ã‚Â° move (e.g., profile to front)
     AERIAL = "aerial"            # Ground to overhead
     GROUND = "ground"            # Overhead to ground
     CLOSEUP = "closeup"          # Wide to close
@@ -226,10 +226,10 @@ class BridgeSpec:
         wide_types = {"wide", "aerial", "group"}
         medium_or_wider = {"wide", "aerial", "group", "medium", "two_shot"}
         
-        # Moving closer (wide/medium â†’ close)
+        # Moving closer (wide/medium Ã¢â€ â€™ close)
         if from_type in medium_or_wider and to_type in close_types:
             return CameraTransition.CLOSEUP
-        # Moving wider (close â†’ wide/medium)  
+        # Moving wider (close Ã¢â€ â€™ wide/medium)  
         if from_type in close_types and to_type in wide_types:
             return CameraTransition.WIDEOUT
         # Aerial transitions
@@ -583,35 +583,55 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
         
         self._report_progress("generating", 0.6, "Running ComfyUI workflow")
         
-        # Submit job
+        # Submit job and wait for completion
         try:
             job = await self.client.submit(workflow)
             
-            # Wait for completion with progress updates
-            while not job.is_complete:
-                await asyncio.sleep(0.5)
-                job = await self.client.get_job_status(job.job_id)
-                
-                if job.progress:
-                    self._report_progress(
-                        "generating",
-                        0.6 + (job.progress * 0.3),
-                        f"Rendering: {int(job.progress * 100)}%"
-                    )
-            
-            if job.is_failed:
-                raise BridgeGenerationError(
-                    f"ComfyUI job failed: {job.error_message}",
-                    spec
+            # Use client's wait_for_completion which handles polling correctly
+            def progress_cb(progress_data: Dict[str, Any]) -> None:
+                value = progress_data.get("value", 0)
+                max_val = progress_data.get("max", 100)
+                pct = value / max_val if max_val > 0 else 0
+                self._report_progress(
+                    "generating",
+                    0.6 + (pct * 0.3),
+                    f"Rendering: {int(pct * 100)}%"
                 )
             
-            # Download result
+            completed_job = await self.client.wait_for_completion(
+                job.prompt_id,
+                progress_callback=progress_cb
+            )
+            
+            # Download result - find image in outputs
             self._report_progress("downloading", 0.95, "Downloading result")
             
             output_filename = f"bridge_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
             output_path = self.output_dir / output_filename
             
-            await self.client.download_output(job.output_images[0], output_path)
+            # Extract image filename from job outputs (same pattern as WanRenderer)
+            image_filename = None
+            image_subfolder = ""
+            for node_id, outputs in completed_job.outputs.items():
+                if "images" in outputs:
+                    items = outputs["images"]
+                    if items and len(items) > 0:
+                        image_filename = items[0].get("filename")
+                        image_subfolder = items[0].get("subfolder", "")
+                        break
+            
+            if not image_filename:
+                raise BridgeGenerationError(
+                    "No output image found in bridge workflow result",
+                    spec
+                )
+            
+            await self.client.download_output(
+                filename=image_filename,
+                subfolder=image_subfolder,
+                file_type="output",
+                save_path=output_path
+            )
             
         except ComfyError as e:
             raise BridgeGenerationError(f"ComfyUI error: {e}", spec) from e
@@ -652,13 +672,24 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
             )
             
             pose_job = await self.client.submit(pose_workflow)
-            pose_job = await self.client.wait_for_completion(pose_job.job_id)
+            pose_job = await self.client.wait_for_completion(pose_job.prompt_id)
             
-            # Download pose result
+            # Download pose result - find image in outputs
             pose_path = self.output_dir / f"pose_{frame_path.stem}.png"
-            if pose_job.output_images:
-                await self.client.download_output(pose_job.output_images[0], pose_path)
-            else:
+            image_found = False
+            for node_id, outputs in pose_job.outputs.items():
+                if "images" in outputs:
+                    items = outputs["images"]
+                    if items and len(items) > 0:
+                        await self.client.download_output(
+                            filename=items[0].get("filename"),
+                            subfolder=items[0].get("subfolder", ""),
+                            file_type="output",
+                            save_path=pose_path
+                        )
+                        image_found = True
+                        break
+            if not image_found:
                 pose_path = None
                 
         except Exception as e:
@@ -673,13 +704,24 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
             )
             
             depth_job = await self.client.submit(depth_workflow)
-            depth_job = await self.client.wait_for_completion(depth_job.job_id)
+            depth_job = await self.client.wait_for_completion(depth_job.prompt_id)
             
-            # Download depth result
+            # Download depth result - find image in outputs
             depth_path = self.output_dir / f"depth_{frame_path.stem}.png"
-            if depth_job.output_images:
-                await self.client.download_output(depth_job.output_images[0], depth_path)
-            else:
+            image_found = False
+            for node_id, outputs in depth_job.outputs.items():
+                if "images" in outputs:
+                    items = outputs["images"]
+                    if items and len(items) > 0:
+                        await self.client.download_output(
+                            filename=items[0].get("filename"),
+                            subfolder=items[0].get("subfolder", ""),
+                            file_type="output",
+                            save_path=depth_path
+                        )
+                        image_found = True
+                        break
+            if not image_found:
                 depth_path = None
                 
         except Exception as e:

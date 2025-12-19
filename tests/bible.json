@@ -1,0 +1,12 @@
+{
+  "characters": {
+    "alice": {
+      "entity_id": "alice",
+      "name": "Alice",
+      "description": "Beautiful woman with blond hair",
+      "face_refs": ["assets/refs/alice_ref.png"]
+    }
+  },
+  "locations": {},
+  "props": {}
+}

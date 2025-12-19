@@ -171,16 +171,231 @@ Always have a working fallback
 
 3B. The Bridge Engine (The Handshake Layer)
 
-Goal: Ensure that if we do cut (either for style or to save consistency), the physics and emotions carry over 100%.
-The Problem: Video models often "reset" motion or emotion at the start of a new generation. The Solution: We generate Frame 0 of the new shot before generating the video.
-System Fit:
-Capture: Director grabs the last valid frame of Shot A.
-Transform: Uses ControlNet (OpenPose) + IP-Adapter to generate a single high-fidelity Bridge Frame from the new camera angle.
-Inject: This frame is fed into the Video Model as the init_image, forcing the new shot to start exactly where the story left off.
-Phase 1 Testing Note: MVP starts with single Bridge Frame injection. If testing reveals "motion freeze" (character holds pose unnaturally at start of new shot), upgrade to 3-5 frame sequence:
-Use RIFE to interpolate between last frame of Shot A and Bridge Frame
-Inject sequence as init_latent instead of single frame
-Trade-off: ~3x GPU cost per cut, but ensures smooth motion handoff Decision: Test with real content in Phase 1; upgrade only if users report visible issues.
+================================================================================
+⚠️  CRITICAL SYSTEM COMPONENT - DO NOT BYPASS ⚠️
+================================================================================
+
+The Bridge Engine is the CORE VALUE PROPOSITION of Continuum. It is what separates
+us from "random clip generators." Without it, we have no product. This section
+documents in detail what it is, when it's needed, why it's needed, and why it
+must NEVER be bypassed or simplified away.
+
+--------------------------------------------------------------------------------
+3B.1 WHAT IS A BRIDGE FRAME?
+--------------------------------------------------------------------------------
+
+A Bridge Frame is a synthetically generated image that serves as the "perfect 
+first frame" for any new video generation. It is created BEFORE the video model
+runs, and is injected as the `init_image` to force the video to start from a
+known, identity-locked state.
+
+Technical Definition:
+- Input: Last frame of previous video segment (captures pose, expression, scene state)
+- Process: ControlNet (OpenPose) extracts pose + IP-Adapter re-injects canonical identity
+- Output: Single high-fidelity frame with BOTH pose continuity AND identity lock
+- Usage: Fed to Wan I2V as init_image, video continues from this frame
+
+The Bridge Frame is generated using SDXL (Stable Diffusion XL) because:
+1. SDXL has mature, battle-tested ControlNet + IP-Adapter support
+2. Wan 2.1 is a VIDEO model without native IP-Adapter for single images
+3. One frame of SDXL "style" is immediately overwritten by Wan's video generation
+4. The identity lock is what matters, not the style of that single frame
+
+Workflow: `bridge_full.json` (ControlNet Pose + ControlNet Depth + IP-Adapter)
+
+--------------------------------------------------------------------------------
+3B.2 WHEN IS A BRIDGE FRAME NEEDED?
+--------------------------------------------------------------------------------
+
+A Bridge Frame is required for EVERY video generation restart. Not just camera
+angle changes. Not just shot boundaries. EVERY restart.
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  SCENARIO                          │  BRIDGE NEEDED?  │  WHY                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  Shot A → Shot B (camera change)   │  ✅ YES          │  New generation     │
+│  Chunk 1 → Chunk 2 (same shot)     │  ✅ YES          │  12s max, restart   │
+│  Repair/patch a bad frame          │  ✅ YES          │  New generation     │
+│  Focus change (Person A → B)       │  ✅ YES          │  Different subject  │
+│  Scene transition                  │  ✅ YES          │  New generation     │
+│  Re-roll after audit failure       │  ✅ YES          │  New generation     │
+│  Continue from checkpoint          │  ✅ YES          │  New generation     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  Within a single 12s chunk         │  ❌ NO           │  Continuous gen     │
+│  Frame interpolation (RIFE)        │  ❌ NO           │  Not generation     │
+│  Pass 2 refinement (vid2vid)       │  ❌ NO           │  Existing video     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Rule of Thumb: If you are calling the video model to generate NEW frames,
+you need a Bridge Frame (unless it's the very first shot of the film).
+
+--------------------------------------------------------------------------------
+3B.3 WHY IS THE BRIDGE FRAME NEEDED? (THE DRIFT PROBLEM)
+--------------------------------------------------------------------------------
+
+Video models have NO MEMORY between generation calls. Each call starts fresh.
+Without intervention, identity drifts with each restart:
+
+WITHOUT BRIDGE FRAMES (drift accumulates exponentially):
+┌────────────────────────────────────────────────────────────────────────────┐
+│  Shot 1    →    Shot 2    →    Shot 3    →    Shot 4    →    Shot 5       │
+│  100%           98%            94%            88%            80%           │
+│  Alice          Alice?         Alice??        Who???         Different     │
+│                                                              person        │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Each generation "forgets" the previous one. Small errors compound:
+- 2% drift per shot × 5 shots = 10% total drift (optimistic)
+- In practice, drift is non-linear and accelerates
+- By shot 5, the character is unrecognizable
+
+WITH BRIDGE FRAMES (identity re-anchored every cut):
+┌────────────────────────────────────────────────────────────────────────────┐
+│  Shot 1  → BRIDGE → Shot 2  → BRIDGE → Shot 3  → BRIDGE → Shot 4  → ...   │
+│  100%      ↑100%    100%      ↑100%    100%      ↑100%    100%             │
+│  Alice     │        Alice     │        Alice     │        Alice            │
+│            │                  │                  │                         │
+│      Re-anchor from      Re-anchor from    Re-anchor from                  │
+│      Bible refs          Bible refs        Bible refs                      │
+└────────────────────────────────────────────────────────────────────────────┘
+
+The Bridge Frame re-injects the CANONICAL identity from the Consistency Dictionary
+(the "Bible" references) at every cut. Drift is reset to 0% each time.
+
+This is why Continuum can generate 5-minute films with consistent characters,
+while competitors can only generate 4-second clips and pray.
+
+--------------------------------------------------------------------------------
+3B.4 WHY THE BRIDGE FRAME MUST NEVER BE BYPASSED
+--------------------------------------------------------------------------------
+
+⚠️  HISTORICAL NOTE: During development, there were multiple attempts to 
+"simplify" the pipeline by bypassing the Bridge Engine and passing raw frames
+directly to Wan I2V. This is ALWAYS wrong. Here's why:
+
+BYPASS ATTEMPT 1: "Raw frame is good enough"
+- Reasoning: "The last frame has the right pose, just use it directly"
+- Why it fails: Wan I2V continues the VIDEO, not the IDENTITY. Each generation
+  drifts slightly from the input. Without IP-Adapter re-anchoring, errors compound.
+
+BYPASS ATTEMPT 2: "LoRA handles identity"
+- Reasoning: "We have character LoRAs, they'll maintain identity"
+- Why it fails: LoRA biases the generation but doesn't LOCK it. The model can
+  still drift within the LoRA's influence range. IP-Adapter provides hard anchor.
+
+BYPASS ATTEMPT 3: "Bridge adds latency, skip for speed"
+- Reasoning: "SDXL adds 5-10 seconds per cut, skip it for faster iteration"
+- Why it fails: You're iterating on a BROKEN pipeline. Fast garbage is still garbage.
+  Identity drift will appear in any multi-shot test.
+
+BYPASS ATTEMPT 4: "Same model family is better"
+- Reasoning: "SDXL is different from Wan, style mismatch will occur"
+- Why it fails: The Bridge Frame is ONE frame. Wan immediately overwrites the style
+  in frame 2+. The identity lock survives, the style doesn't matter.
+
+THE RULE: If you're tempted to bypass the Bridge Engine, you're solving the
+wrong problem. Fix whatever is making you want to bypass it instead.
+
+--------------------------------------------------------------------------------
+3B.5 TECHNICAL IMPLEMENTATION
+--------------------------------------------------------------------------------
+
+Current Implementation (MVP - Single Frame):
+
+Step 1 - CAPTURE: Extract last frame from previous video segment
+  └─ Tool: FFmpeg (extract_last_frame)
+  └─ Output: PNG image with pose, expression, scene state
+
+Step 2 - EXTRACT POSE: Run OpenPose on captured frame
+  └─ Tool: ComfyUI ControlNet Preprocessor
+  └─ Output: Pose keypoints image
+
+Step 3 - EXTRACT DEPTH (optional): Run depth estimation
+  └─ Tool: ComfyUI Depth Anything / MiDaS
+  └─ Output: Depth map image
+
+Step 4 - GENERATE BRIDGE FRAME: SDXL with conditioning
+  └─ Workflow: bridge_full.json
+  └─ Inputs:
+     - ControlNet Pose: Preserves body position, expression
+     - ControlNet Depth: Preserves spatial relationships (optional)
+     - IP-Adapter: Re-injects canonical identity from Bible refs
+     - LoRA: Character-specific identity boost (if available)
+     - Prompt: Target shot description
+  └─ Output: Identity-locked first frame for next shot
+
+Step 5 - INJECT: Pass bridge frame to Wan I2V as init_image
+  └─ Workflow: pass1_img2vid.json or pass1_img2vid_lora.json
+  └─ Result: Video continues from identity-locked starting point
+
+Workflow Files:
+- bridge_full.json: ControlNet Pose + Depth + IP-Adapter (RECOMMENDED)
+- bridge_pose_only.json: ControlNet Pose + IP-Adapter (fallback)
+- bridge_ipadapter.json: IP-Adapter only (minimal fallback)
+- bridge_basic.json: ❌ BROKEN - Do not use (no ControlNet, no IP-Adapter)
+
+--------------------------------------------------------------------------------
+3B.6 FUTURE ENHANCEMENT: MULTI-FRAME BRIDGE SEQUENCE
+--------------------------------------------------------------------------------
+
+Status: NOT YET IMPLEMENTED (Phase 2+)
+
+Problem: Single Bridge Frame can cause "motion freeze" artifact
+- Character mid-stride in Shot A's last frame
+- Bridge Frame captures same pose
+- Shot B starts with character frozen in that pose
+- Looks unnatural for 0.5-1 second before motion resumes
+
+Solution: Generate 3-5 frame bridge SEQUENCE instead of single frame
+
+Proposed Implementation:
+1. Generate Bridge Frame (identity-locked target)
+2. Use RIFE to interpolate 3-5 frames between:
+   - Last frame of Shot A (source pose)
+   - Bridge Frame (target pose with locked identity)
+3. Inject frame sequence as init_latent to Wan I2V
+4. Video starts with smooth motion transition
+
+Trade-offs:
+- GPU Cost: ~3x per cut (RIFE interpolation + more init frames)
+- Quality: Significantly smoother motion handoff
+- Complexity: Requires init_latent injection (not just init_image)
+
+Decision: Test single-frame MVP with real content first. Upgrade to multi-frame
+only if users report visible "motion freeze" issues. Do not pre-optimize.
+
+--------------------------------------------------------------------------------
+3B.7 DEGRADATION LADDER
+--------------------------------------------------------------------------------
+
+If components fail, the Bridge Engine degrades gracefully:
+
+TIER 1 (Best Quality):
+- ControlNet Pose + ControlNet Depth + IP-Adapter + LoRA
+- Workflow: bridge_full.json
+- Result: Perfect pose AND identity lock
+
+TIER 2 (Good Quality):
+- ControlNet Pose + IP-Adapter + LoRA
+- Workflow: bridge_pose_only.json
+- Result: Pose preserved, identity locked, no depth
+
+TIER 3 (Acceptable Quality):
+- IP-Adapter + LoRA only
+- Workflow: bridge_ipadapter.json
+- Result: Identity locked, pose may shift slightly
+
+TIER 4 (Emergency Fallback):
+- Raw last frame → Wan I2V
+- Workflow: pass1_img2vid.json (no bridge)
+- Result: ⚠️ DRIFT WILL OCCUR - Use only if bridge completely unavailable
+- MUST log warning: "Bridge unavailable - identity drift expected"
+
+NEVER silently fall back to Tier 4. Always warn loudly.
+
+================================================================================
+END OF BRIDGE ENGINE SPECIFICATION
+================================================================================
 
 3C. The Physics & Layout Engine (World Logic Lock)
 

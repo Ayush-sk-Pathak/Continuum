@@ -100,7 +100,7 @@ RenderResult(
 )
 ```
 
-**Prevention:** When mocking a dataclass, check ALL fields. Dataclass field order matters ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â required fields come before optional ones with defaults.
+**Prevention:** When mocking a dataclass, check ALL fields. Dataclass field order matters ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â required fields come before optional ones with defaults.
 
 ---
 
@@ -275,7 +275,7 @@ grep -A 20 "class RetryConfig" src/core/error_recovery.py
 3. Then run full tests: `pytest tests/file.py -v`
 
 ### When Tests Fail
-1. Read the **exact error message** ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â it usually names the missing field/method
+1. Read the **exact error message** ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â it usually names the missing field/method
 2. Check the **source of truth file** for correct interface
 3. Fix the **actual bug** (might be in test mock OR in production code)
 4. **Update this document** with the lesson learned
@@ -336,7 +336,7 @@ client.submit_workflow(workflow)  # FAILS
 # Export from ComfyUI with "Save (API Format)" or convert
 ```
 
-**Prevention:** Check if workflow has `"nodes"` key ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â if yes, it's UI format and needs conversion.
+**Prevention:** Check if workflow has `"nodes"` key ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â if yes, it's UI format and needs conversion.
 
 ---
 
@@ -678,27 +678,27 @@ try:
 ### The Bridge Frame Problem
 ```
 Shot A (ends)                    Shot B (starts)
-     â”‚                                â”‚
-     â–¼                                â–¼
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”                    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚Frame 144â”‚ â”€â”€â”€â”€ BRIDGE â”€â”€â”€â”€â–¶ â”‚Frame 1  â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-     â”‚                                â”‚
-     â”‚ Extract last frame             â”‚ Must match:
-     â”‚                                â”‚  - Visual continuity (I2V)
-     â–¼                                â”‚  - Character identity (LoRA)
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚           pass1_img2vid_lora.json  â—€â”€â”€ THIS FILE    â”‚
-â”‚                                                      â”‚
-â”‚  Inputs:                                             â”‚
-â”‚    - INIT_IMAGE: last frame of Shot A               â”‚
-â”‚    - LORA_PATH: alice_v1.safetensors                â”‚
-â”‚    - PROMPT: "Alice walks to the door"              â”‚
-â”‚                                                      â”‚
-â”‚  Guarantees:                                         â”‚
-â”‚    - Frame 1 of Shot B visually matches Frame 144   â”‚
-â”‚    - Alice's face remains consistent                 â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+     Ã¢â€â€š                                Ã¢â€â€š
+     Ã¢â€“Â¼                                Ã¢â€“Â¼
+Ã¢â€Å’Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â                    Ã¢â€Å’Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â
+Ã¢â€â€šFrame 144Ã¢â€â€š Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ BRIDGE Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€“Â¶ Ã¢â€â€šFrame 1  Ã¢â€â€š
+Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Ëœ                    Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Ëœ
+     Ã¢â€â€š                                Ã¢â€â€š
+     Ã¢â€â€š Extract last frame             Ã¢â€â€š Must match:
+     Ã¢â€â€š                                Ã¢â€â€š  - Visual continuity (I2V)
+     Ã¢â€“Â¼                                Ã¢â€â€š  - Character identity (LoRA)
+Ã¢â€Å’Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â´Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â
+Ã¢â€â€š           pass1_img2vid_lora.json  Ã¢â€”â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ THIS FILE    Ã¢â€â€š
+Ã¢â€â€š                                                      Ã¢â€â€š
+Ã¢â€â€š  Inputs:                                             Ã¢â€â€š
+Ã¢â€â€š    - INIT_IMAGE: last frame of Shot A               Ã¢â€â€š
+Ã¢â€â€š    - LORA_PATH: alice_v1.safetensors                Ã¢â€â€š
+Ã¢â€â€š    - PROMPT: "Alice walks to the door"              Ã¢â€â€š
+Ã¢â€â€š                                                      Ã¢â€â€š
+Ã¢â€â€š  Guarantees:                                         Ã¢â€â€š
+Ã¢â€â€š    - Frame 1 of Shot B visually matches Frame 144   Ã¢â€â€š
+Ã¢â€â€š    - Alice's face remains consistent                 Ã¢â€â€š
+Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Ëœ
 
 
 ### 20. Early Return Hides Subsequent Logic Paths
@@ -754,10 +754,10 @@ def _select_workflow_template(self, job):
 ```
 
 **Why Contract Tests Missed It:**
-- JSON valid âœ“
-- Node has class_type âœ“
-- Node connections valid âœ“
-- No dangling references âœ“
+- JSON valid Ã¢Å“â€œ
+- Node has class_type Ã¢Å“â€œ
+- Node connections valid Ã¢Å“â€œ
+- No dangling references Ã¢Å“â€œ
 
 **Why Stress Test Caught It:**
 - Traced backwards from SaveImage
@@ -1005,23 +1005,23 @@ workflow['wan_i2v']['inputs']['start_image'] = workflow['wan_i2v']['inputs'].pop
 **Config structure is NESTED:**
 ```python
 # Wrong - flat access
-config.comfyui_host        # ❌
-config.comfyui_port        # ❌
-config.workflows_dir       # ❌
+config.comfyui_host        # âŒ
+config.comfyui_port        # âŒ
+config.workflows_dir       # âŒ
 
 # Correct - nested access
-config.comfyui.host        # ✅
-config.comfyui.timeout_sec # ✅
-config.paths.workflows_dir # ✅
+config.comfyui.host        # âœ…
+config.comfyui.timeout_sec # âœ…
+config.paths.workflows_dir # âœ…
 ```
 
 **Nested config classes:**
-- `config.comfyui` → `ComfyUIConfig`
-- `config.paths` → `PathsConfig`
-- `config.generation` → `GenerationConfig`
-- `config.audit` → `AuditConfig`
-- `config.sonic` → `SonicConfig`
-- `config.post` → `PostConfig`
+- `config.comfyui` â†’ `ComfyUIConfig`
+- `config.paths` â†’ `PathsConfig`
+- `config.generation` â†’ `GenerationConfig`
+- `config.audit` â†’ `AuditConfig`
+- `config.sonic` â†’ `SonicConfig`
+- `config.post` â†’ `PostConfig`
 
 **Prevention:** Check config.py for nested structure before accessing:
 ```bash
@@ -1046,13 +1046,13 @@ grep -n "class.*Config" src/core/config.py
 # Note the DOUBLE underscore between section and field
 
 # Wrong
-export COMFYUI_URL="wss://..."           # ❌ Ignored
-export COMFYUI_HOST="wss://..."          # ❌ Ignored
+export COMFYUI_URL="wss://..."           # âŒ Ignored
+export COMFYUI_HOST="wss://..."          # âŒ Ignored
 
 # Correct  
-export CONTINUUM_COMFYUI__HOST="wss://..."    # ✅ Works
-export CONTINUUM_COMFYUI__TIMEOUT_SEC=600     # ✅ Works
-export CONTINUUM_PATHS__WORKFLOWS_DIR="/x"    # ✅ Works
+export CONTINUUM_COMFYUI__HOST="wss://..."    # âœ… Works
+export CONTINUUM_COMFYUI__TIMEOUT_SEC=600     # âœ… Works
+export CONTINUUM_PATHS__WORKFLOWS_DIR="/x"    # âœ… Works
 ```
 
 **Key rules:**
@@ -1084,7 +1084,7 @@ bridge_request = {
     "source_video": previous_output.video_path,
     "target_shot": shot,
 }
-result = await bridge_engine.generate(bridge_request)  # ❌ Fails
+result = await bridge_engine.generate(bridge_request)  # âŒ Fails
 
 # Correct - use the dataclass
 spec = BridgeSpec.from_shots(
@@ -1092,7 +1092,7 @@ spec = BridgeSpec.from_shots(
     shot_b_prompt=shot.prompt,
     shot_b_characters=[],
 )
-result = await bridge_engine.generate(spec)  # ✅ Works
+result = await bridge_engine.generate(spec)  # âœ… Works
 ```
 
 **Prevention:** Always check the function signature and use proper types. Look for factory methods like `Dataclass.from_something()` that make construction easier.
@@ -1110,8 +1110,8 @@ result = await bridge_engine.generate(spec)  # ✅ Works
 **Wrong Assumption:** Components calling `ComfyClient` assumed methods named `upload_image` and `submit` existed.
 
 **Reality:** The actual method names were:
-- `upload_file()` — generic file upload returning dict
-- `submit_workflow()` — workflow submission
+- `upload_file()` â€” generic file upload returning dict
+- `submit_workflow()` â€” workflow submission
 
 **Why It Happened:** Different developers or different development phases used different naming conventions. Bridge engine was written expecting simpler method names that matched the semantic action (upload_image, submit) while the client used more explicit names (upload_file, submit_workflow).
 
@@ -1147,7 +1147,7 @@ async def submit(self, workflow: Dict[str, Any]) -> ComfyJob:
 **Wrong:**
 ```python
 workflow = self.workflow_loader.load(workflow_name)
-workflow = self.workflow_loader.inject_params(workflow, params)  # ❌
+workflow = self.workflow_loader.inject_params(workflow, params)  # âŒ
 ```
 
 **Correct:**
@@ -1158,7 +1158,7 @@ result = self.workflow_loader.inject(template, params)
 workflow = result.workflow
 
 # Option 2: One-step (preferred)
-workflow = self.workflow_loader.load_and_inject(workflow_name, params)  # ✅
+workflow = self.workflow_loader.load_and_inject(workflow_name, params)  # âœ…
 ```
 
 **Prevention:** Check WorkflowLoader methods:
@@ -1182,7 +1182,7 @@ grep -n "def inject\|def load_and_inject" src/comfy_client/workflow_loader.py
 ```python
 ComfyClient(
     host=config.comfyui.host,
-    port=config.comfyui.port,  # ❌ Parameter doesn't exist
+    port=config.comfyui.port,  # âŒ Parameter doesn't exist
 )
 ```
 
@@ -1217,7 +1217,7 @@ grep -A 10 "class ComfyUIConfig" src/core/config.py
 **Wrong:**
 ```python
 params = {
-    "SEED": spec.seed if spec.seed >= 0 else -1,  # ❌ -1 is invalid
+    "SEED": spec.seed if spec.seed >= 0 else -1,  # âŒ -1 is invalid
 }
 ```
 
@@ -1225,7 +1225,7 @@ params = {
 ```python
 import random
 params = {
-    "SEED": spec.seed if spec.seed >= 0 else random.randint(0, 2**32 - 1),  # ✅
+    "SEED": spec.seed if spec.seed >= 0 else random.randint(0, 2**32 - 1),  # âœ…
 }
 ```
 
@@ -1250,16 +1250,223 @@ params = {
 
 **Correct Architecture:**
 ```
-Shot 1 last frame → Wan I2V (pass1_img2vid) → Shot 2 video
+Shot 1 last frame â†’ Wan I2V (pass1_img2vid) â†’ Shot 2 video
 
 Instead of:
-Shot 1 last frame → SDXL img2img → Bridge image → ??? (dead end)
+Shot 1 last frame â†’ SDXL img2img â†’ Bridge image â†’ ??? (dead end)
 ```
 
 **Prevention:** When designing cross-shot continuity:
 1. Use the same model family for all shots
 2. Leverage I2V (image-to-video) capabilities of the primary renderer
 3. Don't introduce additional model dependencies without clear benefit
+
+---
+
+### 37. Workflow JSON `_meta` Nodes Break ComfyUI Validation
+
+| | |
+|---|---|
+| **Date** | 2025-12-19 |
+| **Error** | `Workflow validation failed: ["Node _meta: missing 'class_type'"]` |
+| **Wrong Assumption** | Can include `_meta` documentation node in workflow JSON |
+| **Correct Interface** | Every top-level key in workflow JSON must be a valid ComfyUI node with `class_type` |
+
+**Wrong:**
+```json
+{
+  "_meta": {
+    "title": "My Workflow",
+    "version": "1.0.0"
+  },
+  "load_image": {
+    "class_type": "LoadImage",
+    ...
+  }
+}
+```
+
+**Correct:**
+```json
+{
+  "load_image": {
+    "class_type": "LoadImage",
+    ...
+  }
+}
+```
+
+**Prevention:** Don't add metadata nodes to workflow JSON. If documentation is needed, use comments in a separate file or rely on `_description` fields in `models.json`.
+
+---
+
+### 38. ComfyJob Uses `prompt_id` Not `job_id`
+
+| | |
+|---|---|
+| **Date** | 2025-12-19 |
+| **Error** | `'ComfyJob' object has no attribute 'job_id'` |
+| **Wrong Assumption** | Job identifier is called `job_id` |
+| **Correct Interface** | Use `job.prompt_id` for job identification |
+| **Source of Truth** | `src/comfy_client/client.py` ComfyJob dataclass |
+
+**Wrong:**
+```python
+job = await client.submit(workflow)
+result = await client.wait_for_completion(job.job_id)  # ❌
+```
+
+**Correct:**
+```python
+job = await client.submit(workflow)
+result = await client.wait_for_completion(job.prompt_id)  # ✅
+```
+
+**Prevention:** Check ComfyJob dataclass definition before using attributes:
+```bash
+grep -A 15 "class ComfyJob" src/comfy_client/client.py
+```
+
+---
+
+### 39. ComfyJob Outputs Are Nested Dict, Not `output_images` List
+
+| | |
+|---|---|
+| **Date** | 2025-12-19 |
+| **Error** | `'ComfyJob' object has no attribute 'output_images'` |
+| **Wrong Assumption** | Outputs are in `job.output_images[0]` |
+| **Correct Interface** | Outputs are in `job.outputs` dict keyed by node_id |
+| **Source of Truth** | WanRenderer._download_output pattern |
+
+**Wrong:**
+```python
+await client.download_output(job.output_images[0], save_path)  # ❌
+```
+
+**Correct:**
+```python
+for node_id, outputs in job.outputs.items():
+    if "images" in outputs:
+        items = outputs["images"]
+        if items:
+            await client.download_output(
+                filename=items[0].get("filename"),
+                subfolder=items[0].get("subfolder", ""),
+                file_type="output",
+                save_path=save_path
+            )
+            break
+```
+
+**Prevention:** Follow existing patterns in WanRenderer. The output structure is:
+```python
+job.outputs = {
+    "node_id": {
+        "images": [{"filename": "...", "subfolder": "..."}]
+        # OR
+        "gifs": [{"filename": "...", "subfolder": "..."}]
+    }
+}
+```
+
+---
+
+### 40. SceneGraph Requires Full Schema - Shots Need `scene_id` Inside Them
+
+| | |
+|---|---|
+| **Date** | 2025-12-19 |
+| **Error** | `KeyError: 'scene_id'` when parsing Shot |
+| **Wrong Assumption** | Minimal JSON with just `id`, `duration`, `prompt` is sufficient |
+| **Correct Interface** | Each shot must include `shot_id`, `scene_id`, `index`, `duration_sec`, etc. |
+
+**Wrong:**
+```json
+{
+  "shots": [
+    {"id": "shot_01", "duration": 1.0, "prompt": "..."}
+  ]
+}
+```
+
+**Correct:**
+```json
+{
+  "shots": [
+    {
+      "shot_id": "shot_01",
+      "scene_id": "scene_01",
+      "index": 0,
+      "duration_sec": 1.0,
+      "prompt": "...",
+      "shot_type": "medium",
+      "characters": [],
+      "props": [],
+      "chunks": [],
+      "dialogue": []
+    }
+  ]
+}
+```
+
+**Prevention:** Use existing test files as templates:
+```bash
+cat tests/sample_project_2shot.json
+```
+
+---
+
+### 41. I2V 14B Models Need Extended Timeout (15-20 min, not 5 min)
+
+| | |
+|---|---|
+| **Date** | 2025-12-19 |
+| **Error** | `Job timed out after 300s` during I2V generation |
+| **Wrong Assumption** | 5 minute timeout is sufficient for all Wan models |
+| **Correct Interface** | I2V uses 14B model (vs T2V 1.3B), needs 10-20 minute timeout |
+
+| Model | Params | Typical Gen Time (4s video) |
+|-------|--------|----------------------------|
+| T2V 1.3B | 1.3 billion | ~2-3 min |
+| I2V 14B | 14 billion | ~15-20 min |
+
+**Fix:**
+```bash
+export CONTINUUM_COMFYUI__TIMEOUT_SEC=1200  # 20 minutes
+```
+
+**Prevention:** When switching from T2V to I2V, remember the model size difference. There's no smaller I2V variant in Wan 2.1.
+
+---
+
+### 42. DWPreprocessor Requires comfyui_controlnet_aux Custom Node
+
+| | |
+|---|---|
+| **Date** | 2025-12-19 |
+| **Error** | `Cannot execute because node DWPreprocessor does not exist` |
+| **Wrong Assumption** | Pose detection nodes are built into ComfyUI |
+| **Correct Interface** | Must install ControlNet Preprocessors custom node pack |
+
+**Installation (RunPod):**
+```bash
+cd /workspace/runpod-slim/ComfyUI/custom_nodes
+git clone https://github.com/Fannovel16/comfyui_controlnet_aux
+pip install -r comfyui_controlnet_aux/requirements.txt
+# Restart ComfyUI
+```
+
+**Alternative Nodes Available After Install:**
+- `DWPreprocessor` (DWPose - recommended)
+- `OpenposePreprocessor` (OpenPose)
+- `DepthAnythingV2Preprocessor` (Depth estimation)
+
+**Prevention:** Before creating workflows that use preprocessors, verify nodes exist:
+```bash
+# Check installed custom nodes
+ls /workspace/runpod-slim/ComfyUI/custom_nodes/
+```
 
 ---
 
