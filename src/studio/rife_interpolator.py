@@ -2,7 +2,7 @@
 Continuum Engine - RIFE Frame Interpolator
 
 Upscales video frame rate using AI-based frame interpolation.
-Primary use: 12fps → 24fps to halve GPU generation cost while
+Primary use: 12fps â†’ 24fps to halve GPU generation cost while
 maintaining cinematic smoothness.
 
 The Problem:
@@ -15,7 +15,7 @@ The Solution:
     looks like native 24fps at roughly half the generation cost.
 
 Architecture Position (FINAL STEP):
-    Pass 1 (Structure) → Audit → Pass 2 (Refinement) → Lip Sync → **RIFE** → Final
+    Pass 1 (Structure) â†’ Audit â†’ Pass 2 (Refinement) â†’ Lip Sync â†’ **RIFE** â†’ Final
     
 Why RIFE is Last:
     - Lip sync may introduce minor frame-level jitters
@@ -24,13 +24,13 @@ Why RIFE is Last:
       that lip sync will modify anyway)
 
 Supported Modes:
-    - 2x: 12fps → 24fps (default, cinematic)
-    - 2.5x: 12fps → 30fps (broadcast)
-    - 4x: 12fps → 48fps (smooth/slow-mo ready)
+    - 2x: 12fps â†’ 24fps (default, cinematic)
+    - 2.5x: 12fps â†’ 30fps (broadcast)
+    - 4x: 12fps â†’ 48fps (smooth/slow-mo ready)
 
 Design Principles:
     1. Workflow-agnostic: Actual ComfyUI workflow is external JSON
-    2. Degradation-ready: RIFE ComfyUI → FFmpeg minterpolate → Passthrough
+    2. Degradation-ready: RIFE ComfyUI â†’ FFmpeg minterpolate â†’ Passthrough
     3. Async-first: All interpolation is async (GPU-bound)
     4. Preserves duration: Output duration matches input exactly
 """
@@ -123,7 +123,7 @@ class InterpolationSpec:
         """Calculate the interpolation multiplier."""
         if self.source_fps and self.source_fps > 0:
             return self.target_fps / self.source_fps
-        return 2.0  # Default assumption: 12fps → 24fps
+        return 2.0  # Default assumption: 12fps â†’ 24fps
 
 
 @dataclass
@@ -278,6 +278,17 @@ class BaseInterpolator(ABC):
         time_sec = self.estimate_time(spec)
         hourly_rate = 0.50  # GPU cost
         return (time_sec / 3600) * hourly_rate
+    
+    async def shutdown(self) -> None:
+        """
+        Release resources held by the interpolator.
+        
+        Default implementation does nothing. Override in subclasses
+        that hold resources like ComfyClient connections.
+        
+        Called by main.py during pipeline shutdown.
+        """
+        pass  # No-op by default; subclasses override if needed
     
     async def _detect_fps(self, video_path: Path) -> float:
         """Detect the frame rate of a video using FFprobe."""
@@ -455,12 +466,18 @@ class ComfyRIFEInterpolator(BaseInterpolator):
             client = await self._get_client()
             template = await self._load_workflow()
             
+            report_progress("interpolating", 0.25, "Uploading video to ComfyUI...")
+            
+            # Upload video to ComfyUI server (videos need to be uploaded first)
+            upload_result = await client.upload_file(spec.input_path, subfolder="", file_type="input")
+            remote_video_name = upload_result.get("name", spec.input_path.name)
+            
             report_progress("interpolating", 0.3, "Preparing workflow...")
             
             
             # Inject parameters - must match rife_interpolation.json placeholders
             params = {
-                "INPUT_VIDEO": str(spec.input_path),
+                "INPUT_VIDEO": remote_video_name,  # Use remote filename, not local path
                 "MULTIPLIER": int(multiplier) if multiplier == int(multiplier) else multiplier,
                 "TARGET_FPS": spec.target_fps,
             }
@@ -518,6 +535,22 @@ class ComfyRIFEInterpolator(BaseInterpolator):
         except Exception as e:
             logger.error(f"ComfyUI RIFE health check failed: {e}")
             return False
+    
+    async def shutdown(self) -> None:
+        """
+        Disconnect from ComfyUI and release resources.
+        
+        This ensures the aiohttp session is properly closed,
+        preventing "Unclosed client session" warnings.
+        """
+        if self._client is not None:
+            try:
+                await self._client.disconnect()
+                logger.debug(f"ComfyRIFEInterpolator disconnected from {self.comfy_host}")
+            except Exception as e:
+                logger.warning(f"Error during ComfyRIFEInterpolator shutdown: {e}")
+            finally:
+                self._client = None
 
 
 # =============================================================================
@@ -707,7 +740,7 @@ class InterpolatorFactory:
     Tries interpolation methods in order of quality and falls back
     if the preferred method isn't available.
     
-    Fallback order: RIFE ComfyUI → FFmpeg minterpolate → Passthrough
+    Fallback order: RIFE ComfyUI â†’ FFmpeg minterpolate â†’ Passthrough
     
     Usage:
         factory = InterpolatorFactory(comfy_host="http://localhost:8188")

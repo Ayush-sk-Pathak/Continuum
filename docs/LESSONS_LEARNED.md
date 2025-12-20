@@ -100,7 +100,7 @@ RenderResult(
 )
 ```
 
-**Prevention:** When mocking a dataclass, check ALL fields. Dataclass field order matters ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â required fields come before optional ones with defaults.
+**Prevention:** When mocking a dataclass, check ALL fields. Dataclass field order matters ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â required fields come before optional ones with defaults.
 
 ---
 
@@ -275,7 +275,7 @@ grep -A 20 "class RetryConfig" src/core/error_recovery.py
 3. Then run full tests: `pytest tests/file.py -v`
 
 ### When Tests Fail
-1. Read the **exact error message** ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â it usually names the missing field/method
+1. Read the **exact error message** ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â it usually names the missing field/method
 2. Check the **source of truth file** for correct interface
 3. Fix the **actual bug** (might be in test mock OR in production code)
 4. **Update this document** with the lesson learned
@@ -336,7 +336,7 @@ client.submit_workflow(workflow)  # FAILS
 # Export from ComfyUI with "Save (API Format)" or convert
 ```
 
-**Prevention:** Check if workflow has `"nodes"` key ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â if yes, it's UI format and needs conversion.
+**Prevention:** Check if workflow has `"nodes"` key ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â if yes, it's UI format and needs conversion.
 
 ---
 
@@ -678,27 +678,27 @@ try:
 ### The Bridge Frame Problem
 ```
 Shot A (ends)                    Shot B (starts)
-     Ã¢â€â€š                                Ã¢â€â€š
-     Ã¢â€“Â¼                                Ã¢â€“Â¼
-Ã¢â€Å’Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â                    Ã¢â€Å’Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â
-Ã¢â€â€šFrame 144Ã¢â€â€š Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ BRIDGE Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€“Â¶ Ã¢â€â€šFrame 1  Ã¢â€â€š
-Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Ëœ                    Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Ëœ
-     Ã¢â€â€š                                Ã¢â€â€š
-     Ã¢â€â€š Extract last frame             Ã¢â€â€š Must match:
-     Ã¢â€â€š                                Ã¢â€â€š  - Visual continuity (I2V)
-     Ã¢â€“Â¼                                Ã¢â€â€š  - Character identity (LoRA)
-Ã¢â€Å’Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â´Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â
-Ã¢â€â€š           pass1_img2vid_lora.json  Ã¢â€”â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ THIS FILE    Ã¢â€â€š
-Ã¢â€â€š                                                      Ã¢â€â€š
-Ã¢â€â€š  Inputs:                                             Ã¢â€â€š
-Ã¢â€â€š    - INIT_IMAGE: last frame of Shot A               Ã¢â€â€š
-Ã¢â€â€š    - LORA_PATH: alice_v1.safetensors                Ã¢â€â€š
-Ã¢â€â€š    - PROMPT: "Alice walks to the door"              Ã¢â€â€š
-Ã¢â€â€š                                                      Ã¢â€â€š
-Ã¢â€â€š  Guarantees:                                         Ã¢â€â€š
-Ã¢â€â€š    - Frame 1 of Shot B visually matches Frame 144   Ã¢â€â€š
-Ã¢â€â€š    - Alice's face remains consistent                 Ã¢â€â€š
-Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Ëœ
+     ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡                                ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡
+     ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¼                                ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¼
+ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€¦Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â                    ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€¦Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â
+ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Frame 144ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ BRIDGE ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¶ ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Frame 1  ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡
+ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€¹Ã…â€œ                    ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€¹Ã…â€œ
+     ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡                                ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡
+     ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ Extract last frame             ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ Must match:
+     ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡                                ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡  - Visual continuity (I2V)
+     ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¼                                ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡  - Character identity (LoRA)
+ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€¦Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â´ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â
+ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡           pass1_img2vid_lora.json  ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ THIS FILE    ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡
+ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡                                                      ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡
+ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡  Inputs:                                             ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡
+ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡    - INIT_IMAGE: last frame of Shot A               ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡
+ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡    - LORA_PATH: alice_v1.safetensors                ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡
+ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡    - PROMPT: "Alice walks to the door"              ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡
+ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡                                                      ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡
+ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡  Guarantees:                                         ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡
+ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡    - Frame 1 of Shot B visually matches Frame 144   ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡
+ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡    - Alice's face remains consistent                 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡
+ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€¹Ã…â€œ
 
 
 ### 20. Early Return Hides Subsequent Logic Paths
@@ -754,10 +754,10 @@ def _select_workflow_template(self, job):
 ```
 
 **Why Contract Tests Missed It:**
-- JSON valid Ã¢Å“â€œ
-- Node has class_type Ã¢Å“â€œ
-- Node connections valid Ã¢Å“â€œ
-- No dangling references Ã¢Å“â€œ
+- JSON valid ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ
+- Node has class_type ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ
+- Node connections valid ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ
+- No dangling references ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ
 
 **Why Stress Test Caught It:**
 - Traced backwards from SaveImage
@@ -1005,23 +1005,23 @@ workflow['wan_i2v']['inputs']['start_image'] = workflow['wan_i2v']['inputs'].pop
 **Config structure is NESTED:**
 ```python
 # Wrong - flat access
-config.comfyui_host        # âŒ
-config.comfyui_port        # âŒ
-config.workflows_dir       # âŒ
+config.comfyui_host        # ÃƒÂ¢Ã‚ÂÃ…â€™
+config.comfyui_port        # ÃƒÂ¢Ã‚ÂÃ…â€™
+config.workflows_dir       # ÃƒÂ¢Ã‚ÂÃ…â€™
 
 # Correct - nested access
-config.comfyui.host        # âœ…
-config.comfyui.timeout_sec # âœ…
-config.paths.workflows_dir # âœ…
+config.comfyui.host        # ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦
+config.comfyui.timeout_sec # ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦
+config.paths.workflows_dir # ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦
 ```
 
 **Nested config classes:**
-- `config.comfyui` â†’ `ComfyUIConfig`
-- `config.paths` â†’ `PathsConfig`
-- `config.generation` â†’ `GenerationConfig`
-- `config.audit` â†’ `AuditConfig`
-- `config.sonic` â†’ `SonicConfig`
-- `config.post` â†’ `PostConfig`
+- `config.comfyui` ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ `ComfyUIConfig`
+- `config.paths` ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ `PathsConfig`
+- `config.generation` ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ `GenerationConfig`
+- `config.audit` ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ `AuditConfig`
+- `config.sonic` ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ `SonicConfig`
+- `config.post` ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ `PostConfig`
 
 **Prevention:** Check config.py for nested structure before accessing:
 ```bash
@@ -1046,13 +1046,13 @@ grep -n "class.*Config" src/core/config.py
 # Note the DOUBLE underscore between section and field
 
 # Wrong
-export COMFYUI_URL="wss://..."           # âŒ Ignored
-export COMFYUI_HOST="wss://..."          # âŒ Ignored
+export COMFYUI_URL="wss://..."           # ÃƒÂ¢Ã‚ÂÃ…â€™ Ignored
+export COMFYUI_HOST="wss://..."          # ÃƒÂ¢Ã‚ÂÃ…â€™ Ignored
 
 # Correct  
-export CONTINUUM_COMFYUI__HOST="wss://..."    # âœ… Works
-export CONTINUUM_COMFYUI__TIMEOUT_SEC=600     # âœ… Works
-export CONTINUUM_PATHS__WORKFLOWS_DIR="/x"    # âœ… Works
+export CONTINUUM_COMFYUI__HOST="wss://..."    # ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Works
+export CONTINUUM_COMFYUI__TIMEOUT_SEC=600     # ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Works
+export CONTINUUM_PATHS__WORKFLOWS_DIR="/x"    # ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Works
 ```
 
 **Key rules:**
@@ -1084,7 +1084,7 @@ bridge_request = {
     "source_video": previous_output.video_path,
     "target_shot": shot,
 }
-result = await bridge_engine.generate(bridge_request)  # âŒ Fails
+result = await bridge_engine.generate(bridge_request)  # ÃƒÂ¢Ã‚ÂÃ…â€™ Fails
 
 # Correct - use the dataclass
 spec = BridgeSpec.from_shots(
@@ -1092,7 +1092,7 @@ spec = BridgeSpec.from_shots(
     shot_b_prompt=shot.prompt,
     shot_b_characters=[],
 )
-result = await bridge_engine.generate(spec)  # âœ… Works
+result = await bridge_engine.generate(spec)  # ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Works
 ```
 
 **Prevention:** Always check the function signature and use proper types. Look for factory methods like `Dataclass.from_something()` that make construction easier.
@@ -1110,8 +1110,8 @@ result = await bridge_engine.generate(spec)  # âœ… Works
 **Wrong Assumption:** Components calling `ComfyClient` assumed methods named `upload_image` and `submit` existed.
 
 **Reality:** The actual method names were:
-- `upload_file()` â€” generic file upload returning dict
-- `submit_workflow()` â€” workflow submission
+- `upload_file()` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â generic file upload returning dict
+- `submit_workflow()` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â workflow submission
 
 **Why It Happened:** Different developers or different development phases used different naming conventions. Bridge engine was written expecting simpler method names that matched the semantic action (upload_image, submit) while the client used more explicit names (upload_file, submit_workflow).
 
@@ -1147,7 +1147,7 @@ async def submit(self, workflow: Dict[str, Any]) -> ComfyJob:
 **Wrong:**
 ```python
 workflow = self.workflow_loader.load(workflow_name)
-workflow = self.workflow_loader.inject_params(workflow, params)  # âŒ
+workflow = self.workflow_loader.inject_params(workflow, params)  # ÃƒÂ¢Ã‚ÂÃ…â€™
 ```
 
 **Correct:**
@@ -1158,7 +1158,7 @@ result = self.workflow_loader.inject(template, params)
 workflow = result.workflow
 
 # Option 2: One-step (preferred)
-workflow = self.workflow_loader.load_and_inject(workflow_name, params)  # âœ…
+workflow = self.workflow_loader.load_and_inject(workflow_name, params)  # ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦
 ```
 
 **Prevention:** Check WorkflowLoader methods:
@@ -1182,7 +1182,7 @@ grep -n "def inject\|def load_and_inject" src/comfy_client/workflow_loader.py
 ```python
 ComfyClient(
     host=config.comfyui.host,
-    port=config.comfyui.port,  # âŒ Parameter doesn't exist
+    port=config.comfyui.port,  # ÃƒÂ¢Ã‚ÂÃ…â€™ Parameter doesn't exist
 )
 ```
 
@@ -1217,7 +1217,7 @@ grep -A 10 "class ComfyUIConfig" src/core/config.py
 **Wrong:**
 ```python
 params = {
-    "SEED": spec.seed if spec.seed >= 0 else -1,  # âŒ -1 is invalid
+    "SEED": spec.seed if spec.seed >= 0 else -1,  # ÃƒÂ¢Ã‚ÂÃ…â€™ -1 is invalid
 }
 ```
 
@@ -1225,7 +1225,7 @@ params = {
 ```python
 import random
 params = {
-    "SEED": spec.seed if spec.seed >= 0 else random.randint(0, 2**32 - 1),  # âœ…
+    "SEED": spec.seed if spec.seed >= 0 else random.randint(0, 2**32 - 1),  # ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦
 }
 ```
 
@@ -1250,10 +1250,10 @@ params = {
 
 **Correct Architecture:**
 ```
-Shot 1 last frame â†’ Wan I2V (pass1_img2vid) â†’ Shot 2 video
+Shot 1 last frame ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Wan I2V (pass1_img2vid) ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Shot 2 video
 
 Instead of:
-Shot 1 last frame â†’ SDXL img2img â†’ Bridge image â†’ ??? (dead end)
+Shot 1 last frame ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ SDXL img2img ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Bridge image ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ ??? (dead end)
 ```
 
 **Prevention:** When designing cross-shot continuity:
@@ -1313,13 +1313,13 @@ Shot 1 last frame â†’ SDXL img2img â†’ Bridge image â†’ ??? (dead
 **Wrong:**
 ```python
 job = await client.submit(workflow)
-result = await client.wait_for_completion(job.job_id)  # ❌
+result = await client.wait_for_completion(job.job_id)  # Ã¢ÂÅ’
 ```
 
 **Correct:**
 ```python
 job = await client.submit(workflow)
-result = await client.wait_for_completion(job.prompt_id)  # ✅
+result = await client.wait_for_completion(job.prompt_id)  # Ã¢Å“â€¦
 ```
 
 **Prevention:** Check ComfyJob dataclass definition before using attributes:
@@ -1341,7 +1341,7 @@ grep -A 15 "class ComfyJob" src/comfy_client/client.py
 
 **Wrong:**
 ```python
-await client.download_output(job.output_images[0], save_path)  # ❌
+await client.download_output(job.output_images[0], save_path)  # Ã¢ÂÅ’
 ```
 
 **Correct:**
@@ -1478,9 +1478,398 @@ ls /workspace/runpod-slim/ComfyUI/custom_nodes/
 | **Date** | 2025-12-19 |
 | **Error** | `No module named 'src.studio.reviewer'` |
 | **Wrong Assumption** | Used `from .reviewer import ReviewRequest` in `pass1_generator.py` |
-| **Correct Interface** | Reviewer is in `src/audit/`, not `src/studio/` — use `from src.audit.reviewer import ReviewRequest` |
+| **Correct Interface** | Reviewer is in `src/audit/`, not `src/studio/` Ã¢â‚¬â€ use `from src.audit.reviewer import ReviewRequest` |
 | **Source of Truth** | Check import statements in `main.py` to see actual module paths |
 | **Prevention** | Relative imports (`.module`) only work within same package. Cross-package requires absolute import. |
+
+---
+---
+
+### 44. Scene Has `duration_sec`, Not `total_duration_sec`
+
+| | |
+|---|---|
+| **Date** | 2025-12-19 |
+| **Error** | `AttributeError: 'Scene' object has no attribute 'total_duration_sec'` |
+| **Wrong Assumption** | Scene property follows `total_` naming pattern |
+| **Correct Interface** | Scene uses `duration_sec` (property that sums shot durations) |
+| **Source of Truth** | `src/director/scene_graph.py` line 387-389 |
+
+**Wrong:**
+```python
+duration_sec=scene.total_duration_sec
+```
+
+**Correct:**
+```python
+duration_sec=scene.duration_sec
+```
+
+**Prevention:** Check scene_graph.py for exact property names before using. Scene has `duration_sec`, `shot_count`, `chunk_count` â€” none have `total_` prefix.
+
+---
+
+### 45. Workflow Names Must Match Existing JSON Files
+
+| | |
+|---|---|
+| **Date** | 2025-12-19 |
+| **Error** | `Workflow template 'refine_freelong' not found in workflows` |
+| **Wrong Assumption** | Workflow mapping could use planned names before files created |
+| **Correct Interface** | Workflow names must match actual `.json` files in repository |
+| **Source of Truth** | Files in project root: `ls *.json` |
+
+**Available refine workflows:**
+- `refine_vid2vid_simple.json` âœ…
+- `refine_vid2vid_temporal.json` âœ…
+- `refine_freelong.json` âŒ (doesn't exist)
+
+**Prevention:** Before adding workflow mappings, verify the `.json` file exists:
+```bash
+ls *.json | grep -i refine
+```
+
+---
+
+### 46. ArcFace Similarity Can Exceed 1.0 â€” Clamp Derived Values
+
+| | |
+|---|---|
+| **Date** | 2025-12-19 |
+| **Error** | `Severity must be 0.0-1.0, got 1.0883083045482635` |
+| **Wrong Assumption** | Cosine similarity is always in [0, 1] range |
+| **Correct Interface** | Floating point precision can cause similarity > 1.0, so `1.0 - similarity` can be negative |
+| **Source of Truth** | AuditFlag in `src/core/job_state.py` validates severity in `__post_init__` |
+
+**Wrong:**
+```python
+severity=1.0 - (comparison.similarity or 0.0)
+```
+
+**Correct:**
+```python
+severity=max(0.0, min(1.0, 1.0 - (comparison.similarity or 0.0)))
+```
+
+**Prevention:** Any value that feeds into a bounded dataclass field must be clamped to that range first.
+
+---
+
+### 47. ComfyClient Connections Require Explicit shutdown() in Engines
+
+| | |
+|---|---|
+| **Date** | 2025-12-19 |
+| **Error** | `ERROR | asyncio | Unclosed client session` at pipeline end |
+| **Wrong Assumption** | Python garbage collection will clean up aiohttp sessions |
+| **Correct Interface** | Each engine with `_client: ComfyClient` must implement `shutdown()` that calls `_client.disconnect()` |
+| **Source of Truth** | `src/comfy_client/client.py` â€” `disconnect()` method closes aiohttp session |
+
+**Pattern for Base Classes:**
+```python
+class BaseEngine(ABC):
+    async def shutdown(self) -> None:
+        """Default no-op. Override if holding resources."""
+        pass  # Subclasses override if needed
+```
+
+**Pattern for ComfyUI Implementations:**
+```python
+class ComfyUIEngine(BaseEngine):
+    def __init__(self):
+        self._client = None  # Lazy initialized
+    
+    async def shutdown(self) -> None:
+        """Disconnect from ComfyUI and release resources."""
+        if self._client is not None:
+            try:
+                await self._client.disconnect()
+            except Exception as e:
+                logger.warning(f"Error during shutdown: {e}")
+            finally:
+                self._client = None  # Clear reference even on error
+```
+
+**Files Updated with This Pattern:**
+- `pass2_refiner.py` â€” `BaseRefiner`, `ComfyUIRefiner`
+- `lip_sync.py` â€” `BaseLipSyncEngine`, `MusetalkComfyEngine`
+- `rife_interpolator.py` â€” `BaseInterpolator`, `ComfyRIFEInterpolator`
+
+**Prevention:** When creating any new engine that uses `ComfyClient`:
+1. Add `_client = None` in `__init__`
+2. Use lazy initialization in `_get_client()`
+3. Implement `shutdown()` that disconnects and clears `_client`
+4. Ensure `main.py` calls `shutdown()` during pipeline teardown
+
+---
+
+### 48. RIFE VFI Node Installation on RunPod
+
+| | |
+|---|---|
+| **Date** | 2025-12-20 |
+| **Error** | `Cannot execute because node RIFE VFI does not exist` |
+| **Wrong Assumption** | Frame interpolation nodes are built into ComfyUI |
+| **Correct Interface** | Must install ComfyUI-Frame-Interpolation custom node + download model |
+
+**Installation Steps (RunPod):**
+```bash
+# 1. Clone the node
+cd /workspace/runpod-slim/ComfyUI/custom_nodes
+git clone https://github.com/Fannovel16/ComfyUI-Frame-Interpolation
+
+# 2. Install dependencies (use no-cupy to avoid CUDA detection issues)
+pip3 install -r ComfyUI-Frame-Interpolation/requirements-no-cupy.txt
+
+# 3. Set backend to taichi (avoids cupy issues)
+sed -i 's/ops_backend: "cupy"/ops_backend: "taichi"/' ComfyUI-Frame-Interpolation/config.yaml
+
+# 4. Download RIFE model
+mkdir -p ComfyUI-Frame-Interpolation/ckpts
+cd ComfyUI-Frame-Interpolation/ckpts
+wget -O rife47.pth "https://github.com/styler00dollar/VSGAN-tensorrt-docker/releases/download/models/rife47.pth"
+
+# 5. Restart ComfyUI
+pkill -f "python.*main.py.*8188"
+cd /workspace/runpod-slim/ComfyUI
+nohup python3 main.py --listen 0.0.0.0 --port 8188 > /workspace/runpod-slim/comfyui.log 2>&1 &
+```
+
+**Verify Installation:**
+```bash
+# Check node loaded (look for "ComfyUI-Frame-Interpolation" in import times)
+tail -50 /workspace/runpod-slim/comfyui.log | grep -i "frame-interp"
+
+# Check server is healthy
+curl -s http://localhost:8188/system_stats
+```
+
+**Workflow File:** `rife_interpolation.json` â€” uses `RIFE VFI` node with `rife47.pth`
+
+**Note:** This installation is on persistent storage (`/workspace/`) so it survives pod restarts. However, you must restart ComfyUI after a fresh pod start to load the node.
+
+---
+
+### 49. Enum Names Must Match Definition Exactly
+
+| | |
+|---|---|
+| **Date** | 2025-12-20 |
+| **Error** | `AttributeError: type object 'FoleyCategory' has no attribute 'DOORS'. Did you mean: 'DOOR'?` |
+| **Wrong Assumption** | Enum names can be guessed (pluralized, past tense, etc.) |
+| **Correct Interface** | Check actual enum definition in `types.py` |
+
+**Wrong â†’ Correct Mappings:**
+```python
+FoleyCategory.DOORS       â†’ FoleyCategory.DOOR
+FoleyCategory.ELECTRONICS â†’ FoleyCategory.ELECTRONIC
+FoleyCategory.HANDLING    â†’ FoleyCategory.OBJECT
+AudioGenerationStatus.COMPLETED â†’ AudioGenerationStatus.COMPLETE
+```
+
+**Prevention:** Before using any enum, verify the exact values:
+```bash
+grep -A 15 "class EnumName" src/core/types.py
+```
+
+---
+
+### 50. ComfyUI Workflows Need Local Files Uploaded First
+
+| | |
+|---|---|
+| **Date** | 2025-12-20 |
+| **Error** | `Invalid video file: workspace/output/t2v_00045_.mp4` |
+| **Wrong Assumption** | ComfyUI can access local file paths passed in workflow |
+| **Correct Interface** | Files must be uploaded to ComfyUI server first via `client.upload_file()` |
+
+**Wrong (local path):**
+```python
+params = {
+    "INPUT_VIDEO": str(spec.input_path),  # âŒ Local path doesn't exist on server
+}
+```
+
+**Correct (upload first):**
+```python
+# Upload file to ComfyUI server
+upload_result = await client.upload_file(spec.input_path, subfolder="", file_type="input")
+remote_name = upload_result.get("name", spec.input_path.name)
+
+params = {
+    "INPUT_VIDEO": remote_name,  # âœ… Use remote filename
+}
+```
+
+**Prevention:** Any workflow that takes file input needs to upload first. Check bridge_engine.py for the pattern.
+
+---
+
+### 51. RIFE VFI Node Requires clear_cache_after_n_frames Parameter
+
+| | |
+|---|---|
+| **Date** | 2025-12-20 |
+| **Error** | `Required input is missing: clear_cache_after_n_frames` |
+| **Wrong Assumption** | Optional parameters have defaults |
+| **Correct Interface** | `RIFE VFI` node requires `clear_cache_after_n_frames` explicitly |
+
+**Fix in workflow JSON:**
+```json
+"rife_interpolate": {
+  "class_type": "RIFE VFI",
+  "inputs": {
+    "ckpt_name": "rife47.pth",
+    "clear_cache_after_n_frames": 10,  // â† Required, prevents OOM
+    ...
+  }
+}
+```
+
+**Prevention:** Test workflows in ComfyUI UI before committing to JSON. Missing required inputs show immediately in the UI.
+
+---
+
+### 52. RIFE Interpolator - Multiplier Type Must Match Result Type
+
+| | |
+|---|---|
+| **Date** | 2025-12-20 |
+| **Error** | `unsupported operand type(s) for *: 'dict' * 'float'` |
+| **Wrong Assumption** | `result.duration_sec` is always a float |
+| **Correct Interface** | When workflow returns, result may be dict-like before proper parsing |
+| **Source of Truth** | `src/studio/rife_interpolator.py` - `interpolate()` method |
+
+**Context:** The RIFE interpolator submits a ComfyUI job, but when calculating the interpolated duration (original_duration * multiplier), the result object hasn't been properly converted to `InterpolationResult` yet.
+
+**Fix needed in `rife_interpolator.py`:**
+```python
+# Ensure duration is extracted as float before multiplication
+original_duration = float(result.get("duration_sec", 0) if isinstance(result, dict) else result.duration_sec)
+interpolated_duration = original_duration * spec.multiplier
+```
+
+**Prevention:** Always verify the type of intermediate values when chaining operations, especially after async workflows return.
+
+---
+
+### 53. MixResult Object Does Not Have `.success` Attribute
+
+| | |
+|---|---|
+| **Date** | 2025-12-20 |
+| **Error** | `'MixResult' object has no attribute 'success'` |
+| **Wrong Assumption** | `MixResult` has a boolean `success` field |
+| **Correct Interface** | Check `MixResult` dataclass in `src/sonic/mixer.py` for actual fields |
+| **Source of Truth** | `src/sonic/mixer.py` - `MixResult` dataclass |
+
+**Wrong (in main.py):**
+```python
+if mix_result.success:
+    # handle success
+```
+
+**Correct (check actual fields):**
+```python
+if mix_result.output_path and mix_result.output_path.exists():
+    # handle success
+# Or check duration:
+if mix_result.duration_sec > 0:
+    # handle success
+```
+
+**Prevention:** Always verify dataclass fields before accessing:
+```bash
+grep -A 10 "class MixResult" src/sonic/mixer.py
+```
+
+---
+
+### 54. FFmpeg Frame Extraction May Fail on Short Videos
+
+| | |
+|---|---|
+| **Date** | 2025-12-20 |
+| **Error** | `Expected output file not created: .../color_temp/sample_t2v_00055__04.png` |
+| **Wrong Assumption** | FFmpeg will always extract the requested number of frames |
+| **Correct Interface** | Short videos (< 1 second) may not have enough frames to sample |
+| **Source of Truth** | `src/post/color_match.py` - frame extraction logic |
+
+**Context:** The color matcher tries to extract 5 evenly-spaced frames for histogram analysis. A 0.8-second video at 12fps only has ~10 frames total, and FFmpeg's select filter may skip requested frames.
+
+**Fix needed:** Add frame count check before extraction:
+```python
+# Get video duration/frame count first
+probe = await ffprobe(video_path)
+total_frames = int(probe.get("nb_frames", 0))
+
+# Adjust sample count for short videos
+sample_count = min(5, total_frames // 2)  # At least 2 frames between samples
+```
+
+**Prevention:** Any FFmpeg operation that samples frames should first verify the video has enough frames.
+
+---
+
+### 55. KSamplerBatch Node Not Available in Default ComfyUI
+
+| | |
+|---|---|
+| **Date** | 2025-12-20 |
+| **Error** | `Cannot execute because node KSamplerBatch does not exist` |
+| **Wrong Assumption** | KSamplerBatch is a standard ComfyUI node |
+| **Correct Interface** | It's from ComfyUI-KJNodes custom node package |
+| **Workflow Affected** | `refine_vid2vid_temporal.json` |
+
+**Status:** ComfyUI-KJNodes IS installed on RunPod but node not loading. May need:
+1. Restart ComfyUI after fresh pod start
+2. Check for dependency conflicts
+3. Verify KSamplerBatch still exists in latest KJNodes version
+
+**Workaround:** Use `refine_vid2vid_simple.json` which uses standard KSampler instead:
+```python
+# In pass2_refiner.py template selection
+template_name = "refine_vid2vid_simple"  # Fallback that works
+```
+
+**Investigation Commands:**
+```bash
+grep -r "KSamplerBatch" /workspace/runpod-slim/ComfyUI/custom_nodes/ComfyUI-KJNodes/
+# If not found, the node may have been renamed or removed in newer versions
+```
+
+---
+
+### 56. DWPreprocessor Node Requires Model Download
+
+| | |
+|---|---|
+| **Date** | 2025-12-20 |
+| **Error** | `Cannot execute because node DWPreprocessor does not exist` |
+| **Wrong Assumption** | controlnet_aux nodes are ready to use after installation |
+| **Correct Interface** | DWPreprocessor needs DWPose models downloaded separately |
+| **Workflow Affected** | `bridge_pose_extract.json` |
+
+**Status:** `comfyui_controlnet_aux` IS installed but DWPreprocessor not loading. Likely cause:
+1. DWPose models not downloaded
+2. ONNX runtime not installed
+3. Dependency conflict
+
+**Current Fallback:** Bridge engine falls back to `ipadapter_only` method when pose extraction fails. This works but produces less consistent results.
+
+**Fix (on RunPod):**
+```bash
+# Install onnxruntime
+pip3 install onnxruntime-gpu
+
+# Download DWPose models
+cd /workspace/runpod-slim/ComfyUI/custom_nodes/comfyui_controlnet_aux
+python3 -c "from src.controlnet_aux.dwpose import DWposeDetector; DWposeDetector()"
+
+# Restart ComfyUI
+```
+
+**Alternative:** Create `bridge_openpose.json` using OpenPosePreprocessor which may be more reliable.
 
 ---
 ---

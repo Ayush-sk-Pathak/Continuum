@@ -34,7 +34,7 @@ We are building a **neuro-symbolic AI filmmaking engine** (not just a video gene
 
 ### Director Agent (LLM Configuration)
 
-The Director Agent is the "intelligence" of the system. It runs as **cloud LLM API calls** dispatched from the Mac â€” the Mac runs Python orchestration code, NOT local model inference.
+The Director Agent is the "intelligence" of the system. It runs as **cloud LLM API calls** dispatched from the Mac ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the Mac runs Python orchestration code, NOT local model inference.
 
 | Mode | Provider | Model | Cost | Use Case |
 |------|----------|-------|------|----------|
@@ -46,8 +46,8 @@ The Director Agent is the "intelligence" of the system. It runs as **cloud LLM A
 **Cost Impact:** ~$0.02-0.10 per 5-minute film (negligible vs. GPU rendering at $5-50/film)
 
 **Director Agent Responsibilities:**
-- Parse scripts â†’ Scene Graph JSON
-- Maintain Consistency Dictionary (entity â†’ asset mappings)
+- Parse scripts ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Scene Graph JSON
+- Maintain Consistency Dictionary (entity ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ asset mappings)
 - Validate continuity ("Does Alice still have the sword?")
 - Generate shot compositions and camera decisions
 - Enrich prompts with cinematic detail
@@ -61,6 +61,63 @@ The Director Agent is the "intelligence" of the system. It runs as **cloud LLM A
 | **Pro Lane** | Premium APIs (Runway/Veo) + OSS repair | ~$6-12/min | Customer demos, high-fidelity output |
 
 The architecture supports hot-swapping between lanes via `BaseRenderer` abstraction.
+
+### Model Selection Strategy (I2V-First Architecture)
+
+**Core Insight:** Our value proposition is **consistency from reference images**, not random generation. Users who want "AI surprise me" will be disappointed by inconsistency anyway.
+
+#### I2V-First vs T2V Approach
+
+| Approach | Shot 1 | Shot 2+ | Best For |
+|----------|--------|---------|----------|
+| **I2V-First (Recommended)** | Keyframe â†’ I2V | Bridge â†’ I2V | Professional filmmaking, maximum consistency |
+| **T2V + I2V (Alternative)** | T2V | Bridge â†’ I2V | Exploration mode, "surprise me" users |
+
+**Why I2V-First is Preferred:**
+1. **Consistent quality** â€” No jarring T2Vâ†’I2V quality shift (especially with different param models)
+2. **Better composition control** â€” User/system defines shot 1's framing via keyframe
+3. **Stronger identity from frame 1** â€” Keyframe can include character with IP-Adapter
+4. **Bridge Engine pattern extended** â€” Shot 1 keyframe uses same workflow as bridge frames
+
+**Keyframe Generation for Shot 1:**
+```
+User provides keyframe   â†’ Use directly as init_image
+No keyframe provided     â†’ Generate via SDXL + IP-Adapter (same as Bridge Engine)
+Exploration mode         â†’ T2V generates options, user picks, becomes keyframe
+```
+
+#### Model-Agnostic Design Principle
+
+The system MUST allow swapping models without code changes:
+
+```python
+# User/config chooses renderer â€” orchestration code unchanged
+renderer = get_renderer(RendererType.WAN)      # OSS
+renderer = get_renderer(RendererType.VEO)      # Premium API
+renderer = get_renderer(RendererType.RUNWAY)   # Premium API
+```
+
+**Key insight:** Even when users choose "shiny" premium APIs (Veo/Runway), our Bridge Engine provides the consistency they expect. Premium APIs have **worse** native consistency than our OSS pipeline (no LoRA/IP-Adapter). Bridge Engine fills this gap.
+
+#### Testing vs Production Model Configuration
+
+| Mode | Model Choice | Purpose |
+|------|--------------|---------|
+| **Dev/Testing** | Fast models (Wan 1.3B T2V) | Rapid iteration, catch bugs quickly |
+| **Validation** | Production models (Wan 14B) | Verify quality before shipping |
+| **Production** | User-selected or default tier | Final output |
+
+**Warning:** Testing on different models than production can hide bugs. Audit system (ArcFace, physics checks) should catch model-agnostic issues, but periodic big-model runs during development are essential.
+
+#### Future: Quality Tiers (Post-MVP)
+
+| Tier | First Shot | Subsequent Shots | Use Case |
+|------|------------|------------------|----------|
+| **Draft** | SDXL keyframe â†’ I2V (fast) | I2V (fast) | Quick preview |
+| **Standard** | SDXL keyframe â†’ I2V (14B) | I2V (14B) | Normal production |
+| **Pro** | SDXL keyframe â†’ Runway/Veo | Runway/Veo + Bridge | Premium output |
+
+*Note: T2V path preserved for exploration/legacy but not promoted as default.*
 
 ---
 
@@ -77,7 +134,7 @@ We use a **"Max-Duration + Bridge Frame"** strategy:
 
 ---
 
-#### ⚠️ BRIDGE FRAME: CRITICAL COMPONENT — DO NOT BYPASS ⚠️
+#### Ã¢Å¡Â Ã¯Â¸Â BRIDGE FRAME: CRITICAL COMPONENT Ã¢â‚¬â€ DO NOT BYPASS Ã¢Å¡Â Ã¯Â¸Â
 
 The Bridge Engine is the **CORE VALUE PROPOSITION** of Continuum. It separates us from "random clip generators." Without it, we have no product.
 
@@ -101,17 +158,17 @@ A synthetically generated image that serves as the "perfect first frame" for any
 
 | Scenario | Bridge Needed? | Why |
 |----------|----------------|-----|
-| Shot A → Shot B (camera change) | ✅ YES | New generation |
-| Chunk 1 → Chunk 2 (same shot, 12s max) | ✅ YES | Generation restart |
-| Repair/patch a bad frame | ✅ YES | New generation |
-| Focus change (Person A → Person B) | ✅ YES | Different subject |
-| Re-roll after audit failure | ✅ YES | New generation |
-| Continue from checkpoint | ✅ YES | New generation |
-| Within a single 12s chunk | ❌ NO | Continuous generation |
-| Frame interpolation (RIFE) | ❌ NO | Not generation |
-| Pass 2 refinement (vid2vid) | ❌ NO | Existing video |
+| Shot A Ã¢â€ â€™ Shot B (camera change) | Ã¢Å“â€¦ YES | New generation |
+| Chunk 1 Ã¢â€ â€™ Chunk 2 (same shot, 12s max) | Ã¢Å“â€¦ YES | Generation restart |
+| Repair/patch a bad frame | Ã¢Å“â€¦ YES | New generation |
+| Focus change (Person A Ã¢â€ â€™ Person B) | Ã¢Å“â€¦ YES | Different subject |
+| Re-roll after audit failure | Ã¢Å“â€¦ YES | New generation |
+| Continue from checkpoint | Ã¢Å“â€¦ YES | New generation |
+| Within a single 12s chunk | Ã¢ÂÅ’ NO | Continuous generation |
+| Frame interpolation (RIFE) | Ã¢ÂÅ’ NO | Not generation |
+| Pass 2 refinement (vid2vid) | Ã¢ÂÅ’ NO | Existing video |
 
-**Rule:** If calling the video model to generate NEW frames → need Bridge Frame (unless first shot of film).
+**Rule:** If calling the video model to generate NEW frames Ã¢â€ â€™ need Bridge Frame (unless first shot of film).
 
 ---
 
@@ -121,13 +178,13 @@ Video models have NO MEMORY between calls. Without Bridge, identity drifts:
 
 ```
 WITHOUT BRIDGE (drift accumulates):
-  Shot 1  →  Shot 2  →  Shot 3  →  Shot 4  →  Shot 5
-  100%       98%        94%        88%        80%  ← unrecognizable
+  Shot 1  Ã¢â€ â€™  Shot 2  Ã¢â€ â€™  Shot 3  Ã¢â€ â€™  Shot 4  Ã¢â€ â€™  Shot 5
+  100%       98%        94%        88%        80%  Ã¢â€ Â unrecognizable
 
 WITH BRIDGE (re-anchored every cut):
-  Shot 1 → BRIDGE → Shot 2 → BRIDGE → Shot 3 → BRIDGE → Shot 4
-  100%     ↑100%    100%     ↑100%    100%     ↑100%    100%
-           │                 │                 │
+  Shot 1 Ã¢â€ â€™ BRIDGE Ã¢â€ â€™ Shot 2 Ã¢â€ â€™ BRIDGE Ã¢â€ â€™ Shot 3 Ã¢â€ â€™ BRIDGE Ã¢â€ â€™ Shot 4
+  100%     Ã¢â€ â€˜100%    100%     Ã¢â€ â€˜100%    100%     Ã¢â€ â€˜100%    100%
+           Ã¢â€â€š                 Ã¢â€â€š                 Ã¢â€â€š
      Re-anchor from    Re-anchor from   Re-anchor from
      Bible refs        Bible refs       Bible refs
 ```
@@ -152,20 +209,20 @@ Historical bypass attempts (ALL FAILED):
 #### Technical Implementation (MVP)
 
 ```
-Step 1: CAPTURE     → FFmpeg extract last frame → PNG
-Step 2: POSE        → ControlNet preprocessor → pose keypoints  
-Step 3: DEPTH       → Depth Anything (optional) → depth map
-Step 4: GENERATE    → bridge_full.json (SDXL + ControlNet + IP-Adapter) → bridge frame
-Step 5: INJECT      → pass1_img2vid.json (Wan I2V with init_image) → video
+Step 1: CAPTURE     Ã¢â€ â€™ FFmpeg extract last frame Ã¢â€ â€™ PNG
+Step 2: POSE        Ã¢â€ â€™ ControlNet preprocessor Ã¢â€ â€™ pose keypoints  
+Step 3: DEPTH       Ã¢â€ â€™ Depth Anything (optional) Ã¢â€ â€™ depth map
+Step 4: GENERATE    Ã¢â€ â€™ bridge_full.json (SDXL + ControlNet + IP-Adapter) Ã¢â€ â€™ bridge frame
+Step 5: INJECT      Ã¢â€ â€™ pass1_img2vid.json (Wan I2V with init_image) Ã¢â€ â€™ video
 ```
 
 **Workflow Files:**
 | Workflow | Contents | Status |
 |----------|----------|--------|
-| `bridge_full.json` | ControlNet Pose + Depth + IP-Adapter | ✅ RECOMMENDED |
-| `bridge_pose_only.json` | ControlNet Pose + IP-Adapter | 🟡 Fallback |
-| `bridge_ipadapter.json` | IP-Adapter only | 🟡 Minimal fallback |
-| `bridge_basic.json` | SDXL img2img only | ❌ BROKEN - Do not use |
+| `bridge_full.json` | ControlNet Pose + Depth + IP-Adapter | Ã¢Å“â€¦ RECOMMENDED |
+| `bridge_pose_only.json` | ControlNet Pose + IP-Adapter | Ã°Å¸Å¸Â¡ Fallback |
+| `bridge_ipadapter.json` | IP-Adapter only | Ã°Å¸Å¸Â¡ Minimal fallback |
+| `bridge_basic.json` | SDXL img2img only | Ã¢ÂÅ’ BROKEN - Do not use |
 
 ---
 
@@ -176,7 +233,7 @@ Step 5: INJECT      → pass1_img2vid.json (Wan I2V with init_image) → video
 | 1 (Best) | ControlNet Pose + Depth + IP-Adapter + LoRA | `bridge_full.json` | Perfect pose + identity |
 | 2 (Good) | ControlNet Pose + IP-Adapter + LoRA | `bridge_pose_only.json` | Pose + identity, no depth |
 | 3 (Acceptable) | IP-Adapter + LoRA only | `bridge_ipadapter.json` | Identity locked, pose may shift |
-| 4 (Emergency) | Raw frame → Wan I2V | `pass1_img2vid.json` | ⚠️ DRIFT WILL OCCUR |
+| 4 (Emergency) | Raw frame Ã¢â€ â€™ Wan I2V | `pass1_img2vid.json` | Ã¢Å¡Â Ã¯Â¸Â DRIFT WILL OCCUR |
 
 **Tier 4 Rule:** NEVER fall back silently. Always log warning: "Bridge unavailable - identity drift expected"
 
@@ -329,10 +386,10 @@ continuum/
 |   |-- pass1_structural_lora.json  # T2V + LoRA
 |   |-- pass1_img2vid.json       # I2V base (uses Bridge Frame as init_image)
 |   |-- pass1_img2vid_lora.json  # I2V + LoRA
-|   |-- bridge_basic.json        # âŒ BROKEN: SDXL img2img only (no pose/identity)
+|   |-- bridge_basic.json        # ÃƒÂ¢Ã‚ÂÃ…â€™ BROKEN: SDXL img2img only (no pose/identity)
 |   |-- bridge_ipadapter.json    # Partial: IP-Adapter identity only
 |   |-- bridge_pose_only.json    # Partial: ControlNet pose only  
-|   |-- bridge_full.json         # âœ… CORRECT: ControlNet pose + IP-Adapter identity
+|   |-- bridge_full.json         # ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ CORRECT: ControlNet pose + IP-Adapter identity
 |   |-- refine_vid2vid_simple.json   # Frame-by-frame refinement
 |   |-- refine_vid2vid_temporal.json # Batched temporal refinement
 |   +-- musetalk_lipsync.json    # Lip sync via Musetalk
@@ -355,7 +412,7 @@ continuum/
 | Module | Role | Key Classes/Functions |
 |--------|------|----------------------|
 | `core/` | Shared infrastructure | `JobState`, `Checkpoint`, `Config` |
-| `director/` | The Brain â€” LLM-powered planning & orchestration | `SceneGraph`, `ConsistencyDict`, `WorldState`, `Pacer`, `LLMClient` |
+| `director/` | The Brain ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â LLM-powered planning & orchestration | `SceneGraph`, `ConsistencyDict`, `WorldState`, `Pacer`, `LLMClient` |
 | `memory/` | Asset storage & retrieval | `VisualRAG`, `AssetStore`, `get_asset(entity_id)` |
 | `renderers/` | Pluggable video generation | `BaseRenderer`, `WanRenderer`, `RunwayRenderer` |
 | `studio/` | Video pipeline stages | `BridgeEngine`, `Pass1Generator`, `Pass2Refiner`, `RIFE` |
@@ -461,19 +518,19 @@ This requires: P0 -> P1 -> P2 -> P3a -> P4 -> P5. Everything else is optimizatio
 
 *Correct Flow (Production):*
 ```
-Shot A video â†’ Extract last frame â†’ bridge_full.json â†’ Bridge Frame â†’ Wan I2V â†’ Shot B
-                     â”‚                     â”‚
-                     â”‚                     â”œâ”€ ControlNet: extracts POSE
-                     â”‚                     â””â”€ IP-Adapter: re-anchors IDENTITY
-                     â”‚
-                     â””â”€ Captures expression, body position
+Shot A video ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Extract last frame ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ bridge_full.json ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Bridge Frame ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Wan I2V ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Shot B
+                     ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡                     ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡
+                     ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡                     ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ ControlNet: extracts POSE
+                     ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡                     ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬ÂÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ IP-Adapter: re-anchors IDENTITY
+                     ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡
+                     ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬ÂÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Captures expression, body position
 ```
 
 *Current MVP Flow (Temporary):*
 ```
-Shot A video â†’ Extract last frame â†’ (skip bridge) â†’ Wan I2V â†’ Shot B
-                                          â”‚
-                                          â””â”€ âš ï¸ Drift will accumulate
+Shot A video ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Extract last frame ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ (skip bridge) ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Wan I2V ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Shot B
+                                          ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡
+                                          ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬ÂÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â Drift will accumulate
 ```
 
 The MVP shortcut works for 2-3 shot tests. Production requires proper bridge integration.
@@ -669,14 +726,17 @@ Use the degradation ladder:
 
 | Limitation | Current MVP | Production Requirement | Impact |
 |------------|-------------|------------------------|--------|
-| **Bridge Frame** | Raw last frame â†’ I2V (no re-anchoring) | `bridge_full.json` with ControlNet + IP-Adapter | Drift accumulates over 5+ shots |
+| **Bridge Frame** | Raw last frame ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ I2V (no re-anchoring) | `bridge_full.json` with ControlNet + IP-Adapter | Drift accumulates over 5+ shots |
 | **Director Agent** | Manual scene graph JSON | LLM parses script automatically | No script-to-video pipeline |
 | **Identity Audit** | Stubbed (always passes) | Real ArcFace similarity check | Drift not caught automatically |
 | **Sonic Engine** | Stubbed interfaces | TTS + Lip Sync + Ambience | Silent films only |
 | **Pass 2 Refinement** | Partial (workflow exists) | Full vid2vid flicker reduction | Visual quality not polished |
 | **World State** | Stubbed data structures | Actual object position tracking | Props may teleport |
+| **Identity Threshold** | Relaxed to 0.50 | Tighten to 0.70+ once DWPreprocessor works | Accepts more identity drift |
+| **DWPreprocessor** | Missing on RunPod | Install comfyui_controlnet_aux properly | Bridge uses ipadapter_only fallback |
+| **Accept-on-Final-Attempt** | Pipeline fails completely | Accept best attempt with warning | Lost work after 3 rerolls |
 
-**Priority for Production:** Bridge Frame > Identity Audit > Director Agent > Sonic Engine
+**Priority for Production:** Bridge Frame > DWPreprocessor > Identity Threshold > Identity Audit > Director Agent > Sonic Engine
 
 ---
 
@@ -720,7 +780,7 @@ generation:
   max_reroll_attempts: 3
 
 audit:
-  identity_threshold: 0.70
+  identity_threshold: 0.50  # Relaxed from 0.70 - tighten once DWPreprocessor is working
   flicker_threshold: 0.05
   physics_missing_frames: 3
 
@@ -743,15 +803,17 @@ post:
 | **Consistency Dictionary** | Static mapping of entity IDs to their canonical assets (LoRAs, refs) |
 | **World State** | Dynamic tracking of object positions and states (changes over time) |
 | **Smart Cut** | Intentional camera change triggered before model drift occurs |
-| **Pass 1** | Structural generation â€” composition, motion, identity |
-| **Pass 2** | Refinement â€” flicker reduction, detail enhancement |
+| **Pass 1** | Structural generation ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â composition, motion, identity |
+| **Pass 2** | Refinement ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â flicker reduction, detail enhancement |
 | **Pacer** | Logic that decides when to cut (Max_Duration or pacing demand) |
 | **Standard Lane** | OSS-only rendering path (~$0.50/min) |
 | **Pro Lane** | Premium API + OSS repair path (~$6-12/min) |
-| **T2V** | Text-to-Video â€” generates video from text prompt only |
-| **I2V** | Image-to-Video â€” generates video starting from an init_image (Bridge Frame) |
+| **T2V** | Text-to-Video ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â generates video from text prompt only |
+| **I2V** | Image-to-Video ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â generates video starting from an init_image (Bridge Frame) |
 | **Bible Refs** | Canonical reference images for a character/location stored in Consistency Dictionary |
 | **Drift** | Gradual degradation of character identity over multiple generation cycles |
+| **I2V-First** | Architecture pattern where all shots use I2V (shot 1 uses generated/provided keyframe, subsequent shots use bridge frames). Preferred for maximum consistency. |
+| **Keyframe** | Starting image for shot 1 in I2V-First workflow. Can be user-provided or generated via SDXL + IP-Adapter (same pattern as Bridge Engine). |
 
 ---
 
@@ -759,10 +821,11 @@ post:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2025.12.6 | Dec 2025 | **Model Selection Strategy (I2V-First):** Added comprehensive section covering I2V-first architecture rationale, keyframe generation for shot 1, model-agnostic design principle, testing vs production model configuration, and future quality tiers. Documents that I2V is preferred path (consistency from reference images), T2V preserved for exploration mode. Clarifies that Bridge Engine adds value even with premium APIs (Veo/Runway) which lack native consistency features. |
 | 2025.12.5 | Dec 2025 | **Bridge Frame comprehensive documentation:** Added detailed specification covering WHAT (technical definition, why SDXL), WHEN (decision table for all scenarios), WHY (drift problem with diagrams), WHY NEVER BYPASS (4 historical attempts documented), IMPLEMENTATION (5-step MVP), DEGRADATION LADDER (Tier 1-4), and FUTURE ENHANCEMENT (multi-frame sequence via RIFE). Bridge Engine is now fully documented as CRITICAL COMPONENT that must never be bypassed. |
 | 2025.12.4 | Dec 2025 | **Bridge strategy correction:** Restored proper Bridge Frame concept (ControlNet pose + IP-Adapter identity re-anchoring). Clarified MVP uses raw frame shortcut (causes drift). Documented that `bridge_full.json` is required for production. |
 | 2025.12.3 | Dec 2025 | **LLM clarification:** Added Director Agent LLM configuration section. Cloud APIs (Claude/GPT/Gemini) are primary; local Ollama is fallback only. Updated Hardware Strategy table to separate Brain (Local orchestration) from Brain (Cloud LLM). |
-| 2025.12.2 | Dec 2025 | **Bridge strategy update:** Shot continuity now uses raw frame â†’ Wan I2V instead of SDXL bridge. Bridge engine reserved for camera transitions (Phase 2). Updated priority table, glossary, workflow annotations. |
+| 2025.12.2 | Dec 2025 | **Bridge strategy update:** Shot continuity now uses raw frame ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Wan I2V instead of SDXL bridge. Bridge engine reserved for camera transitions (Phase 2). Updated priority table, glossary, workflow annotations. |
 | 2025.12.1 | Dec 2025 | Added model tier system (models.json, model_loader.py). Updated workflow list to match implementation. Added related docs links. |
 | 2025.12 | Dec 2025 | Initial working summary. Split State/Memory. Added Two-Lane model. Revised priority order. Added code standards. |
 

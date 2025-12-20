@@ -26,11 +26,11 @@ Architecture Note:
     simpler vid2vid temporal denoising.
 
 Pipeline Position:
-    Pass 1 â†’ Audit â†’ **Pass 2 (this)** â†’ Lip Sync â†’ RIFE â†’ Final
+    Pass 1 Ã¢â€ â€™ Audit Ã¢â€ â€™ **Pass 2 (this)** Ã¢â€ â€™ Lip Sync Ã¢â€ â€™ RIFE Ã¢â€ â€™ Final
 
 Design Principles:
     1. Workflow-agnostic: Actual ComfyUI workflow is external JSON
-    2. Degradation-ready: FreeLong++ â†’ Vid2Vid â†’ Passthrough fallback
+    2. Degradation-ready: FreeLong++ Ã¢â€ â€™ Vid2Vid Ã¢â€ â€™ Passthrough fallback
     3. Async-first: All refinement is async (GPU-bound)
     4. Preserves structure: Should NOT change composition or motion
 """
@@ -278,6 +278,17 @@ class BaseRefiner(ABC):
         time_sec = self.estimate_time(spec)
         hourly_rate = 0.50
         return (time_sec / 3600) * hourly_rate
+    
+    async def shutdown(self) -> None:
+        """
+        Release resources held by the refiner.
+        
+        Default implementation does nothing. Override in subclasses
+        that hold resources like ComfyClient connections.
+        
+        Called by main.py during pipeline shutdown.
+        """
+        pass  # No-op by default; subclasses override if needed
 
 
 # =============================================================================
@@ -457,6 +468,22 @@ class ComfyRefiner(BaseRefiner):
             logger.error(f"ComfyUI health check failed: {e}")
             return False
     
+    async def shutdown(self) -> None:
+        """
+        Disconnect from ComfyUI and release resources.
+        
+        This ensures the aiohttp session is properly closed,
+        preventing "Unclosed client session" warnings.
+        """
+        if self._client is not None:
+            try:
+                await self._client.disconnect()
+                logger.debug(f"ComfyUIRefiner disconnected from {self.comfy_host}")
+            except Exception as e:
+                logger.warning(f"Error during ComfyUIRefiner shutdown: {e}")
+            finally:
+                self._client = None
+    
     def estimate_time(self, spec: RefinementSpec) -> float:
         """Estimate refinement time based on video length and quality."""
         # Rough estimates: refinement is typically 0.5-2x realtime
@@ -618,8 +645,10 @@ class RefinerFactory:
         self.preferred_method = preferred_method
         
         # Workflow name mapping (without .json extension)
+        # Note: FREELONG_PLUS uses vid2vid_temporal as the underlying workflow
+        # (true FreeLong++ would need custom ComfyUI nodes - this is a semantic alias)
         self._workflow_names = {
-            RefinementMethod.FREELONG_PLUS: "refine_freelong",
+            RefinementMethod.FREELONG_PLUS: "refine_vid2vid_temporal",  # Best available
             RefinementMethod.VID2VID_TEMPORAL: "refine_vid2vid_temporal",
             RefinementMethod.VID2VID_SIMPLE: "refine_vid2vid_simple",
         }

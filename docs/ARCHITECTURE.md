@@ -172,7 +172,7 @@ Always have a working fallback
 3B. The Bridge Engine (The Handshake Layer)
 
 ================================================================================
-⚠️  CRITICAL SYSTEM COMPONENT - DO NOT BYPASS ⚠️
+âš ï¸  CRITICAL SYSTEM COMPONENT - DO NOT BYPASS âš ï¸
 ================================================================================
 
 The Bridge Engine is the CORE VALUE PROPOSITION of Continuum. It is what separates
@@ -210,21 +210,21 @@ Workflow: `bridge_full.json` (ControlNet Pose + ControlNet Depth + IP-Adapter)
 A Bridge Frame is required for EVERY video generation restart. Not just camera
 angle changes. Not just shot boundaries. EVERY restart.
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  SCENARIO                          │  BRIDGE NEEDED?  │  WHY                │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  Shot A → Shot B (camera change)   │  ✅ YES          │  New generation     │
-│  Chunk 1 → Chunk 2 (same shot)     │  ✅ YES          │  12s max, restart   │
-│  Repair/patch a bad frame          │  ✅ YES          │  New generation     │
-│  Focus change (Person A → B)       │  ✅ YES          │  Different subject  │
-│  Scene transition                  │  ✅ YES          │  New generation     │
-│  Re-roll after audit failure       │  ✅ YES          │  New generation     │
-│  Continue from checkpoint          │  ✅ YES          │  New generation     │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  Within a single 12s chunk         │  ❌ NO           │  Continuous gen     │
-│  Frame interpolation (RIFE)        │  ❌ NO           │  Not generation     │
-│  Pass 2 refinement (vid2vid)       │  ❌ NO           │  Existing video     │
-└─────────────────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚  SCENARIO                          â”‚  BRIDGE NEEDED?  â”‚  WHY                â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚  Shot A â†’ Shot B (camera change)   â”‚  âœ… YES          â”‚  New generation     â”‚
+â”‚  Chunk 1 â†’ Chunk 2 (same shot)     â”‚  âœ… YES          â”‚  12s max, restart   â”‚
+â”‚  Repair/patch a bad frame          â”‚  âœ… YES          â”‚  New generation     â”‚
+â”‚  Focus change (Person A â†’ B)       â”‚  âœ… YES          â”‚  Different subject  â”‚
+â”‚  Scene transition                  â”‚  âœ… YES          â”‚  New generation     â”‚
+â”‚  Re-roll after audit failure       â”‚  âœ… YES          â”‚  New generation     â”‚
+â”‚  Continue from checkpoint          â”‚  âœ… YES          â”‚  New generation     â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚  Within a single 12s chunk         â”‚  âŒ NO           â”‚  Continuous gen     â”‚
+â”‚  Frame interpolation (RIFE)        â”‚  âŒ NO           â”‚  Not generation     â”‚
+â”‚  Pass 2 refinement (vid2vid)       â”‚  âŒ NO           â”‚  Existing video     â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
 Rule of Thumb: If you are calling the video model to generate NEW frames,
 you need a Bridge Frame (unless it's the very first shot of the film).
@@ -237,27 +237,27 @@ Video models have NO MEMORY between generation calls. Each call starts fresh.
 Without intervention, identity drifts with each restart:
 
 WITHOUT BRIDGE FRAMES (drift accumulates exponentially):
-┌────────────────────────────────────────────────────────────────────────────┐
-│  Shot 1    →    Shot 2    →    Shot 3    →    Shot 4    →    Shot 5       │
-│  100%           98%            94%            88%            80%           │
-│  Alice          Alice?         Alice??        Who???         Different     │
-│                                                              person        │
-└────────────────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚  Shot 1    â†’    Shot 2    â†’    Shot 3    â†’    Shot 4    â†’    Shot 5       â”‚
+â”‚  100%           98%            94%            88%            80%           â”‚
+â”‚  Alice          Alice?         Alice??        Who???         Different     â”‚
+â”‚                                                              person        â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
 Each generation "forgets" the previous one. Small errors compound:
-- 2% drift per shot × 5 shots = 10% total drift (optimistic)
+- 2% drift per shot Ã— 5 shots = 10% total drift (optimistic)
 - In practice, drift is non-linear and accelerates
 - By shot 5, the character is unrecognizable
 
 WITH BRIDGE FRAMES (identity re-anchored every cut):
-┌────────────────────────────────────────────────────────────────────────────┐
-│  Shot 1  → BRIDGE → Shot 2  → BRIDGE → Shot 3  → BRIDGE → Shot 4  → ...   │
-│  100%      ↑100%    100%      ↑100%    100%      ↑100%    100%             │
-│  Alice     │        Alice     │        Alice     │        Alice            │
-│            │                  │                  │                         │
-│      Re-anchor from      Re-anchor from    Re-anchor from                  │
-│      Bible refs          Bible refs        Bible refs                      │
-└────────────────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚  Shot 1  â†’ BRIDGE â†’ Shot 2  â†’ BRIDGE â†’ Shot 3  â†’ BRIDGE â†’ Shot 4  â†’ ...   â”‚
+â”‚  100%      â†‘100%    100%      â†‘100%    100%      â†‘100%    100%             â”‚
+â”‚  Alice     â”‚        Alice     â”‚        Alice     â”‚        Alice            â”‚
+â”‚            â”‚                  â”‚                  â”‚                         â”‚
+â”‚      Re-anchor from      Re-anchor from    Re-anchor from                  â”‚
+â”‚      Bible refs          Bible refs        Bible refs                      â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
 The Bridge Frame re-injects the CANONICAL identity from the Consistency Dictionary
 (the "Bible" references) at every cut. Drift is reset to 0% each time.
@@ -269,7 +269,7 @@ while competitors can only generate 4-second clips and pray.
 3B.4 WHY THE BRIDGE FRAME MUST NEVER BE BYPASSED
 --------------------------------------------------------------------------------
 
-⚠️  HISTORICAL NOTE: During development, there were multiple attempts to 
+âš ï¸  HISTORICAL NOTE: During development, there were multiple attempts to 
 "simplify" the pipeline by bypassing the Bridge Engine and passing raw frames
 directly to Wan I2V. This is ALWAYS wrong. Here's why:
 
@@ -303,36 +303,36 @@ wrong problem. Fix whatever is making you want to bypass it instead.
 Current Implementation (MVP - Single Frame):
 
 Step 1 - CAPTURE: Extract last frame from previous video segment
-  └─ Tool: FFmpeg (extract_last_frame)
-  └─ Output: PNG image with pose, expression, scene state
+  â””â”€ Tool: FFmpeg (extract_last_frame)
+  â””â”€ Output: PNG image with pose, expression, scene state
 
 Step 2 - EXTRACT POSE: Run OpenPose on captured frame
-  └─ Tool: ComfyUI ControlNet Preprocessor
-  └─ Output: Pose keypoints image
+  â””â”€ Tool: ComfyUI ControlNet Preprocessor
+  â””â”€ Output: Pose keypoints image
 
 Step 3 - EXTRACT DEPTH (optional): Run depth estimation
-  └─ Tool: ComfyUI Depth Anything / MiDaS
-  └─ Output: Depth map image
+  â””â”€ Tool: ComfyUI Depth Anything / MiDaS
+  â””â”€ Output: Depth map image
 
 Step 4 - GENERATE BRIDGE FRAME: SDXL with conditioning
-  └─ Workflow: bridge_full.json
-  └─ Inputs:
+  â””â”€ Workflow: bridge_full.json
+  â””â”€ Inputs:
      - ControlNet Pose: Preserves body position, expression
      - ControlNet Depth: Preserves spatial relationships (optional)
      - IP-Adapter: Re-injects canonical identity from Bible refs
      - LoRA: Character-specific identity boost (if available)
      - Prompt: Target shot description
-  └─ Output: Identity-locked first frame for next shot
+  â””â”€ Output: Identity-locked first frame for next shot
 
 Step 5 - INJECT: Pass bridge frame to Wan I2V as init_image
-  └─ Workflow: pass1_img2vid.json or pass1_img2vid_lora.json
-  └─ Result: Video continues from identity-locked starting point
+  â””â”€ Workflow: pass1_img2vid.json or pass1_img2vid_lora.json
+  â””â”€ Result: Video continues from identity-locked starting point
 
 Workflow Files:
 - bridge_full.json: ControlNet Pose + Depth + IP-Adapter (RECOMMENDED)
 - bridge_pose_only.json: ControlNet Pose + IP-Adapter (fallback)
 - bridge_ipadapter.json: IP-Adapter only (minimal fallback)
-- bridge_basic.json: ❌ BROKEN - Do not use (no ControlNet, no IP-Adapter)
+- bridge_basic.json: âŒ BROKEN - Do not use (no ControlNet, no IP-Adapter)
 
 --------------------------------------------------------------------------------
 3B.6 FUTURE ENHANCEMENT: MULTI-FRAME BRIDGE SEQUENCE
@@ -386,9 +386,9 @@ TIER 3 (Acceptable Quality):
 - Result: Identity locked, pose may shift slightly
 
 TIER 4 (Emergency Fallback):
-- Raw last frame → Wan I2V
+- Raw last frame â†’ Wan I2V
 - Workflow: pass1_img2vid.json (no bridge)
-- Result: ⚠️ DRIFT WILL OCCUR - Use only if bridge completely unavailable
+- Result: âš ï¸ DRIFT WILL OCCUR - Use only if bridge completely unavailable
 - MUST log warning: "Bridge unavailable - identity drift expected"
 
 NEVER silently fall back to Tier 4. Always warn loudly.
@@ -918,6 +918,58 @@ S3 / R2
 Why this matters:
 The "Repair Dividend": A typical creator might spend $50+ re-rolling prompts on Veo to get one consistent character shot. By using our Repair Lane, they pay for the shot once and use our cheap GPU layer to fix the face/props.
 Tiered Pricing: We can offer a "Free/Basic" tier running on pure open source (high margin) and a "Studio Pro" tier that passes through the API costs of Veo/Sora (lower margin, higher volume).
+
+Model Selection Strategy (I2V-First Architecture)
+--------------------------------------------------------------------------------
+Our core value proposition is consistency from reference images, not random generation.
+
+I2V-First vs T2V Approach:
+
+| Approach              | Shot 1              | Shot 2+        | Best For                                    |
+|-----------------------|---------------------|----------------|---------------------------------------------|
+| I2V-First (Preferred) | Keyframe → I2V      | Bridge → I2V   | Professional filmmaking, max consistency    |
+| T2V + I2V (Optional)  | T2V                 | Bridge → I2V   | Exploration mode, "surprise me" users       |
+
+Why I2V-First is Preferred:
+1. Consistent quality: No jarring T2V→I2V quality shift (e.g., 1.3B T2V vs 14B I2V)
+2. Better composition control: User/system defines shot 1's framing via keyframe
+3. Stronger identity from frame 1: Keyframe includes character via IP-Adapter
+4. Bridge Engine pattern extended: Shot 1 keyframe uses same workflow as bridge frames
+
+Keyframe Generation for Shot 1:
+- User provides keyframe → Use directly as init_image for I2V
+- No keyframe provided → Generate via SDXL + IP-Adapter (same as Bridge Engine workflow)
+- Exploration mode → T2V generates multiple options, user picks one, becomes keyframe
+
+Model-Agnostic Design Principle:
+The system MUST allow hot-swapping models/APIs without code changes. The BaseRenderer abstraction enables:
+- WanRenderer (OSS Standard Lane)
+- VeoRenderer (Premium Pro Lane)
+- RunwayRenderer (Premium Pro Lane)
+- SoraRenderer (Premium Pro Lane)
+
+Critical Insight: Even when users choose "shiny" premium APIs (Veo/Runway/Sora), our Bridge Engine provides the consistency they expect. Premium APIs have WORSE native consistency than our OSS pipeline because they lack LoRA/IP-Adapter support. Bridge Engine fills this gap by re-anchoring identity between API calls.
+
+Testing vs Production Model Configuration:
+
+| Mode         | Model Choice              | Purpose                           |
+|--------------|---------------------------|-----------------------------------|
+| Dev/Testing  | Fast models (Wan 1.3B)    | Rapid iteration, catch bugs fast  |
+| Validation   | Production models (14B)   | Verify quality before shipping    |
+| Production   | User-selected tier        | Final output                      |
+
+Warning: Testing on different models than production can hide model-specific bugs. The audit system (ArcFace identity check, physics checks) should catch model-agnostic issues, but periodic big-model validation runs during development are essential before shipping new features.
+
+Future Quality Tiers (Post-MVP):
+
+| Tier     | First Shot               | Subsequent Shots       | Use Case         |
+|----------|--------------------------|------------------------|------------------|
+| Draft    | SDXL keyframe → I2V fast | I2V fast               | Quick preview    |
+| Standard | SDXL keyframe → I2V 14B  | I2V 14B                | Normal production|
+| Pro      | SDXL keyframe → Veo/etc  | Veo/Runway + Bridge    | Premium output   |
+
+Note: T2V path preserved for exploration/legacy use cases but not promoted as default workflow.
+
 ================================================================================
 8. EXECUTION ROADMAP & BUDGET (90-DAY PLAN)
 ================================================================================

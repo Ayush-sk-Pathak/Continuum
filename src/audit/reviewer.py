@@ -16,7 +16,7 @@ Decision Logic:
     1. Run all enabled checks in parallel (for speed)
     2. Aggregate flags from each checker
     3. Apply severity weighting
-    4. Make final call: PASS → continue, FAIL → reroll, WARN → flag for review
+    4. Make final call: PASS â†’ continue, FAIL â†’ reroll, WARN â†’ flag for review
 
 Use Cases:
     1. Within-shot audit: Check identity + physics within a single chunk
@@ -24,10 +24,10 @@ Use Cases:
     3. Full-shot audit: Both within-shot and cross-shot combined
 
 Architecture Position:
-    PASS 1 → [REVIEWER] → Pass 2 (if approved)
-                ↓
+    PASS 1 â†’ [REVIEWER] â†’ Pass 2 (if approved)
+                â†“
            REROLL (if failed, attempt < max)
-                ↓
+                â†“
            HUMAN REVIEW (if max attempts exceeded)
 
 Design Principles:
@@ -198,7 +198,7 @@ class ReviewResult:
         return (
             f"[{status}] Shot {self.shot_id}: "
             f"{flag_count} flags from checks [{checks}] "
-            f"→ {self.audit_result.recommendation}"
+            f"â†’ {self.audit_result.recommendation}"
         )
 
 
@@ -455,10 +455,12 @@ class Reviewer:
             # Convert to CheckResult
             flags = []
             if not comparison.passed:
+                # Clamp severity to 0.0-1.0 range (similarity can exceed 1.0 due to numerical precision)
+                flag_severity = max(0.0, min(1.0, 1.0 - (comparison.similarity or 0.0)))
                 flags.append(AuditFlag(
                     check_type=AuditCheckType.IDENTITY,
                     frame_range=(0, -1),  # Whole video
-                    severity=1.0 - (comparison.similarity or 0.0),
+                    severity=flag_severity,
                     description=comparison.message,
                 ))
             
@@ -722,7 +724,7 @@ class Reviewer:
         
         logger.debug(
             f"Aggregated {len(check_results)} checks: "
-            f"weighted_severity={weighted_severity:.3f} → {status.value}"
+            f"weighted_severity={weighted_severity:.3f} â†’ {status.value}"
         )
         
         return AuditResult(

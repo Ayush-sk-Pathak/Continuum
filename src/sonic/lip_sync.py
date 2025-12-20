@@ -14,7 +14,7 @@ The Solution:
     match the audio.
 
 Architecture Position:
-    Pass 1 → Audit → Pass 2 → **Lip Sync (this)** → RIFE → Final
+    Pass 1 â†’ Audit â†’ Pass 2 â†’ **Lip Sync (this)** â†’ RIFE â†’ Final
 
 Why This Position:
     - Needs refined faces (after Pass 2) for best quality
@@ -36,7 +36,7 @@ Supported Providers:
 
 Design Principles:
     1. Workflow-agnostic: Actual ComfyUI workflow is external JSON
-    2. Degradation-ready: Musetalk → Wav2Lip → Passthrough
+    2. Degradation-ready: Musetalk â†’ Wav2Lip â†’ Passthrough
     3. Async-first: All processing is async (GPU-bound)
     4. Speaking-shot aware: Skip processing for non-speaking content
 """
@@ -317,6 +317,17 @@ class BaseLipSyncEngine(ABC):
         time_sec = self.estimate_time(spec)
         hourly_rate = 0.50  # GPU cost
         return (time_sec / 3600) * hourly_rate
+    
+    async def shutdown(self) -> None:
+        """
+        Release resources held by the lip sync engine.
+        
+        Default implementation does nothing. Override in subclasses
+        that hold resources like ComfyClient connections.
+        
+        Called by main.py during pipeline shutdown.
+        """
+        pass  # No-op by default; subclasses override if needed
 
 
 # =============================================================================
@@ -499,6 +510,22 @@ class MusetalkComfyEngine(BaseLipSyncEngine):
         except Exception as e:
             logger.error(f"Musetalk health check failed: {e}")
             return False
+    
+    async def shutdown(self) -> None:
+        """
+        Disconnect from ComfyUI and release resources.
+        
+        This ensures the aiohttp session is properly closed,
+        preventing "Unclosed client session" warnings.
+        """
+        if self._client is not None:
+            try:
+                await self._client.disconnect()
+                logger.debug(f"MusetalkComfyEngine disconnected from {self.comfy_host}")
+            except Exception as e:
+                logger.warning(f"Error during MusetalkComfyEngine shutdown: {e}")
+            finally:
+                self._client = None
 
 
 # =============================================================================
@@ -727,7 +754,7 @@ class LipSyncFactory:
     
     Tries providers in order of quality and falls back if unavailable.
     
-    Fallback order: Musetalk ComfyUI → Wav2Lip Replicate → Passthrough
+    Fallback order: Musetalk ComfyUI â†’ Wav2Lip Replicate â†’ Passthrough
     
     Usage:
         factory = LipSyncFactory(comfy_host="http://localhost:8188")
