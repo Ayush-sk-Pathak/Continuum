@@ -425,7 +425,7 @@ Applies Alice LoRA only in Region A
 Bob LoRA only in Region B
 Avoids identity bleed and blob fusion.
 
-3E. The World Engine (Environment Lock)
+3E-1. The World Engine (Environment Lock)
 
 Goal: The kitchen/forest/city stays visually consistent across time and scenes. Technology: IP-Adapter, reference image injection, environment keyframes. Tools: ComfyUI IPAdapter Plus, panorama refs.
 System Fit:
@@ -434,6 +434,29 @@ Store them as canonical environment assets.
 For each shot in that location:
 Feed the correct environment ref into IP-Adapter / conditioning.
 This "locks" walls, windows, big objects.
+
+Section 3E-2 (World Engine) Addition:
+markdownProgressive Location Lock (Hybrid IP-Adapter + Auto-LoRA):
+
+Similar to character identity lock (Section 3A), locations can be progressively
+enhanced:
+
+Tier 1 -- Instant Start (IP-Adapter):
+  - Generate 3-5 reference views of location (panorama, key angles)
+  - System uses these as IP-Adapter conditioning
+  - Quality: ~70% location consistency (good for drafts)
+  - Limitation: Works best when camera angle matches reference
+
+Tier 2 -- Background Enhancement (Auto-LoRA):
+  - System generates 15-25 augmented views from initial references
+  - Auto-trains LoRA on location image set
+  - Training time: 30-45 min on A100
+  - Quality: ~90% location consistency from ANY angle
+
+LoRA Stacking:
+  - Character LoRA (weight 0.7) + Location LoRA (weight 0.5) = combined consistency
+  - Both can be active simultaneously without conflict
+  - Total weight should stay under ~1.2 for quality
 
 3F. Two-Pass Rendering Pipeline (Structure -> Refinement)
 
@@ -920,54 +943,174 @@ The "Repair Dividend": A typical creator might spend $50+ re-rolling prompts on 
 Tiered Pricing: We can offer a "Free/Basic" tier running on pure open source (high margin) and a "Studio Pro" tier that passes through the API costs of Veo/Sora (lower margin, higher volume).
 
 Model Selection Strategy (I2V-First Architecture)
---------------------------------------------------------------------------------
+⚠️ CRITICAL ARCHITECTURAL DECISION: T2V vs I2V-Only Pipeline
+This section documents a fundamental architectural choice that directly impacts our
+core value proposition of consistency.
+
+7A.1 THE FUNDAMENTAL DIFFERENCE: T2V vs I2V
+Both T2V and I2V use the SAME base model (e.g., Wan 2.1). The difference is input:
+T2V (Text-to-Video):
+Input:   Text prompt only
+Process: Noise → Denoise with text conditioning → Video
+Output:  Model's interpretation of the prompt
+Example: "Alice in kitchen" → Model imagines what Alice looks like
+Result: RANDOM Alice (may not match our references)
+I2V (Image-to-Video):
+Input:   Text prompt + init_image
+Process: Image+Noise → Denoise with text+image conditioning → Video
+Output:  Animation starting from the provided image
+Example: init_image=Alice_from_IP_Adapter, prompt="walks to window"
+Result: OUR Alice animated (identity locked from frame 1)
+Key Insight: I2V accepts text prompts for MOTION guidance while using init_image
+for VISUAL identity. We get both control AND consistency.
+
+7A.2 WHY T2V FOR SHOT 1 BREAKS CONSISTENCY
+THE PROBLEM WITH T2V FIRST:
+Current Flow (T2V for Shot 1):
+Shot 1: T2V("Alice in kitchen, morning light...")
+↓
+Model imagines: Blonde hair, round face, blue dress
+↓
+Output: Video of MODEL'S Alice (not OUR Alice)
+Shot 2: Bridge Frame (IP-Adapter with OUR references)
+↓
+Re-anchored: Brown hair, angular face, red dress
+↓
+I2V from bridge frame
+RESULT: Shot 1 has DIFFERENT Alice than Shot 2+
+Viewer sees jarring identity change at first cut!
+We spend all this effort on Bridge Frames, IP-Adapter, and LoRA... then throw it
+away by using T2V for Shot 1. This is architecturally inconsistent.
+THE CORRECT FLOW (I2V Only):
+Correct Flow (I2V for ALL Shots):
+Shot 1: SDXL generates "Hero Frame"
+- IP-Adapter (face reference) → OUR Alice
+- Location IP-Adapter or LoRA → OUR kitchen
+- ControlNet Pose (if specific pose needed)
+↓
+I2V animates from hero frame
+↓
+Output: Video of OUR Alice from frame 1
+Shot 2: Bridge Frame (same process as hero frame)
+↓
+I2V animates from bridge frame
+↓
+Output: Video of OUR Alice (same as Shot 1)
+RESULT: SAME Alice in ALL shots. Perfect consistency.
+
+7A.3 THE UNIFIED PIPELINE: I2V-ONLY ARCHITECTURE
+The insight is that Shot 1's "Hero Frame" and Shot 2+'s "Bridge Frame" use the
+SAME workflow. The only difference is input source:
+UNIFIED I2V-ONLY PIPELINE:
+SHOT 1 (Hero Frame):
+Source: Director Agent generates composition description
+Process: SDXL + IP-Adapter + Location conditioning
+Output: Hero Frame → I2V → Shot 1 Video
+SHOT 2+ (Bridge Frame):
+Source: Last frame of previous shot
+Process: SDXL + IP-Adapter + ControlNet Pose
+Output: Bridge Frame → I2V → Shot N Video
+SAME WORKFLOW, DIFFERENT INPUT SOURCE
+This is actually SIMPLER than T2V+I2V because:
+
+One workflow pattern for all shots (Hero/Bridge → I2V)
+Same code path, just different input source
+No special-casing for "first shot"
+
+
+7A.4 WHEN T2V IS STILL USEFUL
+T2V should NOT be in the main consistency pipeline, but it has valid uses:
+
+EXPLORATION MODE
+User: "I don't know what Alice should look like yet"
+Action: T2V generates 5 variations
+Result: User picks one, it becomes the canonical reference
+After: All subsequent generation uses I2V with that reference
+DEVELOPMENT TESTING
+Developer: "I need to test the pipeline quickly"
+Action: T2V is faster (no SDXL step)
+Result: Quick iteration on non-identity features
+After: Must validate with I2V before shipping
+STYLE/MOTION EXPERIMENTATION
+User: "What kind of motion does this prompt produce?"
+Action: T2V tests motion without worrying about identity
+Result: Find good motion prompt
+After: Apply motion prompt with I2V for actual production
+TRAINING DATA GENERATION
+System: "Need diverse images to train Alice LoRA"
+Action: T2V generates variations
+Result: Curate best outputs for training
+After: LoRA trained, used with I2V pipeline
+
+INVALID T2V USE (What We Must Stop Doing):
+✗ Using T2V for Shot 1 of a consistency-focused film
+✗ Mixing T2V and I2V in the same production pipeline
+✗ Relying on T2V when identity matters
+
+7A.5 DEVELOPMENT VS MVP: THE TRANSITION PLAN
+CURRENT STATE (Development):
+T2V is used for fast testing because:
+
+No SDXL step needed → faster iteration
+Tests pipeline mechanics without identity concerns
+Good for catching bugs quickly
+
+MVP REQUIREMENT:
+The main pipeline MUST switch to I2V-only:
+
+Shot 1 uses Hero Frame (SDXL + IP-Adapter) → I2V
+Shot 2+ uses Bridge Frame (SDXL + IP-Adapter + ControlNet) → I2V
+T2V relegated to "exploration mode" only
+
+IMPLEMENTATION CHECKLIST FOR MVP:
+[ ] Create "hero_frame.json" workflow (or reuse bridge_full.json with different params)
+[ ] Add Hero Frame generation step before Shot 1 I2V
+[ ] Update pass1_generator.py to always use I2V with init_frame
+[ ] Add config flag: generation.mode = "production" (I2V-only) vs "exploration" (T2V)
+[ ] Update CLI/UI to require character refs OR offer exploration mode
+MIGRATION PATH:
+Development:  T2V for testing → "Works but identity random"
+↓
+Pre-MVP:      Add Hero Frame generation → "Identity locked from Shot 1"
+↓
+MVP:          I2V-only pipeline → "Consistency guaranteed"
+↓
+Post-MVP:     T2V as explicit "exploration" feature
+
+7A.6 SUMMARY: T2V vs I2V DECISION TABLE
+ScenarioUse T2V?Use I2V?WhyProduction Shot 1NOYESIdentity must be lockedProduction Shot 2+NOYESBridge Frame continuityExploration "what if"YESNONo identity constraintQuick dev testingYESNOSpeed over identityFinal validationNOYESMust test real pipelineLoRA training dataYESNONeed variationsCustomer demoNOYESIdentity is the value prop
+
+7A.7 ORIGINAL I2V-FIRST DETAILS (Preserved)
 Our core value proposition is consistency from reference images, not random generation.
-
 I2V-First vs T2V Approach:
-
-| Approach              | Shot 1              | Shot 2+        | Best For                                    |
-|-----------------------|---------------------|----------------|---------------------------------------------|
-| I2V-First (Preferred) | Keyframe → I2V      | Bridge → I2V   | Professional filmmaking, max consistency    |
-| T2V + I2V (Optional)  | T2V                 | Bridge → I2V   | Exploration mode, "surprise me" users       |
-
+ApproachShot 1Shot 2+Best ForI2V-First (Preferred)Keyframe â†’ I2VBridge â†’ I2VProfessional filmmaking, max consistencyT2V + I2V (Optional)T2VBridge â†’ I2VExploration mode, "surprise me" users
 Why I2V-First is Preferred:
-1. Consistent quality: No jarring T2V→I2V quality shift (e.g., 1.3B T2V vs 14B I2V)
-2. Better composition control: User/system defines shot 1's framing via keyframe
-3. Stronger identity from frame 1: Keyframe includes character via IP-Adapter
-4. Bridge Engine pattern extended: Shot 1 keyframe uses same workflow as bridge frames
+
+Consistent quality: No jarring T2Vâ†’I2V quality shift (e.g., 1.3B T2V vs 14B I2V)
+Better composition control: User/system defines shot 1's framing via keyframe
+Stronger identity from frame 1: Keyframe includes character via IP-Adapter
+Bridge Engine pattern extended: Shot 1 keyframe uses same workflow as bridge frames
 
 Keyframe Generation for Shot 1:
-- User provides keyframe → Use directly as init_image for I2V
-- No keyframe provided → Generate via SDXL + IP-Adapter (same as Bridge Engine workflow)
-- Exploration mode → T2V generates multiple options, user picks one, becomes keyframe
+
+User provides keyframe â†’ Use directly as init_image for I2V
+No keyframe provided â†’ Generate via SDXL + IP-Adapter (same as Bridge Engine workflow)
+Exploration mode â†’ T2V generates multiple options, user picks one, becomes keyframe
 
 Model-Agnostic Design Principle:
 The system MUST allow hot-swapping models/APIs without code changes. The BaseRenderer abstraction enables:
-- WanRenderer (OSS Standard Lane)
-- VeoRenderer (Premium Pro Lane)
-- RunwayRenderer (Premium Pro Lane)
-- SoraRenderer (Premium Pro Lane)
+
+WanRenderer (OSS Standard Lane)
+VeoRenderer (Premium Pro Lane)
+RunwayRenderer (Premium Pro Lane)
+SoraRenderer (Premium Pro Lane)
 
 Critical Insight: Even when users choose "shiny" premium APIs (Veo/Runway/Sora), our Bridge Engine provides the consistency they expect. Premium APIs have WORSE native consistency than our OSS pipeline because they lack LoRA/IP-Adapter support. Bridge Engine fills this gap by re-anchoring identity between API calls.
-
 Testing vs Production Model Configuration:
-
-| Mode         | Model Choice              | Purpose                           |
-|--------------|---------------------------|-----------------------------------|
-| Dev/Testing  | Fast models (Wan 1.3B)    | Rapid iteration, catch bugs fast  |
-| Validation   | Production models (14B)   | Verify quality before shipping    |
-| Production   | User-selected tier        | Final output                      |
-
+ModeModel ChoicePurposeDev/TestingFast models (Wan 1.3B)Rapid iteration, catch bugs fastValidationProduction models (14B)Verify quality before shippingProductionUser-selected tierFinal output
 Warning: Testing on different models than production can hide model-specific bugs. The audit system (ArcFace identity check, physics checks) should catch model-agnostic issues, but periodic big-model validation runs during development are essential before shipping new features.
-
 Future Quality Tiers (Post-MVP):
-
-| Tier     | First Shot               | Subsequent Shots       | Use Case         |
-|----------|--------------------------|------------------------|------------------|
-| Draft    | SDXL keyframe → I2V fast | I2V fast               | Quick preview    |
-| Standard | SDXL keyframe → I2V 14B  | I2V 14B                | Normal production|
-| Pro      | SDXL keyframe → Veo/etc  | Veo/Runway + Bridge    | Premium output   |
-
+TierFirst ShotSubsequent ShotsUse CaseDraftSDXL keyframe â†’ I2V fastI2V fastQuick previewStandardSDXL keyframe â†’ I2V 14BI2V 14BNormal productionProSDXL keyframe â†’ Veo/etcVeo/Runway + BridgePremium output
 Note: T2V path preserved for exploration/legacy use cases but not promoted as default workflow.
 
 ================================================================================

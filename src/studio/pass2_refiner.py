@@ -26,11 +26,11 @@ Architecture Note:
     simpler vid2vid temporal denoising.
 
 Pipeline Position:
-    Pass 1 Ã¢â€ â€™ Audit Ã¢â€ â€™ **Pass 2 (this)** Ã¢â€ â€™ Lip Sync Ã¢â€ â€™ RIFE Ã¢â€ â€™ Final
+    Pass 1 ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Audit ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ **Pass 2 (this)** ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Lip Sync ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ RIFE ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Final
 
 Design Principles:
     1. Workflow-agnostic: Actual ComfyUI workflow is external JSON
-    2. Degradation-ready: FreeLong++ Ã¢â€ â€™ Vid2Vid Ã¢â€ â€™ Passthrough fallback
+    2. Degradation-ready: FreeLong++ ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Vid2Vid ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Passthrough fallback
     3. Async-first: All refinement is async (GPU-bound)
     4. Preserves structure: Should NOT change composition or motion
 """
@@ -356,6 +356,31 @@ class ComfyRefiner(BaseRefiner):
                 )
         return self._client
     
+    async def _ensure_connected(self):
+        """Ensure client is connected, reconnecting if necessary."""
+        client = await self._get_client()
+        
+        # Quick health check - if it fails, reconnect
+        try:
+            if not await client.health_check():
+                raise ConnectionError("Health check failed")
+        except Exception as e:
+            logger.info(f"ComfyUI connection stale ({e}), reconnecting...")
+            try:
+                await client.connect()
+            except Exception as reconnect_error:
+                # Connection failed, try fresh client
+                logger.warning(f"Reconnection failed ({reconnect_error}), creating new client...")
+                if self._client:
+                    try:
+                        await self._client.disconnect()
+                    except Exception:
+                        pass
+                self._client = None
+                client = await self._get_client()
+        
+        return client
+    
     async def _load_workflow(self):
         """Load the refinement workflow template."""
         if self._template is None:
@@ -392,7 +417,7 @@ class ComfyRefiner(BaseRefiner):
             
             report_progress("loading", 0.1, "Connecting to ComfyUI...")
             
-            client = await self._get_client()
+            client = await self._ensure_connected()
             
             report_progress("loading", 0.2, "Preparing workflow...")
             

@@ -2,7 +2,7 @@
 Continuum Engine - Identity Checker (ArcFace Verification)
 
 Verifies that character identity is preserved across frames and shots.
-This is the PROOF that Bridge Engine works — without it, we're just hoping.
+This is the PROOF that Bridge Engine works â€” without it, we're just hoping.
 
 The Problem:
     Video models drift. Alice in frame 1 might not look like Alice in frame 100.
@@ -11,7 +11,7 @@ The Problem:
 The Solution:
     Extract face embeddings using ArcFace (industry standard for face recognition).
     Compare embeddings between frames using cosine similarity.
-    Threshold at 0.70 — below that, identity has drifted unacceptably.
+    Threshold at 0.70 â€” below that, identity has drifted unacceptably.
 
 Use Cases:
     1. Within-shot check: Compare first vs last frame of a chunk
@@ -24,7 +24,7 @@ Architecture:
     - MockIdentityChecker: Testing without GPU/models
 
 Design Principles:
-    1. Fail gracefully: No face detected → WARN, not crash
+    1. Fail gracefully: No face detected â†’ WARN, not crash
     2. Multi-face aware: Handle scenes with multiple characters
     3. Async-ready: Face extraction can be batched
     4. Audit-compatible: Returns AuditResult-compatible data
@@ -594,11 +594,24 @@ class ArcFaceIdentityChecker(BaseIdentityChecker):
         import time
         start_time = time.time()
         
+        # Debug: Log comparison request
+        logger.debug(
+            f"Identity compare: {source_frame.name} vs {target_frame.name}"
+            f"{f' (hint: {character_hint})' if character_hint else ''}"
+        )
+        
         # Extract faces from both frames
         try:
             source_faces = await self.extract_faces(source_frame)
             target_faces = await self.extract_faces(target_frame)
+            
+            # Debug: Log face detection results
+            logger.debug(
+                f"  Faces detected: source={source_faces.face_count}, target={target_faces.face_count}"
+            )
+            
         except (ImageLoadError, ExtractionError) as e:
+            logger.warning(f"  Face extraction failed: {e}")
             return IdentityComparison(
                 result=IdentityCheckResult.ERROR,
                 similarity=None,
@@ -612,6 +625,7 @@ class ArcFaceIdentityChecker(BaseIdentityChecker):
         
         # Handle no-face cases
         if not source_faces.has_faces and not target_faces.has_faces:
+            logger.info(f"  Result: NO_FACE_BOTH (no faces in either frame)")
             return IdentityComparison(
                 result=IdentityCheckResult.NO_FACE_BOTH,
                 similarity=None,
@@ -623,6 +637,7 @@ class ArcFaceIdentityChecker(BaseIdentityChecker):
             )
         
         if not source_faces.has_faces:
+            logger.info(f"  Result: NO_FACE_SOURCE (no face in reference)")
             return IdentityComparison(
                 result=IdentityCheckResult.NO_FACE_SOURCE,
                 similarity=None,
@@ -634,6 +649,7 @@ class ArcFaceIdentityChecker(BaseIdentityChecker):
             )
         
         if not target_faces.has_faces:
+            logger.info(f"  Result: NO_FACE_TARGET (no face in generated frame)")
             return IdentityComparison(
                 result=IdentityCheckResult.NO_FACE_TARGET,
                 similarity=None,
@@ -655,6 +671,12 @@ class ArcFaceIdentityChecker(BaseIdentityChecker):
                 IdentityCheckResult.MATCH
                 if similarity >= self.threshold
                 else IdentityCheckResult.MISMATCH
+            )
+            
+            # Debug: Log the key diagnostic info
+            pass_fail = "PASS" if result == IdentityCheckResult.MATCH else "FAIL"
+            logger.info(
+                f"  Identity: {similarity:.4f} vs threshold {self.threshold:.2f} → {pass_fail}"
             )
             
             return IdentityComparison(
@@ -692,6 +714,13 @@ class ArcFaceIdentityChecker(BaseIdentityChecker):
             )
         else:
             message = f"Similarity: {similarity:.3f} (threshold: {self.threshold})"
+        
+        # Debug: Log the key diagnostic info
+        pass_fail = "PASS" if result == IdentityCheckResult.MATCH else "FAIL"
+        logger.info(
+            f"  Identity: {similarity:.4f} vs threshold {self.threshold:.2f} → {pass_fail} "
+            f"(faces: {source_faces.face_count} vs {target_faces.face_count})"
+        )
         
         return IdentityComparison(
             result=result,
@@ -894,8 +923,8 @@ async def verify_bridge_frame(
     Verify identity is preserved across a bridge.
     
     Checks:
-    1. Shot A → Bridge Frame (bridge should match source)
-    2. Bridge Frame → Shot B (shot B should match bridge)
+    1. Shot A â†’ Bridge Frame (bridge should match source)
+    2. Bridge Frame â†’ Shot B (shot B should match bridge)
     
     Returns:
         Dict with "source_to_bridge" and "bridge_to_target" comparisons

@@ -506,10 +506,25 @@ class WanRenderer(BaseRenderer):
                 validate=True
             )
         except FileNotFoundError:
-            # Fall back to default if specific template not found
-            logger.warning(f"Template '{template_name}' not found, using default")
+            # Graceful degradation: Fall back within the same lane (I2V or T2V)
+            # CRITICAL: Never cross from I2V to T2V - that discards the bridge frame
+            # See ARCHITECTURE_SUMMARY.md Section 7.7 "Fail Gracefully"
+            if job.has_init_frame:
+                # I2V job: Must stay in I2V lane to preserve init_frame (bridge)
+                fallback = self.WORKFLOW_IMG2VID
+                logger.warning(
+                    f"Template '{template_name}' not found, falling back to '{fallback}' "
+                    f"(preserving I2V mode for bridge frame)"
+                )
+            else:
+                # T2V job: Fall back to base T2V
+                fallback = self.DEFAULT_WORKFLOW
+                logger.warning(
+                    f"Template '{template_name}' not found, falling back to '{fallback}'"
+                )
+            
             workflow = self._loader.load_and_inject(
-                self.DEFAULT_WORKFLOW,
+                fallback,
                 params,
                 strict=False,
                 validate=True

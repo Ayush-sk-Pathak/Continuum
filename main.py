@@ -82,6 +82,10 @@ from src.director.world_state import (
     EventType,
     create_world_state,
 )
+from src.director.shot_event_parser import (
+    ShotEventParser,
+    get_shot_event_parser,
+)
 from src.director.pacer import (
     Pacer,
     PacingStyle,
@@ -311,7 +315,7 @@ class PipelineConfig:
     enable_interpolation: bool = True
     
     # Interpolation settings
-    target_fps: int = 24  # 12fps â†’ 24fps (multiplier = 2)
+    target_fps: int = 24  # 12fps Ã¢â€ â€™ 24fps (multiplier = 2)
     
     # Retry settings
     max_reroll_attempts: int = 3
@@ -529,6 +533,7 @@ class ContinuumOrchestrator:
         self.consistency_dict: Optional[ConsistencyDict] = None
         self.world_state: Optional[WorldState] = None
         self.pacer: Optional[Pacer] = None
+        self.shot_event_parser: Optional[ShotEventParser] = None
         
         # Studio components (generation)
         self.renderer: Optional[BaseRenderer] = None
@@ -634,6 +639,13 @@ class ContinuumOrchestrator:
         
         logger.info(f"  Tracked Objects: {len(self.world_state.get_all_objects())}")
         logger.info(f"  Events: {len(self.world_state._events)}")
+        
+        # Initialize shot event parser (extracts state changes from descriptions)
+        self.shot_event_parser = get_shot_event_parser(
+            enable_pattern_matching=True,
+            enable_explicit_events=True,
+        )
+        logger.info("  Shot Event Parser: Enabled (pattern + explicit)")
         
         self.progress.report("setup", 0.2, "Initializing pacer...")
         
@@ -1133,9 +1145,9 @@ class ContinuumOrchestrator:
                 
                 # Log result
                 if shot_output.all_success:
-                    logger.info(f"Ã¢Å“â€œ Shot {shot.shot_id}: {len(shot_output.chunk_outputs)} chunks")
+                    logger.info(f"ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“ Shot {shot.shot_id}: {len(shot_output.chunk_outputs)} chunks")
                 else:
-                    logger.warning(f"Ã¢Å“â€” Shot {shot.shot_id} had failures")
+                    logger.warning(f"ÃƒÂ¢Ã…â€œÃ¢â‚¬â€ Shot {shot.shot_id} had failures")
             
             # Build scene result
             scene_duration = time.time() - scene_start
@@ -1217,17 +1229,104 @@ class ContinuumOrchestrator:
         shot: Shot, 
         output: ShotOutput,
     ) -> None:
-        """Update world state based on shot events."""
+        """
+        Update world state based on shot events.
+        
+        This is called AFTER each shot is rendered successfully.
+        It parses the shot description and explicit events to extract
+        state changes, then applies them to the world state.
+        
+        Data flow:
+            Shot.description ──┐
+                               ├── ShotEventParser ──► List[StateEvent]
+            Shot.events ───────┘                              │
+                                                              ▼
+                                                    WorldState.apply_event()
+        
+        Why after rendering (not before):
+            - Events represent what HAPPENED in the shot
+            - The shot was successfully rendered, so the events occurred
+            - Next shot's prompt generation uses updated world state
+        
+        Args:
+            shot: The shot that was just rendered
+            output: The render output (not currently used, but available
+                    for future video analysis integration)
+        """
         if not self.world_state:
             return
         
-        # In a full implementation, this would:
-        # 1. Parse shot description for state-changing events
-        # 2. Analyze generated video for object positions
-        # 3. Update world state accordingly
+        if not self.shot_event_parser:
+            logger.debug(f"World state update for {shot.shot_id} (no parser)")
+            return
         
-        # For now, just log
-        logger.debug(f"World state update for {shot.shot_id} (placeholder)")
+        # Build known entities set from multiple sources
+        known_entities = self._collect_known_entities(shot)
+        
+        # Parse events from shot (description + explicit events)
+        try:
+            parsed_events = self.shot_event_parser.parse_shot(
+                shot_id=shot.shot_id,
+                description=shot.description,
+                metadata={"events": shot.events} if shot.events else {},
+                known_entities=known_entities,
+                characters=shot.character_ids,
+                props=shot.prop_ids,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to parse events for {shot.shot_id}: {e}")
+            return
+        
+        if not parsed_events:
+            logger.debug(f"World state: {shot.shot_id} - no state changes detected")
+            return
+        
+        # Apply each event to world state
+        for event in parsed_events:
+            try:
+                self.world_state.apply_event(event)
+                logger.debug(
+                    f"World state: {event.event_type.value} {event.entity_id} "
+                    f"in {shot.shot_id}"
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to apply event {event.event_id} to world state: {e}"
+                )
+        
+        logger.info(
+            f"World state updated: {shot.shot_id} - "
+            f"{len(parsed_events)} event(s) applied"
+        )
+    
+    def _collect_known_entities(self, shot: Shot) -> set:
+        """
+        Collect all known entity IDs for event parsing.
+        
+        Gathers entities from:
+        1. Shot participants (characters, props, location)
+        2. Consistency dictionary (all registered entities)
+        3. Current world state (dynamically tracked objects)
+        
+        This comprehensive set helps the parser resolve entity names
+        from natural language descriptions.
+        """
+        known = set()
+        
+        # From shot definition
+        known.update(shot.all_entity_ids)
+        
+        # From consistency dictionary
+        if self.consistency_dict:
+            known.update(c.entity_id for c in self.consistency_dict.list_characters())
+            known.update(loc.entity_id for loc in self.consistency_dict.list_locations())
+            known.update(p.entity_id for p in self.consistency_dict.list_props())
+        
+        # From current world state
+        if self.world_state:
+            known.update(self.world_state.get_all_objects().keys())
+        
+        return known
     
     def _create_generation_callback(
         self, 
@@ -1259,7 +1358,7 @@ class ContinuumOrchestrator:
         without changing the structure or composition from Pass 1.
         
         Data flow:
-            Pass 1 video (12fps, flickery) â†’ Pass 2 â†’ Refined video (12fps, smooth)
+            Pass 1 video (12fps, flickery) Ã¢â€ â€™ Pass 2 Ã¢â€ â€™ Refined video (12fps, smooth)
         
         Why this step exists:
             - Diffusion models generate each frame semi-independently
@@ -1353,13 +1452,13 @@ class ContinuumOrchestrator:
                             chunk_output.refined_video_path = result.output_path
                             succeeded += 1
                             logger.info(
-                                f"âœ“ Refined {chunk_output.chunk_id}: "
+                                f"Ã¢Å“â€œ Refined {chunk_output.chunk_id}: "
                                 f"{result.method_used.value} ({result.processing_time_sec:.1f}s)"
                             )
                         else:
                             failed += 1
                             logger.warning(
-                                f"âœ— Refinement failed {chunk_output.chunk_id}: {result.error}"
+                                f"Ã¢Å“â€” Refinement failed {chunk_output.chunk_id}: {result.error}"
                             )
                             # Keep using original video if refinement fails
                             
@@ -1407,7 +1506,7 @@ class ContinuumOrchestrator:
         to the pre-generated TTS audio. Shots without dialogue pass through.
         
         Data flow:
-            Pass2 video â†’ Lip Sync â†’ Video with synced mouths
+            Pass2 video Ã¢â€ â€™ Lip Sync Ã¢â€ â€™ Video with synced mouths
             
         The lip sync engine:
         1. Detects faces in the video
@@ -1463,9 +1562,9 @@ class ContinuumOrchestrator:
                     if result.success:
                         # Update shot output with lip-synced video path
                         shot_output.lipsync_video_path = result.output_video
-                        logger.info(f"âœ“ Lip sync {shot_output.shot_id}: {result.output_video}")
+                        logger.info(f"Ã¢Å“â€œ Lip sync {shot_output.shot_id}: {result.output_video}")
                     else:
-                        logger.warning(f"âœ— Lip sync {shot_output.shot_id}: {result.error}")
+                        logger.warning(f"Ã¢Å“â€” Lip sync {shot_output.shot_id}: {result.error}")
                         
                 except Exception as e:
                     logger.error(f"Lip sync failed for {shot_output.shot_id}: {e}")
@@ -1476,7 +1575,7 @@ class ContinuumOrchestrator:
         """
         Get the most recent video path for a shot.
         
-        Priority: refined â†’ pass1
+        Priority: refined Ã¢â€ â€™ pass1
         """
         # Check for refined video first
         if hasattr(shot_output, 'refined_video_path') and shot_output.refined_video_path:
@@ -1518,7 +1617,7 @@ class ContinuumOrchestrator:
         scene_results: List[SceneResult],
     ) -> None:
         """
-        Run RIFE frame interpolation to upscale 12fps â†’ 24fps.
+        Run RIFE frame interpolation to upscale 12fps Ã¢â€ â€™ 24fps.
         
         This is the LAST GPU-intensive step. After this, we only do
         CPU-based post-production (color grading, audio mixing, stitching).
@@ -1529,7 +1628,7 @@ class ContinuumOrchestrator:
         - RIFE is cheaper than generating 2x frames
         
         Data flow:
-            Lip-synced video (12fps) â†’ RIFE â†’ Smooth video (24fps)
+            Lip-synced video (12fps) Ã¢â€ â€™ RIFE Ã¢â€ â€™ Smooth video (24fps)
         """
         if not self.interpolator:
             logger.info("Interpolator not configured, skipping")
@@ -1578,11 +1677,11 @@ class ContinuumOrchestrator:
                         # Update shot output with interpolated video path
                         shot_output.interpolated_video_path = result.output_path
                         logger.info(
-                            f"âœ“ Interpolated {shot_output.shot_id}: "
-                            f"{result.source_fps}fps â†’ {result.output_fps}fps"
+                            f"Ã¢Å“â€œ Interpolated {shot_output.shot_id}: "
+                            f"{result.source_fps}fps Ã¢â€ â€™ {result.output_fps}fps"
                         )
                     else:
-                        logger.warning(f"âœ— Interpolation {shot_output.shot_id}: {result.error}")
+                        logger.warning(f"Ã¢Å“â€” Interpolation {shot_output.shot_id}: {result.error}")
                         
                 except Exception as e:
                     logger.error(f"Interpolation failed for {shot_output.shot_id}: {e}")
@@ -1593,7 +1692,7 @@ class ContinuumOrchestrator:
         """
         Get the video path to interpolate.
         
-        Priority: lipsync â†’ refined â†’ pass1
+        Priority: lipsync Ã¢â€ â€™ refined Ã¢â€ â€™ pass1
         
         This ensures we interpolate the most processed version.
         """
@@ -1627,10 +1726,10 @@ class ContinuumOrchestrator:
         to shot_outputs so lip sync can read them.
         
         Data flow:
-            SceneGraph.Shot.dialogue â†’ TTS Engine â†’ DialogueSegment
-                                                         â†“
+            SceneGraph.Shot.dialogue Ã¢â€ â€™ TTS Engine Ã¢â€ â€™ DialogueSegment
+                                                         Ã¢â€ â€œ
                                            ShotOutput.dialogue_segments
-                                                         â†“
+                                                         Ã¢â€ â€œ
                                                     Lip Sync reads this
         """
         if not self.tts_engine:
@@ -1689,10 +1788,10 @@ class ContinuumOrchestrator:
                             )
                             dialogue_segments.append(segment)
                             synthesized += 1
-                            logger.debug(f"âœ“ TTS {line.line_id}: {result.actual_duration_sec:.1f}s")
+                            logger.debug(f"Ã¢Å“â€œ TTS {line.line_id}: {result.actual_duration_sec:.1f}s")
                         else:
                             failed += 1
-                            logger.warning(f"âœ— TTS {line.line_id}: {result.error}")
+                            logger.warning(f"Ã¢Å“â€” TTS {line.line_id}: {result.error}")
                             
                     except Exception as e:
                         failed += 1
@@ -1858,9 +1957,9 @@ class ContinuumOrchestrator:
                 result = await self.ambience_engine.generate(spec)
                 if result.status == AudioGenerationStatus.COMPLETE:
                     scene_result.ambience_path = result.audio_path
-                    logger.info(f"âœ“ Ambience {scene.scene_id}: {result.actual_duration_sec:.1f}s")
+                    logger.info(f"Ã¢Å“â€œ Ambience {scene.scene_id}: {result.actual_duration_sec:.1f}s")
                 else:
-                    logger.warning(f"âœ— Ambience {scene.scene_id}: {result.error}")
+                    logger.warning(f"Ã¢Å“â€” Ambience {scene.scene_id}: {result.error}")
             except Exception as e:
                 logger.error(f"Ambience generation failed for {scene.scene_id}: {e}")
     
@@ -1906,9 +2005,9 @@ class ContinuumOrchestrator:
                         result = await self.foley_engine.retrieve(event)
                         if result.status == AudioGenerationStatus.COMPLETE:
                             shot_foley.append(result)
-                            logger.debug(f"âœ“ Foley {event.event_id}")
+                            logger.debug(f"Ã¢Å“â€œ Foley {event.event_id}")
                         else:
-                            logger.warning(f"âœ— Foley {event.event_id}: {result.error}")
+                            logger.warning(f"Ã¢Å“â€” Foley {event.event_id}: {result.error}")
                     except Exception as e:
                         logger.error(f"Foley failed for {event.event_id}: {e}")
                 
@@ -2005,11 +2104,12 @@ class ContinuumOrchestrator:
                         foley=foley,
                     )
                     
-                    if result.success:
+                    # MixResult has .status, not .success - check for COMPLETE status
+                    if result.status == AudioGenerationStatus.COMPLETE and result.output_path:
                         shot_output.mixed_audio_path = result.output_path
-                        logger.info(f"âœ“ Mixed {shot_output.shot_id}")
+                        logger.info(f"Ã¢Å“â€œ Mixed {shot_output.shot_id}")
                     else:
-                        logger.warning(f"âœ— Mix {shot_output.shot_id}: {result.error}")
+                        logger.warning(f"Ã¢Å“â€” Mix {shot_output.shot_id}: {result.error}")
                         
                 except Exception as e:
                     logger.error(f"Audio mixing failed for {shot_output.shot_id}: {e}")
@@ -2029,11 +2129,11 @@ class ContinuumOrchestrator:
         and processed videos and combines them into a single final output.
         
         Data flow:
-            Interpolated videos (24fps) â”€â”¬â”€â†’ Color Match â”€â†’ Color-matched videos
-                                         â”‚
-            Dialogue + Ambience + Music â”€â”¼â”€â†’ Audio Duck â”€â†’ Ducked audio mix
-                                         â”‚
-                                         â””â”€â†’ Stitcher â”€â†’ final_output.mp4
+            Interpolated videos (24fps) Ã¢â€â‚¬Ã¢â€Â¬Ã¢â€â‚¬Ã¢â€ â€™ Color Match Ã¢â€â‚¬Ã¢â€ â€™ Color-matched videos
+                                         Ã¢â€â€š
+            Dialogue + Ambience + Music Ã¢â€â‚¬Ã¢â€Â¼Ã¢â€â‚¬Ã¢â€ â€™ Audio Duck Ã¢â€â‚¬Ã¢â€ â€™ Ducked audio mix
+                                         Ã¢â€â€š
+                                         Ã¢â€â€Ã¢â€â‚¬Ã¢â€ â€™ Stitcher Ã¢â€â‚¬Ã¢â€ â€™ final_output.mp4
         
         Why this order:
             1. Color matching BEFORE stitching - each shot needs normalization
@@ -2042,7 +2142,7 @@ class ContinuumOrchestrator:
         
         Architecture alignment:
             From ARCHITECTURE_SUMMARY.md:
-            - Auto-Color Match (Histogram â†’ Master Shot)
+            - Auto-Color Match (Histogram Ã¢â€ â€™ Master Shot)
             - Audio Ducking (-12dB during dialogue)
             - Final Stitch (FFmpeg)
         """
@@ -2081,7 +2181,7 @@ class ContinuumOrchestrator:
                     video_paths, 
                     output_dir / "color_matched"
                 )
-                logger.info(f"âœ“ Color matched {len(color_matched_paths)} videos")
+                logger.info(f"Ã¢Å“â€œ Color matched {len(color_matched_paths)} videos")
             except Exception as e:
                 logger.warning(f"Color matching failed: {e}, using original colors")
                 color_matched_paths = video_paths
@@ -2100,7 +2200,7 @@ class ContinuumOrchestrator:
                     output_dir / "audio_ducked"
                 )
                 if ducked_audio_path:
-                    logger.info(f"âœ“ Audio ducked: {ducked_audio_path}")
+                    logger.info(f"Ã¢Å“â€œ Audio ducked: {ducked_audio_path}")
             except Exception as e:
                 logger.warning(f"Audio ducking failed: {e}, using unducked audio")
         
@@ -2117,7 +2217,7 @@ class ContinuumOrchestrator:
             )
             
             if stitch_result.success:
-                logger.info(f"âœ“ Final output: {final_output}")
+                logger.info(f"Ã¢Å“â€œ Final output: {final_output}")
                 logger.info(f"  Duration: {stitch_result.duration_sec:.1f}s")
                 logger.info(f"  Resolution: {stitch_result.resolution}")
                 logger.info(f"  Processing time: {stitch_result.processing_time_sec:.1f}s")
@@ -2139,7 +2239,7 @@ class ContinuumOrchestrator:
         """
         Collect final video paths from all shots in scene order.
         
-        Priority: interpolated â†’ lipsync â†’ refined â†’ pass1
+        Priority: interpolated Ã¢â€ â€™ lipsync Ã¢â€ â€™ refined Ã¢â€ â€™ pass1
         
         This order reflects the pipeline stages:
         - interpolated: After RIFE (24fps, smoothest)
@@ -2238,7 +2338,7 @@ class ContinuumOrchestrator:
                 
                 if result.success:
                     matched_paths.append(output_path)
-                    logger.debug(f"âœ“ Color matched: {video_path.name}")
+                    logger.debug(f"Ã¢Å“â€œ Color matched: {video_path.name}")
                 else:
                     logger.warning(f"Color match failed for {video_path.name}: {result.error}")
                     matched_paths.append(video_path)  # Use original

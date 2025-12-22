@@ -42,6 +42,7 @@ KNOWN_PLACEHOLDERS = {
     # Generation parameters
     "SEED",
     "CFG_SCALE",
+    "CFG",  # Alternative name used in some workflows
     "STEPS",
     "DENOISE",
     "WIDTH",
@@ -49,9 +50,16 @@ KNOWN_PLACEHOLDERS = {
     "FPS",
     "FRAMES",
     
+    # Model paths (from model_loader.py)
+    "UNET_MODEL",
+    "VAE_MODEL",
+    "CLIP_MODEL",
+    "CLIP_VISION_MODEL",  # Required for I2V workflows
+    
     # File paths
     "INIT_IMAGE",
     "INIT_VIDEO",
+    "INPUT_VIDEO",  # For RIFE/refinement workflows
     "LORA_PATH",
     "LORA_STRENGTH",
     "CHECKPOINT_PATH",
@@ -64,10 +72,23 @@ KNOWN_PLACEHOLDERS = {
     "FACE_REF_1",
     "FACE_REF_2",
     "FACE_REF_3",
+    "FACE_REF_IMAGE",  # Bridge workflows
+    "IPADAPTER_STRENGTH",  # Bridge IP-Adapter strength
+    
+    # Bridge frame specific
+    "SOURCE_IMAGE",
+    "POSE_IMAGE",
+    "DEPTH_IMAGE",
+    "CONTROLNET_POSE_STRENGTH",
+    "CONTROLNET_DEPTH_STRENGTH",
     
     # Environment
     "ENVIRONMENT_REF",
     "LOCATION_NAME",
+    
+    # RIFE interpolation
+    "MULTIPLIER",
+    "TARGET_FPS",
     
     # Output
     "OUTPUT_PREFIX",

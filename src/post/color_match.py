@@ -355,6 +355,8 @@ class ColorMatcher:
         Extract evenly-spaced frames from a video for analysis.
         
         Returns paths to temporary frame files.
+        
+        Handles short videos by reducing sample count.
         """
         info = await probe_video(video_path)
         duration = info.duration_sec
@@ -368,12 +370,40 @@ class ColorMatcher:
         
         frames = []
         
-        for i, pos in enumerate(SAMPLE_POSITIONS[:self.sample_frames]):
+        # Adjust sample count for short videos
+        # For very short videos (<2s), take fewer samples to avoid extraction failures
+        effective_sample_count = self.sample_frames
+        if duration < 2.0:
+            # For videos under 2 seconds, just take 1-2 frames
+            effective_sample_count = max(1, min(2, int(duration * 2)))
+        elif duration < 5.0:
+            # For videos under 5 seconds, limit to 3 frames
+            effective_sample_count = min(3, self.sample_frames)
+        
+        # Calculate positions based on actual sample count
+        if effective_sample_count == 1:
+            positions = [0.5]  # Just grab the middle
+        elif effective_sample_count == 2:
+            positions = [0.25, 0.75]
+        else:
+            # Use evenly spaced positions, avoiding very start/end
+            positions = SAMPLE_POSITIONS[:effective_sample_count]
+        
+        for i, pos in enumerate(positions):
             time_sec = duration * pos
+            # Clamp to valid range (leave small margin at edges)
+            time_sec = max(0.01, min(duration - 0.01, time_sec))
             frame_path = frame_dir / f"sample_{video_path.stem}_{i:02d}.png"
             
-            await extract_frame(video_path, frame_path, time_sec)
-            frames.append(frame_path)
+            try:
+                await extract_frame(video_path, frame_path, time_sec)
+                if frame_path.exists():
+                    frames.append(frame_path)
+            except Exception as e:
+                logger.warning(f"Failed to extract frame at {time_sec:.2f}s: {e}")
+        
+        if not frames:
+            raise ValueError(f"Could not extract any frames from {video_path}")
         
         return frames
     

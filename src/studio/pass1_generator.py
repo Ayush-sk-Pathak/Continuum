@@ -76,8 +76,9 @@ class GenerationStage(str, Enum):
 class ChunkResult(str, Enum):
     """Result of generating a single chunk."""
     SUCCESS = "success"              # Passed audit
+    ACCEPTED_WITH_WARNINGS = "accepted_with_warnings"  # Failed audit but accepted on final attempt
     REROLL = "reroll"                # Failed audit, can retry
-    FAILURE = "failure"              # Max attempts, needs human
+    FAILURE = "failure"              # Max attempts, no usable output
     ERROR = "error"                  # System error (not audit failure)
 
 
@@ -131,6 +132,7 @@ class ChunkOutput:
         render_time_sec: Total time spent rendering
         cost_estimate: Estimated USD cost
         error_message: Error details (if failure/error)
+        warnings: Audit warnings (for ACCEPTED_WITH_WARNINGS)
     """
     chunk_id: str
     result: ChunkResult
@@ -142,10 +144,12 @@ class ChunkOutput:
     cost_estimate: float = 0.0
     error_message: str = ""
     metadata: Dict[str, Any] = field(default_factory=dict)
+    warnings: List[str] = field(default_factory=list)
     
     @property
     def success(self) -> bool:
-        return self.result == ChunkResult.SUCCESS
+        """Returns True if chunk has usable output (SUCCESS or ACCEPTED_WITH_WARNINGS)."""
+        return self.result in (ChunkResult.SUCCESS, ChunkResult.ACCEPTED_WITH_WARNINGS)
     
     @property
     def needs_human_review(self) -> bool:
@@ -227,6 +231,7 @@ class GenerationConfig:
         max_reroll_attempts: Max retries on audit failure
         enable_audit: Whether to run audit (disable for testing)
         enable_bridge: Whether to generate bridge frames
+        enable_world_state: Whether to inject world state context into prompts
         skip_if_exists: Skip chunks that already have outputs
         base_seed: Starting seed (-1 for random)
         quality: Render quality preset
@@ -234,6 +239,7 @@ class GenerationConfig:
     max_reroll_attempts: int = 3
     enable_audit: bool = True
     enable_bridge: bool = True
+    enable_world_state: bool = True  # Inject world state context into prompts
     skip_if_exists: bool = True
     base_seed: int = -1
     quality: str = "standard"
@@ -389,6 +395,14 @@ class Pass1Generator:
         last_error = ""
         audit_result = None
         
+        # Track best attempt for accept-on-final-attempt
+        # (Don't lose work after 3 rerolls - accept best with warnings)
+        best_render_result = None
+        best_audit_result = None
+        best_audit_score = -1.0  # Higher is better
+        best_bridge_frame_path = None
+        best_job_spec = None
+        
         while attempt < self.config.max_reroll_attempts:
             attempt += 1
             
@@ -444,13 +458,32 @@ class Pass1Generator:
                         shot,
                     )
                     
+                    # Track best attempt by audit score (for accept-on-final-attempt)
+                    current_score = audit_result.get("details", {}).get("identity_score", 0.0)
+                    if current_score is None:
+                        current_score = 0.0
+                    
+                    if current_score > best_audit_score:
+                        best_audit_score = current_score
+                        best_render_result = render_result
+                        best_audit_result = audit_result
+                        best_bridge_frame_path = bridge_frame_path
+                        best_job_spec = job_spec
+                    
                     if not audit_result.get("passed", False):
                         # Audit failed, try reroll
                         last_error = audit_result.get("reason", "Audit failed")
                         logger.warning(
-                            f"Chunk {chunk_id} failed audit (attempt {attempt}): {last_error}"
+                            f"Chunk {chunk_id} failed audit (attempt {attempt}): {last_error} "
+                            f"(score={current_score:.3f}, best={best_audit_score:.3f})"
                         )
                         continue  # Try next attempt
+                else:
+                    # No audit - this render is automatically best
+                    best_render_result = render_result
+                    best_audit_result = audit_result
+                    best_bridge_frame_path = bridge_frame_path
+                    best_job_spec = job_spec
                 
                 # Success!
                 elapsed = time.time() - start_time
@@ -490,13 +523,59 @@ class Pass1Generator:
                 if attempt < self.config.max_reroll_attempts:
                     continue
         
-        # Max attempts reached
+        # Max attempts reached - use accept-on-final-attempt if we have a usable render
         elapsed = time.time() - start_time
         
+        if best_render_result and best_render_result.video_path and best_render_result.video_path.exists():
+            # Accept best attempt with warnings instead of failing completely
+            warnings = [
+                f"Accepted on final attempt after {attempt} tries",
+                f"Best audit score: {best_audit_score:.3f}",
+                f"Audit failure reason: {last_error}",
+            ]
+            
+            logger.warning(
+                f"Chunk {chunk_id} accepted with warnings after {attempt} attempts "
+                f"(best_score={best_audit_score:.3f})"
+            )
+            
+            self._report_progress(
+                GenerationStage.COMPLETED,
+                1.0,
+                f"Accepted with warnings (score={best_audit_score:.3f})",
+                chunk_id,
+                attempt,
+                progress_callback,
+            )
+            
+            # Still count it as generated (we have usable output)
+            self._chunks_generated += 1
+            self._total_render_time += elapsed
+            self._total_cost += best_render_result.cost_estimate
+            
+            return ChunkOutput(
+                chunk_id=chunk_id,
+                result=ChunkResult.ACCEPTED_WITH_WARNINGS,
+                video_path=best_render_result.video_path,
+                attempts=attempt,
+                audit_result=best_audit_result,
+                bridge_frame_path=best_bridge_frame_path,
+                render_time_sec=elapsed,
+                cost_estimate=best_render_result.cost_estimate,
+                warnings=warnings,
+                metadata={
+                    "prompt_id": best_render_result.metadata.get("prompt_id"),
+                    "seed": best_job_spec.seed if best_job_spec else 0,
+                    "accepted_on_final_attempt": True,
+                    "best_audit_score": best_audit_score,
+                },
+            )
+        
+        # No usable render at all - true failure
         self._report_progress(
             GenerationStage.FAILED,
             1.0,
-            f"Failed after {attempt} attempts",
+            f"Failed after {attempt} attempts (no usable output)",
             chunk_id,
             attempt,
             progress_callback,
@@ -637,11 +716,13 @@ class Pass1Generator:
         prompt = self._get_chunk_prompt(chunk, shot)
         duration = self._get_chunk_duration(chunk)
         
-        # Enrich prompt with world state
-        if self.world_state:
+        # Enrich prompt with world state context (if enabled)
+        # This adds continuity information like "sword: held by alice"
+        if self.config.enable_world_state and self.world_state:
             world_context = self._get_world_state_context(shot)
             if world_context:
                 prompt = f"{prompt}. {world_context}"
+                logger.info(f"Prompt enriched with world state: {len(world_context)} chars")
         
         # Get character references from consistency dict
         character_refs = []
@@ -1099,17 +1180,101 @@ class Pass1Generator:
         )]
     
     def _get_world_state_context(self, shot: Any) -> str:
-        """Get world state context for prompt enrichment."""
+        """
+        Get world state context for prompt enrichment.
+        
+        Extracts relevant entity states for THIS shot only, not the entire
+        world state. This keeps prompts focused and avoids confusion.
+        
+        Example output:
+            "Current scene state: sword: held by alice; door: open."
+        
+        Args:
+            shot: The shot being generated
+            
+        Returns:
+            Natural language description of relevant entity states,
+            or empty string if no relevant state changes.
+        """
         if not self.world_state:
             return ""
         
         shot_id = self._get_shot_id(shot)
         
+        # Get entity IDs from this shot for focused context
+        entity_ids = self._get_shot_entity_ids(shot)
+        
         try:
-            return self.world_state.get_prompt_context(shot_id)
+            # Pass entity_ids to get context for THIS shot's entities only
+            context = self.world_state.get_prompt_context(
+                shot_id=shot_id,
+                entity_ids=list(entity_ids) if entity_ids else None,
+            )
+            
+            if context:
+                logger.debug(f"World state context for {shot_id}: {context}")
+            
+            return context
+            
         except Exception as e:
             logger.warning(f"Failed to get world state context: {e}")
             return ""
+    
+    def _get_shot_entity_ids(self, shot: Any) -> set:
+        """
+        Extract entity IDs (characters + props) from a shot.
+        
+        Handles both Shot objects and dict representations.
+        
+        Args:
+            shot: Shot object or dict
+            
+        Returns:
+            Set of entity ID strings
+        """
+        entity_ids = set()
+        
+        # Try Shot object properties first
+        if hasattr(shot, 'all_entity_ids'):
+            return shot.all_entity_ids
+        
+        # Handle character_ids property
+        if hasattr(shot, 'character_ids'):
+            entity_ids.update(shot.character_ids)
+        elif isinstance(shot, dict):
+            # Dict: characters is list of EntityRef dicts
+            for char in shot.get('characters', []):
+                if isinstance(char, dict):
+                    entity_ids.add(char.get('entity_id', ''))
+                elif hasattr(char, 'entity_id'):
+                    entity_ids.add(char.entity_id)
+        
+        # Handle prop_ids property
+        if hasattr(shot, 'prop_ids'):
+            entity_ids.update(shot.prop_ids)
+        elif isinstance(shot, dict):
+            # Dict: props is list of EntityRef dicts
+            for prop in shot.get('props', []):
+                if isinstance(prop, dict):
+                    entity_ids.add(prop.get('entity_id', ''))
+                elif hasattr(prop, 'entity_id'):
+                    entity_ids.add(prop.entity_id)
+        
+        # Handle location
+        if hasattr(shot, 'location') and shot.location:
+            if hasattr(shot.location, 'entity_id'):
+                entity_ids.add(shot.location.entity_id)
+        elif isinstance(shot, dict) and shot.get('location'):
+            loc = shot['location']
+            if isinstance(loc, dict):
+                entity_ids.add(loc.get('entity_id', ''))
+            elif hasattr(loc, 'entity_id'):
+                entity_ids.add(loc.entity_id)
+        
+        # Remove any empty strings
+        entity_ids.discard('')
+        
+        return entity_ids
     
     def _get_reference_frame(self, previous_output: Optional[ChunkOutput]) -> Optional[Path]:
         """Get reference frame from previous chunk output."""

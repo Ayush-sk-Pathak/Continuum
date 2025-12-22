@@ -7,14 +7,12 @@
   },
 
   "pose_detector": {
-    "class_type": "DWPreprocessor",
+    "class_type": "OpenposePreprocessor",
     "inputs": {
       "detect_hand": "enable",
       "detect_body": "enable", 
       "detect_face": "enable",
       "resolution": 1024,
-      "bbox_detector": "yolox_l.onnx",
-      "pose_estimator": "dw-ll_ucoco_384_bs5.torchscript.pt",
       "image": ["load_image", 0]
     }
   },

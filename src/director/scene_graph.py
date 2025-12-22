@@ -2,7 +2,7 @@
 Continuum Engine - Scene Graph
 
 Hierarchical representation of a video project:
-    Film → Scenes → Shots → Chunks
+    Film â†’ Scenes â†’ Shots â†’ Chunks
 
 This is the "blueprint" that the Director Agent creates and the
 renderers consume. It tracks what happens when, who appears where,
@@ -192,7 +192,7 @@ class Shot:
     """
     A continuous camera take within a scene.
     
-    A shot represents one "camera setup" — continuous footage from
+    A shot represents one "camera setup" â€” continuous footage from
     one angle until a cut. Shots are divided into chunks for rendering.
     
     Attributes:
@@ -226,6 +226,7 @@ class Shot:
     transition_out: TransitionType = TransitionType.CUT
     chunks: List[Chunk] = field(default_factory=list)
     dialogue: List[Dict[str, str]] = field(default_factory=list)  # [{"character": "alice", "line": "Hello"}]
+    events: List[Dict[str, Any]] = field(default_factory=list)  # State change events for WorldState
     metadata: Dict[str, Any] = field(default_factory=dict)
     
     def __post_init__(self):
@@ -282,6 +283,20 @@ class Shot:
         return [c.entity_id for c in self.characters]
     
     @property
+    def prop_ids(self) -> List[str]:
+        """List of prop entity IDs."""
+        return [p.entity_id for p in self.props]
+    
+    @property
+    def all_entity_ids(self) -> Set[str]:
+        """All entity IDs (characters, location, props) for event parsing."""
+        ids = set(self.character_ids)
+        ids.update(self.prop_ids)
+        if self.location:
+            ids.add(self.location.entity_id)
+        return ids
+    
+    @property
     def is_multi_character(self) -> bool:
         """Does this shot have multiple characters?"""
         return len(self.characters) > 1
@@ -290,6 +305,11 @@ class Shot:
     def has_dialogue(self) -> bool:
         """Does this shot have dialogue?"""
         return len(self.dialogue) > 0
+    
+    @property
+    def has_state_events(self) -> bool:
+        """Does this shot have explicit state change events?"""
+        return len(self.events) > 0
     
     def get_pending_chunks(self) -> List[Chunk]:
         """Get chunks that haven't been rendered yet."""
@@ -316,6 +336,7 @@ class Shot:
             "transition_out": self.transition_out.value,
             "chunks": [c.to_dict() for c in self.chunks],
             "dialogue": self.dialogue,
+            "events": self.events,
             "metadata": self.metadata,
         }
     
@@ -344,6 +365,7 @@ class Shot:
             transition_out=TransitionType(data.get("transition_out", "cut")),
             chunks=chunks,  # Provide chunks to avoid regeneration
             dialogue=data.get("dialogue", []),
+            events=data.get("events", []),
             metadata=data.get("metadata", {}),
         )
         return shot
@@ -358,7 +380,7 @@ class Scene:
     """
     A scene is a sequence of shots in the same location/time.
     
-    Scenes represent a continuous segment of the story — when the
+    Scenes represent a continuous segment of the story â€” when the
     location or time changes significantly, it's a new scene.
     
     Attributes:
@@ -800,7 +822,9 @@ def create_shot(
     shot_type: ShotType = ShotType.MEDIUM,
     character_ids: Optional[List[str]] = None,
     location_id: Optional[str] = None,
+    prop_ids: Optional[List[str]] = None,
     dialogue: Optional[List[Dict[str, str]]] = None,
+    events: Optional[List[Dict[str, Any]]] = None,
     camera_notes: str = "",
     max_chunk_duration: float = 12.0,
 ) -> Shot:
@@ -809,11 +833,15 @@ def create_shot(
     
     Usage:
         shot = create_shot(
-            description="Alice walks to the counter",
-            prompt="A woman walking through a sunlit kitchen, morning light",
+            description="Alice picks up the sword and walks to the door",
+            prompt="A woman picking up an ancient sword, morning light",
             duration_sec=8.0,
             shot_type=ShotType.MEDIUM,
-            character_ids=["alice"]
+            character_ids=["alice"],
+            prop_ids=["sword", "door"],
+            events=[
+                {"type": "pickup", "subject": "alice", "object": "sword"}
+            ]
         )
     """
     shot_id = generate_id("shot")
@@ -826,6 +854,10 @@ def create_shot(
     if location_id:
         location = EntityRef.location(location_id)
     
+    props = []
+    if prop_ids:
+        props = [EntityRef.prop(pid) for pid in prop_ids]
+    
     shot = Shot(
         shot_id=shot_id,
         scene_id="",  # Will be set when added to scene
@@ -836,7 +868,9 @@ def create_shot(
         shot_type=shot_type,
         characters=characters,
         location=location,
+        props=props,
         dialogue=dialogue or [],
+        events=events or [],
         camera_notes=camera_notes,
         chunks=[],  # Will be auto-generated
     )

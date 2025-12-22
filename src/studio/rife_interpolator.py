@@ -2,7 +2,7 @@
 Continuum Engine - RIFE Frame Interpolator
 
 Upscales video frame rate using AI-based frame interpolation.
-Primary use: 12fps â†’ 24fps to halve GPU generation cost while
+Primary use: 12fps Ã¢â€ â€™ 24fps to halve GPU generation cost while
 maintaining cinematic smoothness.
 
 The Problem:
@@ -15,7 +15,7 @@ The Solution:
     looks like native 24fps at roughly half the generation cost.
 
 Architecture Position (FINAL STEP):
-    Pass 1 (Structure) â†’ Audit â†’ Pass 2 (Refinement) â†’ Lip Sync â†’ **RIFE** â†’ Final
+    Pass 1 (Structure) Ã¢â€ â€™ Audit Ã¢â€ â€™ Pass 2 (Refinement) Ã¢â€ â€™ Lip Sync Ã¢â€ â€™ **RIFE** Ã¢â€ â€™ Final
     
 Why RIFE is Last:
     - Lip sync may introduce minor frame-level jitters
@@ -24,13 +24,13 @@ Why RIFE is Last:
       that lip sync will modify anyway)
 
 Supported Modes:
-    - 2x: 12fps â†’ 24fps (default, cinematic)
-    - 2.5x: 12fps â†’ 30fps (broadcast)
-    - 4x: 12fps â†’ 48fps (smooth/slow-mo ready)
+    - 2x: 12fps Ã¢â€ â€™ 24fps (default, cinematic)
+    - 2.5x: 12fps Ã¢â€ â€™ 30fps (broadcast)
+    - 4x: 12fps Ã¢â€ â€™ 48fps (smooth/slow-mo ready)
 
 Design Principles:
     1. Workflow-agnostic: Actual ComfyUI workflow is external JSON
-    2. Degradation-ready: RIFE ComfyUI â†’ FFmpeg minterpolate â†’ Passthrough
+    2. Degradation-ready: RIFE ComfyUI Ã¢â€ â€™ FFmpeg minterpolate Ã¢â€ â€™ Passthrough
     3. Async-first: All interpolation is async (GPU-bound)
     4. Preserves duration: Output duration matches input exactly
 """
@@ -123,7 +123,7 @@ class InterpolationSpec:
         """Calculate the interpolation multiplier."""
         if self.source_fps and self.source_fps > 0:
             return self.target_fps / self.source_fps
-        return 2.0  # Default assumption: 12fps â†’ 24fps
+        return 2.0  # Default assumption: 12fps Ã¢â€ â€™ 24fps
 
 
 @dataclass
@@ -492,9 +492,13 @@ class ComfyRIFEInterpolator(BaseInterpolator):
             while not job.is_terminal():
                 await asyncio.sleep(0.5)
                 if job.progress:
+                    # job.progress is a Dict with 'value' and 'max' keys, not a float
+                    progress_value = job.progress.get("value", 0)
+                    progress_max = job.progress.get("max", 100)
+                    progress_pct = float(progress_value) / float(progress_max) if progress_max > 0 else 0.0
                     report_progress(
                         "interpolating",
-                        0.4 + (job.progress * 0.5),
+                        0.4 + (progress_pct * 0.5),
                         "Generating frames..."
                     )
             
@@ -740,7 +744,7 @@ class InterpolatorFactory:
     Tries interpolation methods in order of quality and falls back
     if the preferred method isn't available.
     
-    Fallback order: RIFE ComfyUI â†’ FFmpeg minterpolate â†’ Passthrough
+    Fallback order: RIFE ComfyUI Ã¢â€ â€™ FFmpeg minterpolate Ã¢â€ â€™ Passthrough
     
     Usage:
         factory = InterpolatorFactory(comfy_host="http://localhost:8188")
