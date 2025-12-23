@@ -26,11 +26,11 @@ Architecture Note:
     simpler vid2vid temporal denoising.
 
 Pipeline Position:
-    Pass 1 ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Audit ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ **Pass 2 (this)** ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Lip Sync ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ RIFE ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Final
+    Pass 1 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Audit ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ **Pass 2 (this)** ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Lip Sync ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ RIFE ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Final
 
 Design Principles:
     1. Workflow-agnostic: Actual ComfyUI workflow is external JSON
-    2. Degradation-ready: FreeLong++ ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Vid2Vid ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Passthrough fallback
+    2. Degradation-ready: FreeLong++ ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Vid2Vid ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Passthrough fallback
     3. Async-first: All refinement is async (GPU-bound)
     4. Preserves structure: Should NOT change composition or motion
 """
@@ -442,22 +442,33 @@ class ComfyRefiner(BaseRefiner):
             
             report_progress("refining", 0.4, "Running refinement model...")
             
-            # Submit job and wait for completion
-            job = await client.submit(workflow)
+            # Submit job
+            comfy_job = await client.submit_workflow(workflow)
+            logger.info(f"Submitted refinement job {comfy_job.prompt_id}")
             
-            # Poll for completion with progress updates
-            while not job.is_complete:
-                await asyncio.sleep(1.0)
-                if job.progress:
+            # Progress adapter for refinement
+            def refine_progress_adapter(comfy_progress):
+                """Adapt ComfyUI progress to refinement progress."""
+                if isinstance(comfy_progress, dict):
+                    value = comfy_progress.get("value", 0)
+                    max_val = comfy_progress.get("max", 100)
+                    progress = 0.4 + (0.5 * value / max_val) if max_val > 0 else 0.6
                     report_progress(
                         "refining",
-                        0.4 + (job.progress * 0.5),  # 40-90%
-                        f"Processing frames..."
+                        progress,
+                        f"Processing frames ({value}/{max_val})..."
                     )
             
-            if job.failed:
+            # Wait for completion with timeout
+            try:
+                completed_job = await client.wait_for_completion(
+                    comfy_job.prompt_id,
+                    timeout_sec=600,  # 10 minute timeout for refinement
+                    progress_callback=refine_progress_adapter
+                )
+            except Exception as e:
                 return RefinementResult.failed(
-                    f"ComfyUI job failed: {job.error}",
+                    f"Refinement job failed: {e}",
                     self.method
                 )
             
@@ -465,8 +476,7 @@ class ComfyRefiner(BaseRefiner):
             
             # Download output
             output_path = spec.output_path
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            await self._download_output(client, job, output_path)
+            await self._download_output(client, completed_job, output_path)
             
             report_progress("completed", 1.0, "Refinement complete")
             
@@ -559,27 +569,156 @@ class ComfyRefiner(BaseRefiner):
             "FPS": 12,  # Match Pass 1 output
             
             # Generation params
-            "SEED": -1,  # Random seed for refinement
+            "SEED": 0,  # Fixed seed for reproducibility (must be >= 0 for KSampler)
             "POSITIVE_PROMPT": "high quality, detailed, sharp, consistent lighting",
             "NEGATIVE_PROMPT": "blurry, flickering, low quality, jittery, frame inconsistency",
         }
     
     def _set_input_video(self, workflow: Dict, filename: str) -> Dict:
-        """Set the input video filename in workflow."""
-        # Find video loader node and set filename
-        workflow = workflow.copy()
-        # Node modification would happen here
+        """
+        Set the input video filename in workflow after upload.
+        
+        Finds the video loader node (VHS_LoadVideo or similar) and updates
+        its video input to the server-side filename from upload.
+        
+        Args:
+            workflow: The injected workflow dict
+            filename: Server-side filename returned from upload
+            
+        Returns:
+            Modified workflow with updated video path
+        """
+        import copy
+        workflow = copy.deepcopy(workflow)
+        
+        # Find video loader nodes by class_type
+        video_loader_types = ["VHS_LoadVideo", "LoadVideo", "LoadVideoPath"]
+        
+        for node_id, node_data in workflow.items():
+            if isinstance(node_data, dict):
+                class_type = node_data.get("class_type", "")
+                if class_type in video_loader_types:
+                    if "inputs" in node_data and "video" in node_data["inputs"]:
+                        old_value = node_data["inputs"]["video"]
+                        node_data["inputs"]["video"] = filename
+                        logger.debug(
+                            f"Updated {node_id}.video: {old_value} -> {filename}"
+                        )
+                        return workflow
+        
+        # If no video loader found, log warning but continue
+        # (workflow might use a different input mechanism)
+        logger.warning(
+            f"No video loader node found in workflow. "
+            f"INPUT_VIDEO placeholder should handle it via injection."
+        )
         return workflow
     
     async def _upload_video(self, client, video_path: Path) -> str:
-        """Upload video to ComfyUI server, return filename."""
-        # Simplified - actual implementation depends on ComfyUI setup
-        return video_path.name
+        """
+        Upload video to ComfyUI server, return server filename.
+        
+        Uses ComfyClient.upload_file() which handles the multipart form
+        upload to ComfyUI's /upload/image endpoint.
+        
+        Args:
+            client: Connected ComfyClient instance
+            video_path: Local path to video file
+            
+        Returns:
+            Server-side filename (e.g., "i2v_00024_.mp4")
+            
+        Raises:
+            FileNotFoundError: If video doesn't exist
+            RuntimeError: If upload fails
+        """
+        if not video_path.exists():
+            raise FileNotFoundError(f"Video not found: {video_path}")
+        
+        logger.debug(f"Uploading video for refinement: {video_path}")
+        
+        try:
+            # Upload to ComfyUI's input folder
+            result = await client.upload_file(
+                file_path=video_path,
+                subfolder="",  # Root of input folder
+                file_type="input"
+            )
+            
+            server_filename = result.get("name", video_path.name)
+            logger.info(f"Uploaded video: {video_path.name} -> {server_filename}")
+            
+            return server_filename
+            
+        except Exception as e:
+            logger.error(f"Failed to upload video {video_path}: {e}")
+            raise
     
-    async def _download_output(self, client, job, output_path: Path) -> None:
-        """Download output video from ComfyUI."""
-        # Simplified - actual implementation depends on ComfyUI output handling
-        pass
+    async def _download_output(self, client, job, output_path: Path) -> Path:
+        """
+        Download the refined video from ComfyUI server.
+        
+        Finds the video output in job results and downloads it to output_path.
+        Pattern follows wan_renderer._download_output() which is proven to work.
+        
+        Args:
+            client: Connected ComfyClient instance
+            job: Completed ComfyJob with outputs
+            output_path: Where to save the downloaded video
+            
+        Returns:
+            Path to the downloaded video
+            
+        Raises:
+            RuntimeError: If no video output found in job results
+        """
+        # Find video output in job outputs
+        # ComfyUI stores outputs as: {node_id: {output_type: [items]}}
+        video_filename = None
+        video_subfolder = ""
+        
+        for node_id, outputs in job.outputs.items():
+            if isinstance(outputs, dict):
+                # Look for video outputs - SaveVideo node outputs to "gifs" or "videos"
+                for output_type in ["gifs", "videos", "images"]:
+                    if output_type in outputs:
+                        items = outputs[output_type]
+                        if items and len(items) > 0:
+                            video_filename = items[0].get("filename")
+                            video_subfolder = items[0].get("subfolder", "")
+                            logger.debug(
+                                f"Found output: {video_filename} "
+                                f"in {node_id}/{output_type}"
+                            )
+                            break
+            if video_filename:
+                break
+        
+        if not video_filename:
+            raise RuntimeError(
+                f"No video output found in job results. "
+                f"Available outputs: {job.outputs}"
+            )
+        
+        # Ensure output directory exists
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Download the video
+        logger.debug(f"Downloading refined video: {video_filename} -> {output_path}")
+        
+        await client.download_output(
+            filename=video_filename,
+            subfolder=video_subfolder,
+            file_type="output",
+            save_path=output_path
+        )
+        
+        # Verify download succeeded
+        if not output_path.exists():
+            raise RuntimeError(f"Download failed, file not found: {output_path}")
+        
+        logger.info(f"Downloaded refined video: {output_path}")
+        return output_path
 
 
 # =============================================================================

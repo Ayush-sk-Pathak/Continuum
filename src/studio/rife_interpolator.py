@@ -424,6 +424,72 @@ class ComfyRIFEInterpolator(BaseInterpolator):
                 raise RuntimeError(f"Failed to load workflow '{self.workflow_name}': {e}")
         return self._template
     
+    async def _download_output(self, client, job, output_path: Path) -> Path:
+        """
+        Download the interpolated video from ComfyUI server.
+        
+        Finds the video output in job results and downloads it to output_path.
+        Pattern follows wan_renderer._download_output() which is proven to work.
+        
+        Args:
+            client: Connected ComfyClient instance
+            job: Completed ComfyJob with outputs
+            output_path: Where to save the downloaded video
+            
+        Returns:
+            Path to the downloaded video
+            
+        Raises:
+            RuntimeError: If no video output found in job results
+        """
+        # Find video output in job outputs
+        # ComfyUI stores outputs as: {node_id: {output_type: [items]}}
+        video_filename = None
+        video_subfolder = ""
+        
+        for node_id, outputs in job.outputs.items():
+            if isinstance(outputs, dict):
+                # Look for video outputs - video_combine outputs to "gifs" typically
+                for output_type in ["gifs", "videos", "images"]:
+                    if output_type in outputs:
+                        items = outputs[output_type]
+                        if items and len(items) > 0:
+                            video_filename = items[0].get("filename")
+                            video_subfolder = items[0].get("subfolder", "")
+                            logger.debug(
+                                f"Found RIFE output: {video_filename} "
+                                f"in {node_id}/{output_type}"
+                            )
+                            break
+            if video_filename:
+                break
+        
+        if not video_filename:
+            raise RuntimeError(
+                f"No video output found in RIFE job results. "
+                f"Available outputs: {job.outputs}"
+            )
+        
+        # Ensure output directory exists
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Download the video
+        logger.debug(f"Downloading interpolated video: {video_filename} -> {output_path}")
+        
+        await client.download_output(
+            filename=video_filename,
+            subfolder=video_subfolder,
+            file_type="output",
+            save_path=output_path
+        )
+        
+        # Verify download succeeded
+        if not output_path.exists():
+            raise RuntimeError(f"Download failed, file not found: {output_path}")
+        
+        logger.info(f"Downloaded interpolated video: {output_path}")
+        return output_path
+    
     async def interpolate(
         self,
         spec: InterpolationSpec,
@@ -486,30 +552,37 @@ class ComfyRIFEInterpolator(BaseInterpolator):
             
             report_progress("interpolating", 0.4, "Running RIFE interpolation...")
             
-            # Submit and wait
-            job = await client.submit(workflow)
+            # Submit and wait using proper async pattern
+            comfy_job = await client.submit_workflow(workflow)
+            logger.info(f"Submitted RIFE job {comfy_job.prompt_id}")
             
-            while not job.is_terminal():
-                await asyncio.sleep(0.5)
-                if job.progress:
-                    # job.progress is a Dict with 'value' and 'max' keys, not a float
-                    progress_value = job.progress.get("value", 0)
-                    progress_max = job.progress.get("max", 100)
-                    progress_pct = float(progress_value) / float(progress_max) if progress_max > 0 else 0.0
+            # Progress adapter for RIFE
+            def rife_progress_adapter(comfy_progress):
+                """Adapt ComfyUI progress to interpolation progress."""
+                if isinstance(comfy_progress, dict):
+                    value = comfy_progress.get("value", 0)
+                    max_val = comfy_progress.get("max", 100)
+                    progress = 0.4 + (0.5 * value / max_val) if max_val > 0 else 0.6
                     report_progress(
                         "interpolating",
-                        0.4 + (progress_pct * 0.5),
-                        "Generating frames..."
+                        progress,
+                        f"Generating frames ({value}/{max_val})..."
                     )
             
-            if job.failed:
-                return InterpolationResult.failed(f"ComfyUI job failed: {job.error}")
+            # Wait for completion with timeout
+            try:
+                completed_job = await client.wait_for_completion(
+                    comfy_job.prompt_id,
+                    timeout_sec=600,  # 10 minute timeout for interpolation
+                    progress_callback=rife_progress_adapter
+                )
+            except Exception as e:
+                return InterpolationResult.failed(f"RIFE job failed: {e}")
             
             report_progress("encoding", 0.9, "Downloading result...")
             
             # Download output
-            spec.output_path.parent.mkdir(parents=True, exist_ok=True)
-            # Actual download would happen here based on ComfyUI output handling
+            output_path = await self._download_output(client, completed_job, spec.output_path)
             
             report_progress("completed", 1.0, "Interpolation complete")
             

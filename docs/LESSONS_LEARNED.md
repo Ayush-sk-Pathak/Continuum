@@ -2365,5 +2365,70 @@ grep -r "class_type.*KSamplerBatch" /workspace/runpod-slim/ComfyUI/custom_nodes/
 2. Verify the pack actually provides that exact `class_type`
 3. Consider if the workflow itself is the problem (using non-existent nodes)
 
+___
+### 71. ComfyUI Job Polling Requires wait_for_completion(), Not Manual Loop
+
+| | |
+|---|---|
+| **Date** | 2025-12-23 |
+| **Error** | RIFE interpolation hung forever despite ComfyUI job completing successfully |
+| **Wrong Assumption** | `job.is_terminal()` would return True when job completes |
+| **Correct Interface** | Must use `client.wait_for_completion(prompt_id)` to properly track completion |
+| **Affected Files** | `pass2_refiner.py`, `rife_interpolator.py` |
+
+**Broken Pattern:**
+```python
+job = await client.submit(workflow)
+while not job.is_terminal():  # Never becomes true!
+    await asyncio.sleep(0.5)
+```
+
+**Working Pattern (from wan_renderer.py):**
+```python
+comfy_job = await client.submit_workflow(workflow)
+completed_job = await client.wait_for_completion(
+    comfy_job.prompt_id,
+    timeout_sec=600,
+    progress_callback=progress_adapter
+)
+# Now completed_job.outputs has the results
+```
+
+**Why the broken pattern fails:**
+- `client.submit()` returns a `ComfyJob` object
+- WebSocket messages update tracking *inside* the client, not the returned object
+- The `job` object's state never changes, so `is_terminal()` always returns False
+
+**Prevention:** All ComfyUI-based modules should follow the same pattern:
+1. `client.submit_workflow()` - submit job
+2. `client.wait_for_completion()` - wait with proper tracking
+3. `client.download_output()` - download results
+---
+
+### 72. Vid2Vid Without Temporal Consistency Causes Flicker
+
+| | |
+|---|---|
+| **Date** | 2025-12-23 |
+| **Symptom** | Output video has flickering faces - like 2 faces juxtaposed |
+| **Root Cause** | Pass 2 refinement using plain `KSampler` processes frames independently |
+| **Why It Happens** | Each frame gets slightly different "reimagining" of the face |
+| **Affected File** | `workflows/refine_vid2vid_temporal.json` |
+
+**The Broken Fix:**
+When `KSamplerBatch` (temporal) and `TemporalSmooth` nodes don't exist, replacing them with standard `KSampler` removes temporal consistency entirely.
+
+**Workarounds:**
+1. Use `--no-pass2` flag to skip refinement (recommended until fixed)
+2. Lower denoise strength to ~0.1 (nearly a no-op)
+3. Use FFmpeg temporal smoothing post-process
+
+**Proper Fix (Future):**
+- Find ComfyUI node pack with real temporal vid2vid
+- Or use AnimateDiff/SVD-based refinement
+- Or implement latent blending between frames (CoNo-style)
+
+**Key Insight:** Pass 2 is optional polish. Without proper temporal processing, it's actively harmful - makes output worse, not better.
+
 ---
 *Add new entries above this line as they're discovered.*
