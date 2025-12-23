@@ -2220,6 +2220,150 @@ known.update(c.entity_id for c in self.consistency_dict.list_characters())
 
 **Prevention:** Check return type hints before using list methods.
 
+### 67. RunPod Template Auto-Starts ComfyUI — Don't Double-Start
+
+| | |
+|---|---|
+| **Date** | 2025-12-23 |
+| **Error** | `OSError: [Errno 98] error while attempting to bind on address ('0.0.0.0', 8188): address already in use` |
+| **Wrong Assumption** | ComfyUI needs to be manually started after pod launch |
+| **Correct Interface** | RunPod's template may auto-start ComfyUI on port 8188 |
+| **Impact** | Manual start fails; logs show crash but ComfyUI is actually running |
+
+**Symptom:**
+```
+[1]+  Exit 1   nohup python3 main.py --listen 0.0.0.0 --port 8188
+```
+But `curl localhost:8188/system_stats` returns valid JSON.
+
+**Root Cause:**
+RunPod's ComfyUI template includes auto-start. When you run the manual start command, it conflicts with the already-running instance.
+
+**Correct Startup Procedure:**
+```bash
+# First, check if ComfyUI is already running
+curl -s http://localhost:8188/system_stats | head -c 100
+
+# If it returns JSON → already running, skip to pip install only
+# If it fails → then start manually:
+pkill -f "python.*main.py.*8188"
+sleep 2
+cd /workspace/runpod-slim/ComfyUI
+nohup python3 main.py --listen 0.0.0.0 --port 8188 > /workspace/runpod-slim/comfyui.log 2>&1 &
+```
+
+**Prevention:** Always check if ComfyUI is running before attempting to start it.
+---
+
+## 68. Workflow Documentation Convention
+
+Workflow JSON files can include documentation using keys prefixed with `_`:
+```json
+{
+  "_comment": "What this workflow does",
+  "_architecture_ref": "Section X.Y in ARCHITECTURE.md",
+  
+  "actual_node": {
+    "class_type": "...",
+    "inputs": {...}
+  }
+}
+```
+
+These keys are:
+- Preserved in template files (for developer documentation)
+- Skipped during validation
+- Stripped before submission to ComfyUI
+
+___
+
+### 69. ComfyUI Workflows May Reference Non-Existent Nodes
+
+| | |
+|---|---|
+| **Date** | 2025-12-23 |
+| **Error** | `Cannot execute because node KSamplerBatch does not exist` then `Cannot execute because node TemporalSmooth does not exist` |
+| **Wrong Assumption** | Workflow JSON files were tested and use standard ComfyUI nodes |
+| **Correct Interface** | Some workflows were created with aspirational/custom nodes that don't exist publicly |
+| **Workflows Affected** | `refine_vid2vid_temporal.json` |
+
+**Non-Existent Nodes Found:**
+
+| Node | What It Was Supposed To Do | Replacement |
+|------|---------------------------|-------------|
+| `KSamplerBatch` | Batch sampling with `temporal_coherence` param | Standard `KSampler` |
+| `TemporalSmooth` | Blend neighboring frames to reduce flicker | Removed (use FFmpeg post-processing instead) |
+
+**Wrong (original workflow):**
+```json
+{
+  "batch_sampler": {
+    "class_type": "KSamplerBatch",
+    "inputs": {
+      "batch_size": "{{TEMPORAL_WINDOW}}",
+      "temporal_coherence": true
+    }
+  },
+  "temporal_smooth": {
+    "class_type": "TemporalSmooth",
+    "inputs": {
+      "window_size": 3,
+      "strength": 0.3
+    }
+  }
+}
+```
+
+**Correct (fixed workflow):**
+```json
+{
+  "sampler": {
+    "class_type": "KSampler",
+    "inputs": {
+      // Standard params only, no temporal_coherence
+    }
+  }
+  // TemporalSmooth removed entirely
+}
+```
+
+**Prevention:**
+1. Before using a workflow, verify ALL `class_type` values exist on your ComfyUI instance
+2. Test workflows manually in ComfyUI web UI before integrating
+3. Use `grep "class_type" workflow.json` to list all required nodes
+4. Check RunPod logs for node loading: `cat /tmp/comfyui.log | grep "Loading:"`
+
+**Note:** After this fix, `refine_vid2vid_temporal.json` is functionally identical to `refine_vid2vid_simple.json`. Consider consolidating them.
+
+---
+
+### 70. ComfyUI Node Packs Don't Always Contain Expected Nodes
+
+| | |
+|---|---|
+| **Date** | 2025-12-23 |
+| **Error** | Installed ComfyUI-Inspire-Pack expecting `KSamplerBatch`, but it wasn't there |
+| **Wrong Assumption** | Node names imply which pack provides them |
+| **Correct Interface** | Must verify node exists in pack before installing |
+
+**Investigation Steps:**
+```bash
+# Search ComfyUI-Manager's node database for a node
+grep -r "KSamplerBatch" /workspace/runpod-slim/ComfyUI/custom_nodes/ComfyUI-Manager/extension-node-map.json
+
+# Search installed packs for a node class
+grep -r "class_type.*KSamplerBatch" /workspace/runpod-slim/ComfyUI/custom_nodes/
+```
+
+**What We Found:**
+- `KSamplerBatch` - Does NOT exist in any standard pack
+- `CRT_KSamplerBatch` - Different node, different pack
+- `quadmoonKSamplerBatched` - Different node, different pack
+
+**Prevention:** Before installing a pack to fix a missing node:
+1. Search ComfyUI-Manager's node database for exact node name
+2. Verify the pack actually provides that exact `class_type`
+3. Consider if the workflow itself is the problem (using non-existent nodes)
 
 ---
 *Add new entries above this line as they're discovered.*

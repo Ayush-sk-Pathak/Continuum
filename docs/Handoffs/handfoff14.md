@@ -6,120 +6,20 @@
 
 ---
 
-# PART A: PROJECT CONTEXT (For New Readers)
+## 1. Role & Vision
 
-## What is Continuum?
+You are the co-founder and Lead Architect of **Continuum Studios**. We are building the **"Continuum Engine"** — a neuro-symbolic system that allows writers to become AI Filmmakers.
 
-**Continuum Engine** is a neuro-symbolic AI filmmaking system that turns writers into filmmakers. Unlike random clip generators, we enforce **consistency** - the same character looks the same across a 5-minute film, props don't teleport, and the world obeys physics.
+**Core Philosophy:** We do not just generate random clips. We enforce consistency via a **"Max-Duration + Smart-Cut"** strategy (StreamingT2V + Bridge Frames).
 
-### The Vision
-- **Input:** A script + character/location references
-- **Output:** A 2-5 minute consistent narrative video with dialogue, music, and sound effects
-- **Target:** "Pixar-on-Demand" for indie creators
-
-### Core Philosophy
-> "We do not generate random clips. We enforce consistency via Max-Duration + Smart-Cut strategy."
+**Sources of Truth:**
+- `ARCHITECTURE.md` — Master Blueprint (strategy, rationale)
+- `ARCHITECTURE_SUMMARY.md` — Working dev summary (wins for implementation)
+- `LESSONS_LEARNED.md` — Debugging history and interface gotchas
 
 ---
 
-## Architecture Overview (Brain vs Muscle)
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        CONTINUUM ENGINE                          │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  LOCAL (MacBook M4) ─────────────────────────────────────────── │
-│  ├── Python Orchestrator (main.py)                              │
-│  ├── Director Agent (LLM API calls)                             │
-│  ├── Scene Graph Parser                                         │
-│  └── Job Dispatch & Monitoring                                  │
-│                                                                  │
-│  CLOUD (RunPod GPU) ─────────────────────────────────────────── │
-│  ├── ComfyUI Server                                             │
-│  ├── Video Models (Wan 2.1 T2V/I2V)                             │
-│  ├── SDXL + ControlNet + IP-Adapter (Bridge Engine)             │
-│  ├── LoRA Training (character/location)                         │
-│  └── Audio Models (TTS, Ambience, Foley)                        │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### The Consistency Stack
-
-| Layer | Purpose | Implementation |
-|-------|---------|----------------|
-| **Identity Lock** | Same character throughout | IP-Adapter (instant) + LoRA (enhanced) + ArcFace (audit) |
-| **World Consistency** | Same locations/props | Visual RAG + Location IP-Adapter |
-| **Narrative Flow** | Seamless transitions | Bridge Frames + Smart Cuts |
-| **Temporal Coherence** | No drift over time | Max 12s chunks + re-anchoring |
-
-### The Bridge Frame (Core Innovation)
-
-The **Bridge Engine** is our secret sauce. Before each new video chunk:
-1. Extract **pose** from last frame (ControlNet)
-2. Inject **canonical identity** from references (IP-Adapter)
-3. Generate **perfect first frame** for next chunk (SDXL)
-4. Feed to video model as `init_image`
-
-This prevents the "drift problem" where characters slowly morph over long generations.
-
----
-
-## What We've Built ✅
-
-### Infrastructure
-- [x] ComfyUI client with WebSocket job tracking
-- [x] Workflow loader with parameter injection
-- [x] Multi-tier model configuration (dev/standard/beast)
-- [x] Checkpoint system for crash recovery
-- [x] Progress reporting with callbacks
-
-### Video Pipeline (Pass 1)
-- [x] T2V generation via Wan 2.1
-- [x] I2V generation via Wan 2.1
-- [x] **Hero Frame for Shot 1** (SDXL + IP-Adapter identity lock)
-- [x] Bridge Engine with 4-tier fallback:
-  - Tier 1: Full (ControlNet Pose + Depth + IP-Adapter)
-  - Tier 2: Pose only (ControlNet + IP-Adapter)
-  - Tier 3: IP-Adapter only
-  - Tier 4: Raw frame passthrough
-- [x] Automatic retry with seed variation
-- [x] Shot chunking (max 12s per chunk)
-
-### Video Pipeline (Pass 2)
-- [x] Vid2Vid refinement workflow
-- [x] RIFE frame interpolation (12fps → 24fps)
-- [x] Lip sync integration (MuseTalk via ComfyUI)
-
-### Audit System
-- [x] ArcFace identity checker (insightface)
-- [x] Physics checker (YOLO + ByteTrack)
-- [x] Reviewer aggregation (identity + physics)
-- [x] **Fail-fast health check at startup**
-- [x] Reroll logic on audit failure (max 3 attempts)
-
-### Audio Pipeline (Stubbed)
-- [x] TTS engine interface (ElevenLabs)
-- [x] Ambience generator interface (AudioLDM2)
-- [x] Foley engine interface (Freesound)
-- [x] Audio mixer with ducking
-
-### Post-Production
-- [x] Color matching across shots
-- [x] FFmpeg stitcher
-- [x] Audio ducking during dialogue
-
-### Director Agent (Partial)
-- [x] Scene graph data structures
-- [x] Consistency dictionary (character → assets)
-- [x] World state tracking (object positions)
-- [x] Shot event parser
-- [ ] LLM script parsing (manual JSON for now)
-
----
-
-## The "Vibe Coder" Constraint (Non-Negotiable)
+## 2. The "Vibe Coder" Constraint (Non-Negotiable)
 
 The human is a **vibe coder**: systems thinker, not a low-level engineer.
 
@@ -131,17 +31,29 @@ The human is a **vibe coder**: systems thinker, not a low-level engineer.
 
 ---
 
-## Sources of Truth
+## 3. System Architecture
 
-- `ARCHITECTURE.md` — Master Blueprint (strategy, rationale)
-- `ARCHITECTURE_SUMMARY.md` — Working dev summary (wins for implementation)
-- `LESSONS_LEARNED.md` — Debugging history and interface gotchas
+### 3A. The Director Agent (Local Brain)
+- **Planner:** Parses script into Scene Graph (JSON)
+- **State Manager:** Maintains Consistency Dictionary (Assets, LoRAs) and World State (prop locations)
+- **The Reviewer:** Checks frames for Physics (gravity/teleportation) and Identity drift
+
+### 3B. The Visual Pipeline (Cloud Muscle - Track A)
+- **Pass 1 (Structure):** Streaming T2V + Bridge Frame injection (seamless cuts) + CoNo
+- **Pass 2 (Refinement):** Vid2Vid / FreeLong++ for flicker reduction
+- **Lane Logic:** Supports "Standard Lane" (OSS) and "Pro Lane" (Hybrid/Veo with Repair)
+
+### 3C. The Sonic Engine (Cloud Muscle - Track B)
+- Runs in **parallel** with Video
+- Generates: Ambience (AudioLDM-2), Foley (Event-triggered), Score (MusicGen), Dialogue (TTS + Lip Sync)
+
+### 3D. Post-Production Engine
+- **Colorist:** Auto-Color Normalization (Histogram matching to Master Shot)
+- **Mixer:** Smart Audio Ducking (lowers music during dialogue)
 
 ---
 
-# PART B: SESSION STATUS (Current State)
-
-## 1. Granular Implementation Status
+## 4. Current Implementation Status
 
 ### ✅ COMPLETE (P0 + P1)
 
@@ -181,9 +93,9 @@ The human is a **vibe coder**: systems thinker, not a low-level engineer.
 
 ---
 
-## 2. What Changed This Session
+## 5. What Changed This Session
 
-### 2A. Fail-Fast Health Check (main.py)
+### 5A. Fail-Fast Health Check (main.py)
 
 **Problem:** Identity checker was lazily initialized. If `insightface` wasn't installed, audits silently passed (open-loop system).
 
@@ -210,7 +122,7 @@ if not health.get("identity", False):
 - Before: Setup → (insightface missing) → Audits silently pass → No rerolls ever
 - After: Setup → health_check() → FAIL FAST with clear error message
 
-### 2B. Health Check Tests (test_audit_health_check.py)
+### 5B. Health Check Tests (test_audit_health_check.py)
 
 15 tests covering:
 - `TestMockIdentityCheckerHealth` (2 tests)
@@ -227,9 +139,9 @@ python -m pytest tests/test_audit_health_check.py -v
 
 ---
 
-## 3. Known Issues & Gotchas
+## 6. Known Issues & Gotchas
 
-### 3A. Import Path Issue (CRITICAL)
+### 6A. Import Path Issue (CRITICAL)
 
 Claude's `/mnt/project/` shows files FLATTENED. Actual project uses nested `src/` structure.
 
@@ -241,11 +153,11 @@ Claude's `/mnt/project/` shows files FLATTENED. Actual project uses nested `src/
 
 **Always use `from src.<package>.<module> import ...`**
 
-### 3B. types.py Shadows stdlib
+### 6B. types.py Shadows stdlib
 
 The project has a `types.py` that conflicts with Python's stdlib `types` module. Running Python from `/mnt/project/` causes import errors. Run from `/tmp/` or project root instead.
 
-### 3C. Identity Threshold Relaxed
+### 6C. Identity Threshold Relaxed
 
 Current threshold is **0.50** (in `config.py`), relaxed from architectural target of **0.70**.
 
@@ -253,7 +165,7 @@ Current threshold is **0.50** (in `config.py`), relaxed from architectural targe
 
 **Fix:** Install `comfyui_controlnet_aux` properly on RunPod, then tighten threshold.
 
-### 3D. RunPod Dependencies
+### 6D. RunPod Dependencies
 
 Required but may be missing:
 ```bash
@@ -262,7 +174,7 @@ pip install insightface onnxruntime scikit-image
 
 ---
 
-## 4. File Structure (Brain vs Muscle)
+## 7. File Structure (Brain vs Muscle)
 
 ```
 src/
@@ -283,7 +195,7 @@ main.py             # Orchestrator entry point
 
 ---
 
-## 5. Coding Rules
+## 8. Coding Rules
 
 1. **Precise Locations:** Always specify: `File: path/to/file.py`, `Function: name()`, `Insert AFTER: "code_anchor"`
 2. **No Line Numbers:** Use context matching (line numbers shift)
@@ -293,7 +205,7 @@ main.py             # Orchestrator entry point
 
 ---
 
-## 6. Debug Framework
+## 9. Debug Framework
 
 When reporting errors, use this format:
 
@@ -306,7 +218,7 @@ RETEST: (Exact command/script to verify the fix)
 
 ---
 
-## 7. Next Steps (Priority Order)
+## 10. Next Steps (Priority Order)
 
 ### P1: E2E GPU Test on RunPod
 
@@ -341,7 +253,7 @@ Wire up LLM to auto-parse scripts into scene graphs.
 
 ---
 
-## 8. Test Commands Reference
+## 11. Test Commands Reference
 
 ```bash
 # Hero Frame tests (design verification)
@@ -362,7 +274,7 @@ python main.py --project tests/two_shot_alice.json --consistency tests/bible.jso
 
 ---
 
-## 9. Key Architecture Decisions
+## 12. Key Architecture Decisions
 
 ### Why I2V-First (Not T2V)?
 
@@ -398,7 +310,7 @@ Bridge Frame (ControlNet + IP-Adapter) → I2V **re-anchors identity** because:
 
 ---
 
-## 10. Session Transcripts
+## 13. Session Transcripts
 
 Previous session transcripts are stored in `/mnt/transcripts/`:
 - `2025-12-23-05-05-07-hero-frame-implementation-planning.txt`
@@ -411,7 +323,7 @@ Current session added:
 
 ---
 
-## 11. Questions to Ask Human
+## 14. Questions to Ask Human
 
 Before starting work:
 1. "Is RunPod instance running? What's the pod ID?"

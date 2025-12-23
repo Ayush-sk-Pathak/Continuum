@@ -22,7 +22,7 @@ Architecture:
 
 Design Principles:
     1. Workflow-agnostic: Actual ComfyUI workflow is external JSON
-    2. Degradation-ready: ControlNet Ã¢â€ â€™ IP-Adapter Ã¢â€ â€™ prompt-only fallback
+    2. Degradation-ready: ControlNet ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ IP-Adapter ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ prompt-only fallback
     3. Async-first: All generation is async
     4. Testable: Mock implementation for local testing
 """
@@ -73,8 +73,8 @@ class BridgeMethod(str, Enum):
 class CameraTransition(str, Enum):
     """Types of camera angle changes between shots."""
     SAME = "same"                # Same angle (e.g., continuous action)
-    REVERSE = "reverse"          # 180Ã‚Â° flip (e.g., conversation)
-    SIDE = "side"                # 90Ã‚Â° move (e.g., profile to front)
+    REVERSE = "reverse"          # 180Ãƒâ€šÃ‚Â° flip (e.g., conversation)
+    SIDE = "side"                # 90Ãƒâ€šÃ‚Â° move (e.g., profile to front)
     AERIAL = "aerial"            # Ground to overhead
     GROUND = "ground"            # Overhead to ground
     CLOSEUP = "closeup"          # Wide to close
@@ -226,10 +226,10 @@ class BridgeSpec:
         wide_types = {"wide", "aerial", "group"}
         medium_or_wider = {"wide", "aerial", "group", "medium", "two_shot"}
         
-        # Moving closer (wide/medium Ã¢â€ â€™ close)
+        # Moving closer (wide/medium ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ close)
         if from_type in medium_or_wider and to_type in close_types:
             return CameraTransition.CLOSEUP
-        # Moving wider (close Ã¢â€ â€™ wide/medium)  
+        # Moving wider (close ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ wide/medium)  
         if from_type in close_types and to_type in wide_types:
             return CameraTransition.WIDEOUT
         # Aerial transitions
@@ -239,6 +239,91 @@ class BridgeSpec:
             return CameraTransition.GROUND
         
         return CameraTransition.CUSTOM
+
+
+@dataclass
+class HeroFrameSpec:
+    """
+    Specification for generating a Hero Frame (Shot 1 init frame).
+    
+    Per ARCHITECTURE.md Section 7A.3-7A.5:
+    
+        "Shot 1 uses Hero Frame (SDXL + IP-Adapter) --> I2V"
+        
+    The Hero Frame is fundamentally different from Bridge Frame:
+    - Bridge Frame: img2img (transforms existing frame from Shot A)
+    - Hero Frame: txt2img (generates from noise with identity lock)
+    
+    This is the input to generate_hero_frame(). It provides:
+    - Character identity refs for IP-Adapter
+    - Prompt for scene description
+    - Optional face reference for stronger identity lock
+    
+    Attributes:
+        prompt: Scene description for Shot 1
+        characters: Characters that must appear (for identity injection)
+        face_ref_path: Primary face reference for IP-Adapter (optional but recommended)
+        location: Location/environment reference
+        shot_type: Camera framing (wide, medium, close, etc.)
+        seed: Random seed for reproducibility
+        width: Output width
+        height: Output height
+    """
+    # Required
+    prompt: str
+    
+    # Identity (critical for hero frame purpose)
+    characters: List[CharacterRef] = field(default_factory=list)
+    face_ref_path: Optional[Path] = None  # Primary face for IP-Adapter
+    location: Optional[LocationRef] = None
+    
+    # Composition
+    shot_type: str = "medium"
+    composition_notes: str = ""  # e.g., "character on left, looking right"
+    
+    # Generation params
+    seed: int = -1
+    quality: RenderQuality = RenderQuality.STANDARD
+    width: int = 1280
+    height: int = 720
+    
+    # Strength controls
+    ipadapter_strength: float = 0.75  # Identity lock strength (0.7-0.85 typical)
+    
+    # Renderer-specific overrides
+    config_overrides: Dict[str, Any] = field(default_factory=dict)
+    
+    def __post_init__(self):
+        """Validate and normalize inputs."""
+        if self.face_ref_path and isinstance(self.face_ref_path, str):
+            self.face_ref_path = Path(self.face_ref_path)
+    
+    @property
+    def has_face_ref(self) -> bool:
+        """Check if face reference is available."""
+        return self.face_ref_path is not None and self.face_ref_path.exists()
+    
+    @property
+    def has_characters(self) -> bool:
+        """Check if character references provided."""
+        return len(self.characters) > 0
+    
+    @property
+    def primary_character(self) -> Optional[CharacterRef]:
+        """Get the first/primary character."""
+        return self.characters[0] if self.characters else None
+    
+    @property
+    def identity_strength(self) -> str:
+        """Describe identity lock strength for logging."""
+        if self.has_face_ref:
+            return "strong (IP-Adapter + face ref)"
+        elif self.has_characters and any(c.has_lora() for c in self.characters):
+            return "medium (LoRA only)"
+        elif self.has_characters and any(c.has_face_refs() for c in self.characters):
+            return "medium (character face refs)"
+        else:
+            return "weak (prompt only)"
 
 
 @dataclass
@@ -258,6 +343,32 @@ class BridgeResult:
     generation_time_sec: float = 0.0
     pose_data: Optional[PoseData] = None
     seed_used: int = -1
+    
+    # Quality metrics (for debugging/tuning)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_at: datetime = field(default_factory=datetime.utcnow)
+    
+    @property
+    def exists(self) -> bool:
+        """Check if output frame exists."""
+        return self.frame_path.exists()
+
+
+@dataclass
+class HeroFrameResult:
+    """
+    Result of hero frame generation.
+    
+    Contains the generated frame and metadata about how it was created.
+    Mirrors BridgeResult structure for consistency.
+    """
+    # Output
+    frame_path: Path
+    
+    # Metadata
+    generation_time_sec: float = 0.0
+    seed_used: int = -1
+    identity_strength: str = ""  # Describes how strong identity lock was
     
     # Quality metrics (for debugging/tuning)
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -373,6 +484,37 @@ class BaseBridgeEngine(ABC):
         """
         pass
     
+    @abstractmethod
+    async def generate_hero_frame(
+        self,
+        spec: HeroFrameSpec,
+        progress_callback: Optional[Callable[[BridgeProgress], None]] = None
+    ) -> HeroFrameResult:
+        """
+        Generate a Hero Frame for Shot 1 identity lock.
+        
+        Per ARCHITECTURE.md Section 7A.3:
+        
+            "Shot 1's 'Hero Frame' and Shot 2+'s 'Bridge Frame' use the
+            SAME WORKFLOW PATTERN. One workflow for all shots."
+            
+        The Hero Frame uses txt2img (from noise) with IP-Adapter identity injection.
+        This is different from Bridge Frame which uses img2img (transforms existing frame).
+        
+        Workflow: hero_frame.json
+        
+        Args:
+            spec: HeroFrameSpec with prompt, character refs, face ref
+            progress_callback: Optional callback for progress updates
+            
+        Returns:
+            HeroFrameResult with path to generated frame
+            
+        Raises:
+            BridgeError: If generation fails
+        """
+        pass
+    
     def select_method(self, spec: BridgeSpec) -> BridgeMethod:
         """
         Select best available bridge method based on spec.
@@ -452,6 +594,7 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
     WORKFLOW_POSE_ONLY = "bridge_pose_only"   # Pose + IP-Adapter
     WORKFLOW_IPADAPTER = "bridge_ipadapter"   # IP-Adapter only
     WORKFLOW_BASIC = "bridge_basic"           # Prompt only
+    WORKFLOW_HERO_FRAME = "hero_frame"        # Shot 1 txt2img with IP-Adapter
     
     def __init__(
         self,
@@ -735,6 +878,216 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
             character_count=1,  # TODO: Parse from pose detection
         )
     
+    @retry_async(RetryConfig(max_attempts=3, base_delay_sec=1.0))
+    async def generate_hero_frame(
+        self,
+        spec: HeroFrameSpec,
+        progress_callback: Optional[Callable[[BridgeProgress], None]] = None
+    ) -> HeroFrameResult:
+        """
+        Generate Hero Frame for Shot 1 via ComfyUI.
+        
+        Per ARCHITECTURE.md Section 7A.3-7A.5:
+        
+            "Shot 1 uses Hero Frame (SDXL + IP-Adapter) --> I2V"
+            
+        Workflow:
+        1. Upload face reference for IP-Adapter (if available)
+        2. Load hero_frame.json workflow (txt2img with IP-Adapter)
+        3. Submit and wait for result
+        4. Download generated frame
+        
+        Key Difference from generate() (Bridge Frame):
+        - Bridge: img2img (VAEEncode from source frame)
+        - Hero: txt2img (EmptyLatentImage from noise)
+        
+        Args:
+            spec: HeroFrameSpec with prompt, characters, face ref
+            progress_callback: Optional progress callback
+            
+        Returns:
+            HeroFrameResult with path to generated frame
+        """
+        import time
+        start_time = time.time()
+        self._progress_callback = progress_callback
+        
+        self._report_progress("preparing", 0.1, "Preparing hero frame generation")
+        
+        # Ensure initialized
+        if not self._initialized:
+            await self.initialize()
+        
+        logger.info(
+            f"Generating hero frame: identity_strength={spec.identity_strength}, "
+            f"has_face_ref={spec.has_face_ref}"
+        )
+        
+        # Upload face reference for IP-Adapter (if available)
+        remote_face_ref = None
+        if spec.has_face_ref:
+            self._report_progress("uploading", 0.2, "Uploading face reference")
+            remote_face_ref = await self.client.upload_image(spec.face_ref_path)
+            logger.info(f"Uploaded face ref: {spec.face_ref_path}")
+        elif spec.has_characters:
+            # Try to get face ref from character refs
+            for char in spec.characters:
+                if char.has_face_refs():
+                    self._report_progress("uploading", 0.2, "Uploading character face reference")
+                    remote_face_ref = await self.client.upload_image(char.face_refs[0])
+                    logger.info(f"Using character face ref: {char.face_refs[0]}")
+                    break
+        
+        if not remote_face_ref:
+            logger.warning(
+                "No face reference available for hero frame. "
+                "Identity lock will be weak (prompt-only)."
+            )
+        
+        # Build generation params for hero_frame.json
+        self._report_progress("generating", 0.3, "Building workflow parameters")
+        
+        params = self._build_hero_frame_params(spec, remote_face_ref)
+        
+        # Load and configure workflow
+        workflow = self.workflow_loader.load_and_inject(
+            self.WORKFLOW_HERO_FRAME, 
+            params
+        )
+        
+        self._report_progress("generating", 0.4, "Running hero frame workflow (SDXL + IP-Adapter)")
+        
+        # Submit job and wait for completion
+        try:
+            job = await self.client.submit(workflow)
+            
+            # Progress callback for rendering
+            def render_progress_cb(progress_data: Dict[str, Any]) -> None:
+                value = progress_data.get("value", 0)
+                max_val = progress_data.get("max", 100)
+                pct = value / max_val if max_val > 0 else 0
+                self._report_progress(
+                    "generating",
+                    0.4 + (pct * 0.4),
+                    f"Rendering: {int(pct * 100)}%"
+                )
+            
+            completed_job = await self.client.wait_for_completion(
+                job.prompt_id,
+                progress_callback=render_progress_cb
+            )
+            
+            # Download result
+            self._report_progress("downloading", 0.9, "Downloading hero frame")
+            
+            output_filename = f"hero_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+            output_path = self.output_dir / output_filename
+            
+            # Extract image filename from job outputs
+            image_filename = None
+            image_subfolder = ""
+            for node_id, outputs in completed_job.outputs.items():
+                if "images" in outputs:
+                    items = outputs["images"]
+                    if items and len(items) > 0:
+                        image_filename = items[0].get("filename")
+                        image_subfolder = items[0].get("subfolder", "")
+                        break
+            
+            if not image_filename:
+                raise BridgeGenerationError(
+                    "No output image found in hero frame workflow result",
+                    None  # HeroFrameSpec doesn't have source_frame, pass None
+                )
+            
+            await self.client.download_output(
+                filename=image_filename,
+                subfolder=image_subfolder,
+                file_type="output",
+                save_path=output_path
+            )
+            
+        except ComfyError as e:
+            raise BridgeGenerationError(f"ComfyUI error during hero frame: {e}", None) from e
+        
+        elapsed = time.time() - start_time
+        self._report_progress("completed", 1.0, "Hero frame generated")
+        
+        logger.info(
+            f"Hero frame generated: {output_path} "
+            f"(time={elapsed:.1f}s, identity={spec.identity_strength})"
+        )
+        
+        return HeroFrameResult(
+            frame_path=output_path,
+            generation_time_sec=elapsed,
+            seed_used=params.get("SEED", -1),
+            identity_strength=spec.identity_strength,
+            metadata={
+                "workflow": self.WORKFLOW_HERO_FRAME,
+                "prompt": spec.prompt[:100],  # Truncate for logging
+                "has_face_ref": spec.has_face_ref,
+                "shot_type": spec.shot_type,
+            }
+        )
+    
+    def _build_hero_frame_params(
+        self,
+        spec: HeroFrameSpec,
+        remote_face_ref: Optional[str],
+    ) -> Dict[str, Any]:
+        """
+        Build parameter dict for hero_frame.json workflow.
+        
+        Key parameters:
+        - PROMPT: Scene description with shot type hints
+        - FACE_REF_IMAGE: Character face for IP-Adapter identity lock
+        - IPADAPTER_STRENGTH: How strongly to enforce identity (0.7-0.85)
+        - EmptyLatentImage params (WIDTH, HEIGHT) for txt2img
+        """
+        # Build prompt with shot type context
+        prompt_parts = [spec.prompt]
+        
+        shot_type_hints = {
+            "wide": "wide shot, full body visible",
+            "medium": "medium shot, waist up",
+            "close": "close-up shot, face detail",
+            "extreme_close": "extreme close-up, detail shot",
+            "over_shoulder": "over the shoulder shot",
+        }
+        if spec.shot_type in shot_type_hints:
+            prompt_parts.append(shot_type_hints[spec.shot_type])
+        
+        if spec.composition_notes:
+            prompt_parts.append(spec.composition_notes)
+        
+        prompt = ", ".join(prompt_parts)
+        
+        # Build negative prompt
+        negative = "blurry, low quality, distorted, disfigured"
+        if len(spec.characters) == 1:
+            negative += ", multiple people, crowd"
+        
+        params = {
+            "PROMPT": prompt,
+            "NEGATIVE_PROMPT": negative,
+            "WIDTH": spec.width,
+            "HEIGHT": spec.height,
+            "SEED": spec.seed if spec.seed >= 0 else random.randint(0, 2**32 - 1),
+            "STEPS": 25 if spec.quality == RenderQuality.STANDARD else 35,
+            "CFG": 7.5,  # Slightly higher CFG for txt2img
+        }
+        
+        # Add IP-Adapter face reference if available
+        if remote_face_ref:
+            params["FACE_REF_IMAGE"] = remote_face_ref
+            params["IPADAPTER_STRENGTH"] = spec.ipadapter_strength
+        
+        # Apply any overrides
+        params.update(spec.config_overrides)
+        
+        return params
+
     def _build_generation_params(
         self,
         spec: BridgeSpec,
@@ -927,6 +1280,61 @@ class MockBridgeEngine(BaseBridgeEngine):
             depth_map_path=None,
             confidence=0.0,
             character_count=1,
+        )
+    
+    async def generate_hero_frame(
+        self,
+        spec: HeroFrameSpec,
+        progress_callback: Optional[Callable[[BridgeProgress], None]] = None
+    ) -> HeroFrameResult:
+        """
+        Mock hero frame generation.
+        
+        Creates a placeholder image for testing orchestration flow.
+        In real usage, this would generate via SDXL + IP-Adapter.
+        """
+        import time
+        start_time = time.time()
+        self._progress_callback = progress_callback
+        self._call_count += 1
+        
+        # Simulate failure if configured
+        if self.simulate_failure:
+            raise BridgeGenerationError("Simulated hero frame failure", None)
+        
+        # Simulate processing stages
+        self._report_progress("preparing", 0.1, "Preparing hero frame (mock)")
+        await asyncio.sleep(self.simulate_delay * 0.2)
+        
+        self._report_progress("generating", 0.4, "Generating hero frame (mock)")
+        await asyncio.sleep(self.simulate_delay * 0.5)
+        
+        # Create mock output
+        # In mock mode, we create a simple placeholder file
+        output_filename = f"mock_hero_{self._call_count:04d}.png"
+        output_path = self.output_dir / output_filename
+        
+        # Create a minimal PNG placeholder (or copy face ref if available)
+        if spec.has_face_ref:
+            shutil.copy2(spec.face_ref_path, output_path)
+        else:
+            # Create empty placeholder file
+            output_path.write_bytes(b"MOCK_HERO_FRAME")
+        
+        self._report_progress("completed", 1.0, "Mock hero frame complete")
+        
+        elapsed = time.time() - start_time
+        
+        return HeroFrameResult(
+            frame_path=output_path,
+            generation_time_sec=elapsed,
+            seed_used=spec.seed,
+            identity_strength=spec.identity_strength,
+            metadata={
+                "mock": True,
+                "call_count": self._call_count,
+                "has_face_ref": spec.has_face_ref,
+            }
         )
 
 

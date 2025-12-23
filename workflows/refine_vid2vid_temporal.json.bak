@@ -1,10 +1,4 @@
 {
-  "_meta": {
-    "description": "Vid2Vid temporal refinement workflow - basic version",
-    "version": "2.1",
-    "changelog": "2025-12-23: Removed TemporalSmooth (node unavailable), using standard KSampler"
-  },
-
   "video_loader": {
     "class_type": "VHS_LoadVideo",
     "inputs": {
@@ -50,8 +44,8 @@
     }
   },
 
-  "sampler": {
-    "class_type": "KSampler",
+  "batch_sampler": {
+    "class_type": "KSamplerBatch",
     "inputs": {
       "seed": "{{SEED}}",
       "control_after_generate": "fixed",
@@ -63,15 +57,26 @@
       "model": ["checkpoint_loader", 0],
       "positive": ["positive_prompt", 0],
       "negative": ["negative_prompt", 0],
-      "latent_image": ["vae_encode", 0]
+      "latent_image": ["vae_encode", 0],
+      "batch_size": "{{TEMPORAL_WINDOW}}",
+      "temporal_coherence": true
     }
   },
 
   "vae_decode": {
     "class_type": "VAEDecode",
     "inputs": {
-      "samples": ["sampler", 0],
+      "samples": ["batch_sampler", 0],
       "vae": ["checkpoint_loader", 2]
+    }
+  },
+
+  "temporal_smooth": {
+    "class_type": "TemporalSmooth",
+    "inputs": {
+      "images": ["vae_decode", 0],
+      "window_size": 3,
+      "strength": 0.3
     }
   },
 
@@ -79,7 +84,7 @@
     "class_type": "CreateVideo",
     "inputs": {
       "fps": "{{FPS}}",
-      "images": ["vae_decode", 0]
+      "images": ["temporal_smooth", 0]
     }
   },
 

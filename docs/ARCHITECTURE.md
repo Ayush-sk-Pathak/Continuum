@@ -1,8 +1,17 @@
-AI Consistent Character Engine -- MASTER STRATEGY & PRODUCT BLUEPRINT (v2025.9)
+AI Consistent Character Engine -- MASTER STRATEGY & PRODUCT BLUEPRINT (v2025.10)
 The "Pixar-on-Demand" Engine
 ================================================================================
 0. EXECUTIVE SUMMARY
 ================================================================================
+CHANGELOG v2025.10 (Dec 2024):
+- Added Section 3A.3: Redundant Identity Stack (defense in depth)
+- Added Section 3A.4: Stand-In for Wan (Tencent research integration)
+- Added Section 3A.5: IP-Adapter During I2V (implementation gap)
+- Added Section 3N: Model Upgrade Path (future engines)
+- Added Section 3O: Face Enhancement Pipeline (post-processing safety net)
+- Updated Section 3B.1: Clarified IP-Adapter availability for Wan via extension
+- Source: IP_LORA_Research.md deep research (Dec 2024)
+--------------------------------------------------------------------------------
 The Problem: AI filmmaking currently fails at World Consistency (locations morphing), Long-Form Continuity (characters drifting over 2-5+ minutes), and Sensory Immersion (silent or disjointed audio). Most solutions rely purely on giant diffusion models that forget context and treat each clip as an isolated lucky roll.
 Our Approach: We are not just generating video; we are directing a fully immersive world over time.
 A Neuro-Symbolic Director Agent (LLM via cloud API) orchestrated from the user's MacBook Air M4.
@@ -62,25 +71,25 @@ Visual RAG
 ComfyUI workflows
 Cloud render jobs
 Physics sanity review (post-render): The Director runs a lightweight Physics Reviewer on each generated chunk (5-15 seconds). Budget: <30 seconds processing per 10-second clip on GPU.
-**MVP Implementation (CV-Based, <30s per 10s clip):** 
-1. Object Permanence Check (YOLOv8 + ByteTrack): - Detect characters/props in each frame - Track identities across frames - FLAG: Object disappears for >3 frames without exiting frame - FLAG: Object appears mid-scene with no entry point 
-2. Flicker Detection (RAFT optical flow): - Compute frame-to-frame motion - FLAG: High pixel change with low motion flow (texture popping) - FLAG: Motion magnitude spikes without contact/force 
-3. Gravity Heuristic: - Track vertical position of unsupported objects - FLAG: Object above ground that doesn't move downward over time - Exception: Script/prompt indicates magic/flying 
-4. Collision Check: - Monitor bounding box overlaps - FLAG: Two solid objects overlap >50% (passthrough) - FLAG: Collision occurs but no reaction (no bounce, no movement) 
+**MVP Implementation (CV-Based, <30s per 10s clip):**
+1. Object Permanence Check (YOLOv8 + ByteTrack): - Detect characters/props in each frame - Track identities across frames - FLAG: Object disappears for >3 frames without exiting frame - FLAG: Object appears mid-scene with no entry point
+2. Flicker Detection (RAFT optical flow): - Compute frame-to-frame motion - FLAG: High pixel change with low motion flow (texture popping) - FLAG: Motion magnitude spikes without contact/force
+3. Gravity Heuristic: - Track vertical position of unsupported objects - FLAG: Object above ground that doesn't move downward over time - Exception: Script/prompt indicates magic/flying
+4. Collision Check: - Monitor bounding box overlaps - FLAG: Two solid objects overlap >50% (passthrough) - FLAG: Collision occurs but no reaction (no bounce, no movement)
 5. (Optional) Pose Physics (MediaPipe): - Track character skeleton joints - FLAG: Foot slides across ground during weight-bearing - FLAG: Anatomically impossible joint angles
 
-Thresholds & Tolerance:** - 
-Require object missing for 3+ consecutive frames before flagging (avoid occlusion false positives) 
- Only flag flicker if affects >5% of frame area 
- Allow brief physics violations if followed by correction (e.g., object wobbles then falls) 
+Thresholds & Tolerance:** -
+Require object missing for 3+ consecutive frames before flagging (avoid occlusion false positives)
+ Only flag flicker if affects >5% of frame area
+ Allow brief physics violations if followed by correction (e.g., object wobbles then falls)
 
-**Context Awareness:** - 
-If prompt contains "magic", "dream", "flying" -> relax gravity checks  
-If prompt contains "ghost", "spirit" -> relax collision checks 
+**Context Awareness:** -
+If prompt contains "magic", "dream", "flying" -> relax gravity checks
+If prompt contains "ghost", "spirit" -> relax collision checks
  Parse script for intentional physics violations
-* V2 Upgrade (VideoLLM-Assisted):** - 
-Add cause-effect reasoning: "Did every motion have a visible cause?" 
-Add VideoLLM confirmation for borderline flags 
+* V2 Upgrade (VideoLLM-Assisted):** -
+Add cause-effect reasoning: "Did every motion have a visible cause?"
+Add VideoLLM confirmation for borderline flags
  Add action recognition (SlowFast) for collision/fall event verification
 The Stability Monitor (The Pacer): Goal: Maximize shot duration while staying within model stability window. Strategy: Rather than real-time drift detection (complex, error-prone), we use a simpler approach:
 Pre-set Max_Duration per shot (default: 12 seconds, within proven model stability)
@@ -169,10 +178,138 @@ No "training wall" blocking creators from starting
 Progressive enhancement feels like magic
 Always have a working fallback
 
+3A.3 THE REDUNDANT IDENTITY STACK (Defense in Depth)
+
+Research (Dec 2024) shows that combining multiple identity methods provides
+stronger consistency than any single method alone. This is our "defense in
+depth" strategy for identity preservation.
+
+LAYER 1 - Model Bias (LoRA):
+  - Weights biased toward character during training
+  - Active during ALL denoising steps of video generation
+  - Provides "gravitational pull" toward learned identity
+  - Quality contribution: ~15% improvement over baseline
+  - Status: Supported but optional (requires pre-training)
+
+LAYER 2 - Per-Frame Anchoring (IP-Adapter):
+  - Injects reference image embeddings into attention layers
+  - Active during: Hero Frame, Bridge Frame, AND I2V generation
+  - Provides "hard lock" forcing output toward reference
+  - Quality contribution: ~25% improvement over baseline
+  - Status: ACTIVE in current pipeline (hero/bridge frames)
+  - Gap: NOT YET active during I2V generation (see 3A.5)
+
+LAYER 3 - Structural Preservation (ControlNet):
+  - Pose and depth conditioning from previous frame
+  - Preserves body position, scene layout, spatial relationships
+  - Prevents identity drift via pose/position changes
+  - Quality contribution: ~10% improvement for continuity
+  - Status: ACTIVE in Bridge Engine (pose + depth extraction)
+
+LAYER 4 - Post-Processing Backup (Face Enhancement):
+  - GFPGAN or CodeFormer as safety net
+  - Corrects residual drift not caught by Layers 1-3
+  - Runs after video generation, before final output
+  - Quality contribution: ~3-5% recovery of drifted frames
+  - Status: NOT YET IMPLEMENTED (Phase 2)
+
+LAYER 5 - QA Verification (ArcFace):
+  - Embedding comparison against Bible references
+  - Catches any failures from Layers 1-4
+  - Triggers re-roll if similarity threshold not met
+  - Threshold: 0.70 (production), 0.50 (development)
+  - Status: ACTIVE in current pipeline
+
+COMBINED EFFECT:
+  - Layers 2+3+5 alone (current): ~97% identity consistency
+  - Adding Layer 1 (LoRA): Expected ~99% consistency
+  - Adding Layer 4 (face enhancement): Expected ~99.5% consistency
+
+IMPLEMENTATION PRIORITY:
+  - MVP (Current): Layers 2, 3, 5 --> 97% accuracy (VALIDATED)
+  - Post-MVP: Add Layer 1 (LoRA during I2V) --> 99% target
+  - Production: Add Layer 4 (face enhancement) --> 99.5% target
+
+--------------------------------------------------------------------------------
+3A.4 STAND-IN FOR WAN (Specialized Identity Branch)
+--------------------------------------------------------------------------------
+
+Stand-In is a Tencent/WeChat research project (paper: Aug 2025) that adds
+identity preservation directly to Wan video models with minimal overhead.
+
+Technical Approach:
+  - Plug-in identity branch (~1% additional parameters)
+  - Conditional image encoder for reference face
+  - Restricted self-attention to merge reference without full fine-tune
+  - Native integration with Wan 2.1/2.2 architecture
+
+Advantages over IP-Adapter:
+  - Native integration (not adapter bolted on after the fact)
+  - Lower VRAM overhead (~1% vs ~10% for full IP-Adapter)
+  - SOTA face similarity in academic benchmarks
+  - Designed specifically for video, not adapted from image models
+
+ComfyUI Support:
+  - Custom node: "Stand-In Preprocessor" for Wan
+  - Repository: github.com (search "Stand-In ComfyUI")
+  - Status: In development, early previews available
+
+Integration Plan:
+  - Phase 1: Install and test alongside IP-Adapter (compare quality)
+  - Phase 2: If superior, replace IP-Adapter in Wan-specific workflows
+  - Phase 3: Keep IP-Adapter for non-Wan models (Hunyuan, Mochi, SDXL)
+
+Decision Criteria for Switching:
+  - Stand-In must achieve >= 0.95 ArcFace similarity (vs IP-Adapter ~0.97)
+  - VRAM usage must be <= IP-Adapter
+  - Generation speed must be >= IP-Adapter
+  - Must work with existing Bridge Engine workflow pattern
+
+--------------------------------------------------------------------------------
+3A.5 IP-ADAPTER DURING I2V GENERATION (Implementation Gap)
+--------------------------------------------------------------------------------
+
+CURRENT STATE (Gap Identified Dec 2024):
+  - IP-Adapter is used in Hero Frame generation (SDXL) --> WORKING
+  - IP-Adapter is used in Bridge Frame generation (SDXL) --> WORKING
+  - IP-Adapter is NOT used during Wan I2V video generation --> GAP
+
+WHY THIS MATTERS:
+  Research shows that IP-Adapter injection into the video model's UNet
+  provides per-frame identity anchoring during video generation, not just
+  at the init_frame. Without this, identity can drift DURING the shot.
+
+  Current flow (suboptimal):
+    Hero/Bridge Frame (IP-Adapter locked) --> Wan I2V (NO IP-Adapter)
+    Frame 1: 100% identity match
+    Frame 12: ~97% identity match (slight drift within shot)
+
+  Optimal flow:
+    Hero/Bridge Frame (IP-Adapter locked) --> Wan I2V (WITH IP-Adapter)
+    Frame 1: 100% identity match
+    Frame 12: ~99% identity match (IP-Adapter prevents drift)
+
+TECHNICAL SOLUTION:
+  The ComfyUI-IPAdapter-WAN extension enables IP-Adapter injection into
+  Wan's video UNet attention layers. This is NOT the same as SDXL IP-Adapter.
+
+  Required workflow: pass1_img2vid_ipadapter.json
+    - Loads Wan I2V model
+    - Loads IP-Adapter-WAN extension
+    - Injects face reference embeddings during video denoising
+    - Weight: 0.5-0.7 (balance identity lock vs prompt adherence)
+
+IMPLEMENTATION CHECKLIST:
+  [ ] Install ComfyUI-IPAdapter-WAN on RunPod
+  [ ] Create pass1_img2vid_ipadapter.json workflow
+  [ ] Update pass1_generator.py to prefer this workflow when available
+  [ ] Add fallback to pass1_img2vid.json if extension unavailable
+  [ ] Validate with ArcFace: target >= 0.99 within-shot consistency
+
 3B. The Bridge Engine (The Handshake Layer)
 
 ================================================================================
-âš ï¸  CRITICAL SYSTEM COMPONENT - DO NOT BYPASS âš ï¸
+ CRITICAL SYSTEM COMPONENT - DO NOT BYPASS
 ================================================================================
 
 The Bridge Engine is the CORE VALUE PROPOSITION of Continuum. It is what separates
@@ -184,7 +321,7 @@ must NEVER be bypassed or simplified away.
 3B.1 WHAT IS A BRIDGE FRAME?
 --------------------------------------------------------------------------------
 
-A Bridge Frame is a synthetically generated image that serves as the "perfect 
+A Bridge Frame is a synthetically generated image that serves as the "perfect
 first frame" for any new video generation. It is created BEFORE the video model
 runs, and is injected as the `init_image` to force the video to start from a
 known, identity-locked state.
@@ -198,6 +335,9 @@ Technical Definition:
 The Bridge Frame is generated using SDXL (Stable Diffusion XL) because:
 1. SDXL has mature, battle-tested ControlNet + IP-Adapter support
 2. Wan 2.1 is a VIDEO model without native IP-Adapter for single images
+   NOTE: The ComfyUI-IPAdapter-WAN extension DOES enable IP-Adapter injection
+   into Wan's video UNet for multi-frame generation (see Section 3A.5).
+   However, for single-frame Bridge generation, SDXL remains preferred.
 3. One frame of SDXL "style" is immediately overwritten by Wan's video generation
 4. The identity lock is what matters, not the style of that single frame
 
@@ -210,21 +350,17 @@ Workflow: `bridge_full.json` (ControlNet Pose + ControlNet Depth + IP-Adapter)
 A Bridge Frame is required for EVERY video generation restart. Not just camera
 angle changes. Not just shot boundaries. EVERY restart.
 
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚  SCENARIO                          â”‚  BRIDGE NEEDED?  â”‚  WHY                â”‚
-â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-â”‚  Shot A â†’ Shot B (camera change)   â”‚  âœ… YES          â”‚  New generation     â”‚
-â”‚  Chunk 1 â†’ Chunk 2 (same shot)     â”‚  âœ… YES          â”‚  12s max, restart   â”‚
-â”‚  Repair/patch a bad frame          â”‚  âœ… YES          â”‚  New generation     â”‚
-â”‚  Focus change (Person A â†’ B)       â”‚  âœ… YES          â”‚  Different subject  â”‚
-â”‚  Scene transition                  â”‚  âœ… YES          â”‚  New generation     â”‚
-â”‚  Re-roll after audit failure       â”‚  âœ… YES          â”‚  New generation     â”‚
-â”‚  Continue from checkpoint          â”‚  âœ… YES          â”‚  New generation     â”‚
-â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-â”‚  Within a single 12s chunk         â”‚  âŒ NO           â”‚  Continuous gen     â”‚
-â”‚  Frame interpolation (RIFE)        â”‚  âŒ NO           â”‚  Not generation     â”‚
-â”‚  Pass 2 refinement (vid2vid)       â”‚  âŒ NO           â”‚  Existing video     â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+ SCENARIO  BRIDGE NEEDED?  WHY 
+ Shot A --> Shot B (camera change)  [OK] YES  New generation 
+ Chunk 1 --> Chunk 2 (same shot)  [OK] YES  12s max, restart 
+ Repair/patch a bad frame  [OK] YES  New generation 
+ Focus change (Person A --> B)  [OK] YES  Different subject 
+ Scene transition  [OK] YES  New generation 
+ Re-roll after audit failure  [OK] YES  New generation 
+ Continue from checkpoint  [OK] YES  New generation 
+ Within a single 12s chunk  [X] NO  Continuous gen 
+ Frame interpolation (RIFE)  [X] NO  Not generation 
+ Pass 2 refinement (vid2vid)  [X] NO  Existing video 
 
 Rule of Thumb: If you are calling the video model to generate NEW frames,
 you need a Bridge Frame (unless it's the very first shot of the film).
@@ -237,27 +373,23 @@ Video models have NO MEMORY between generation calls. Each call starts fresh.
 Without intervention, identity drifts with each restart:
 
 WITHOUT BRIDGE FRAMES (drift accumulates exponentially):
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚  Shot 1    â†’    Shot 2    â†’    Shot 3    â†’    Shot 4    â†’    Shot 5       â”‚
-â”‚  100%           98%            94%            88%            80%           â”‚
-â”‚  Alice          Alice?         Alice??        Who???         Different     â”‚
-â”‚                                                              person        â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+ Shot 1 --> Shot 2 --> Shot 3 --> Shot 4 --> Shot 5 
+ 100% 98% 94% 88% 80% 
+ Alice Alice? Alice?? Who??? Different 
+ person 
 
 Each generation "forgets" the previous one. Small errors compound:
-- 2% drift per shot Ã— 5 shots = 10% total drift (optimistic)
+- 2% drift per shot x 5 shots = 10% total drift (optimistic)
 - In practice, drift is non-linear and accelerates
 - By shot 5, the character is unrecognizable
 
 WITH BRIDGE FRAMES (identity re-anchored every cut):
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚  Shot 1  â†’ BRIDGE â†’ Shot 2  â†’ BRIDGE â†’ Shot 3  â†’ BRIDGE â†’ Shot 4  â†’ ...   â”‚
-â”‚  100%      â†‘100%    100%      â†‘100%    100%      â†‘100%    100%             â”‚
-â”‚  Alice     â”‚        Alice     â”‚        Alice     â”‚        Alice            â”‚
-â”‚            â”‚                  â”‚                  â”‚                         â”‚
-â”‚      Re-anchor from      Re-anchor from    Re-anchor from                  â”‚
-â”‚      Bible refs          Bible refs        Bible refs                      â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+ Shot 1 --> BRIDGE --> Shot 2 --> BRIDGE --> Shot 3 --> BRIDGE --> Shot 4 --> ... 
+ 100% ^100% 100% ^100% 100% ^100% 100% 
+ Alice  Alice  Alice  Alice 
+    
+ Re-anchor from Re-anchor from Re-anchor from 
+ Bible refs Bible refs Bible refs 
 
 The Bridge Frame re-injects the CANONICAL identity from the Consistency Dictionary
 (the "Bible" references) at every cut. Drift is reset to 0% each time.
@@ -269,29 +401,29 @@ while competitors can only generate 4-second clips and pray.
 3B.4 WHY THE BRIDGE FRAME MUST NEVER BE BYPASSED
 --------------------------------------------------------------------------------
 
-âš ï¸  HISTORICAL NOTE: During development, there were multiple attempts to 
+ HISTORICAL NOTE: During development, there were multiple attempts to
 "simplify" the pipeline by bypassing the Bridge Engine and passing raw frames
 directly to Wan I2V. This is ALWAYS wrong. Here's why:
 
 BYPASS ATTEMPT 1: "Raw frame is good enough"
 - Reasoning: "The last frame has the right pose, just use it directly"
 - Why it fails: Wan I2V continues the VIDEO, not the IDENTITY. Each generation
-  drifts slightly from the input. Without IP-Adapter re-anchoring, errors compound.
+ drifts slightly from the input. Without IP-Adapter re-anchoring, errors compound.
 
 BYPASS ATTEMPT 2: "LoRA handles identity"
 - Reasoning: "We have character LoRAs, they'll maintain identity"
 - Why it fails: LoRA biases the generation but doesn't LOCK it. The model can
-  still drift within the LoRA's influence range. IP-Adapter provides hard anchor.
+ still drift within the LoRA's influence range. IP-Adapter provides hard anchor.
 
 BYPASS ATTEMPT 3: "Bridge adds latency, skip for speed"
 - Reasoning: "SDXL adds 5-10 seconds per cut, skip it for faster iteration"
 - Why it fails: You're iterating on a BROKEN pipeline. Fast garbage is still garbage.
-  Identity drift will appear in any multi-shot test.
+ Identity drift will appear in any multi-shot test.
 
 BYPASS ATTEMPT 4: "Same model family is better"
 - Reasoning: "SDXL is different from Wan, style mismatch will occur"
 - Why it fails: The Bridge Frame is ONE frame. Wan immediately overwrites the style
-  in frame 2+. The identity lock survives, the style doesn't matter.
+ in frame 2+. The identity lock survives, the style doesn't matter.
 
 THE RULE: If you're tempted to bypass the Bridge Engine, you're solving the
 wrong problem. Fix whatever is making you want to bypass it instead.
@@ -303,36 +435,36 @@ wrong problem. Fix whatever is making you want to bypass it instead.
 Current Implementation (MVP - Single Frame):
 
 Step 1 - CAPTURE: Extract last frame from previous video segment
-  â””â”€ Tool: FFmpeg (extract_last_frame)
-  â””â”€ Output: PNG image with pose, expression, scene state
+  Tool: FFmpeg (extract_last_frame)
+  Output: PNG image with pose, expression, scene state
 
 Step 2 - EXTRACT POSE: Run OpenPose on captured frame
-  â””â”€ Tool: ComfyUI ControlNet Preprocessor
-  â””â”€ Output: Pose keypoints image
+  Tool: ComfyUI ControlNet Preprocessor
+  Output: Pose keypoints image
 
 Step 3 - EXTRACT DEPTH (optional): Run depth estimation
-  â””â”€ Tool: ComfyUI Depth Anything / MiDaS
-  â””â”€ Output: Depth map image
+  Tool: ComfyUI Depth Anything / MiDaS
+  Output: Depth map image
 
 Step 4 - GENERATE BRIDGE FRAME: SDXL with conditioning
-  â””â”€ Workflow: bridge_full.json
-  â””â”€ Inputs:
-     - ControlNet Pose: Preserves body position, expression
-     - ControlNet Depth: Preserves spatial relationships (optional)
-     - IP-Adapter: Re-injects canonical identity from Bible refs
-     - LoRA: Character-specific identity boost (if available)
-     - Prompt: Target shot description
-  â””â”€ Output: Identity-locked first frame for next shot
+  Workflow: bridge_full.json
+  Inputs:
+ - ControlNet Pose: Preserves body position, expression
+ - ControlNet Depth: Preserves spatial relationships (optional)
+ - IP-Adapter: Re-injects canonical identity from Bible refs
+ - LoRA: Character-specific identity boost (if available)
+ - Prompt: Target shot description
+  Output: Identity-locked first frame for next shot
 
 Step 5 - INJECT: Pass bridge frame to Wan I2V as init_image
-  â””â”€ Workflow: pass1_img2vid.json or pass1_img2vid_lora.json
-  â””â”€ Result: Video continues from identity-locked starting point
+  Workflow: pass1_img2vid.json or pass1_img2vid_lora.json
+  Result: Video continues from identity-locked starting point
 
 Workflow Files:
 - bridge_full.json: ControlNet Pose + Depth + IP-Adapter (RECOMMENDED)
 - bridge_pose_only.json: ControlNet Pose + IP-Adapter (fallback)
 - bridge_ipadapter.json: IP-Adapter only (minimal fallback)
-- bridge_basic.json: âŒ BROKEN - Do not use (no ControlNet, no IP-Adapter)
+- bridge_basic.json: [X] BROKEN - Do not use (no ControlNet, no IP-Adapter)
 
 --------------------------------------------------------------------------------
 3B.6 FUTURE ENHANCEMENT: MULTI-FRAME BRIDGE SEQUENCE
@@ -351,8 +483,8 @@ Solution: Generate 3-5 frame bridge SEQUENCE instead of single frame
 Proposed Implementation:
 1. Generate Bridge Frame (identity-locked target)
 2. Use RIFE to interpolate 3-5 frames between:
-   - Last frame of Shot A (source pose)
-   - Bridge Frame (target pose with locked identity)
+ - Last frame of Shot A (source pose)
+ - Bridge Frame (target pose with locked identity)
 3. Inject frame sequence as init_latent to Wan I2V
 4. Video starts with smooth motion transition
 
@@ -386,9 +518,9 @@ TIER 3 (Acceptable Quality):
 - Result: Identity locked, pose may shift slightly
 
 TIER 4 (Emergency Fallback):
-- Raw last frame â†’ Wan I2V
+- Raw last frame --> Wan I2V
 - Workflow: pass1_img2vid.json (no bridge)
-- Result: âš ï¸ DRIFT WILL OCCUR - Use only if bridge completely unavailable
+- Result: DRIFT WILL OCCUR - Use only if bridge completely unavailable
 - MUST log warning: "Bridge unavailable - identity drift expected"
 
 NEVER silently fall back to Tier 4. Always warn loudly.
@@ -442,21 +574,21 @@ Similar to character identity lock (Section 3A), locations can be progressively
 enhanced:
 
 Tier 1 -- Instant Start (IP-Adapter):
-  - Generate 3-5 reference views of location (panorama, key angles)
-  - System uses these as IP-Adapter conditioning
-  - Quality: ~70% location consistency (good for drafts)
-  - Limitation: Works best when camera angle matches reference
+ - Generate 3-5 reference views of location (panorama, key angles)
+ - System uses these as IP-Adapter conditioning
+ - Quality: ~70% location consistency (good for drafts)
+ - Limitation: Works best when camera angle matches reference
 
 Tier 2 -- Background Enhancement (Auto-LoRA):
-  - System generates 15-25 augmented views from initial references
-  - Auto-trains LoRA on location image set
-  - Training time: 30-45 min on A100
-  - Quality: ~90% location consistency from ANY angle
+ - System generates 15-25 augmented views from initial references
+ - Auto-trains LoRA on location image set
+ - Training time: 30-45 min on A100
+ - Quality: ~90% location consistency from ANY angle
 
 LoRA Stacking:
-  - Character LoRA (weight 0.7) + Location LoRA (weight 0.5) = combined consistency
-  - Both can be active simultaneously without conflict
-  - Total weight should stay under ~1.2 for quality
+ - Character LoRA (weight 0.7) + Location LoRA (weight 0.5) = combined consistency
+ - Both can be active simultaneously without conflict
+ - Total weight should stay under ~1.2 for quality
 
 3F. Two-Pass Rendering Pipeline (Structure -> Refinement)
 
@@ -601,13 +733,13 @@ Identity Layer (ArcFace):
 
 Physics Layer (CV-Based):
 * Object Permanence: YOLOv8 + ByteTrack tracking
-  - FLAG: Object missing >3 frames without exit
+ - FLAG: Object missing >3 frames without exit
 * Flicker Detection: RAFT optical flow analysis
-  - FLAG: High pixel change with low motion (>5% frame area)
+ - FLAG: High pixel change with low motion (>5% frame area)
 * Gravity Check: Vertical position heuristic
-  - FLAG: Unsupported object not falling
+ - FLAG: Unsupported object not falling
 * Collision Check: Bounding box overlap analysis
-  - FLAG: Solid objects overlapping >50%
+ - FLAG: Solid objects overlapping >50%
 
 Visual Consistency (CLIP):
 * Compare first vs last frame embedding: threshold < 0.85 = FLAG for review
@@ -677,116 +809,285 @@ Degraded output is better than no output (user can decide to retry)
 
 **Post-Render QA Checks:**
 
-| Check Type        | Method                   | Threshold/Trigger    | Speed       | Action on Fail    |
+| Check Type | Method | Threshold/Trigger | Speed | Action on Fail |
 |-------------------|--------------------------|----------------------|-------------|-------------------|
-| Identity Drift    | ArcFace embedding        | < 0.70 similarity    | ~10ms/frame | Auto re-roll      |
-| (vs Bible)        | cosine similarity        |                      |             | (max 3 attempts)  |
-| Shot Drift        | ArcFace first vs last    | < 0.70 similarity    | ~10ms/frame | Auto re-roll      |
-| Object Permanence | YOLOv8 + ByteTrack       | Missing >3 frames    | ~30ms/frame | Auto re-roll      |
-| Flicker           | RAFT optical flow        | >5% frame affected   | ~50ms/pair  | Auto re-roll      |
-| Gravity Violation | Y-position heuristic     | No downward motion   | ~1ms/frame  | Auto re-roll      |
-| Passthrough       | Bbox overlap >50%        | Solid objects only   | ~1ms/frame  | Auto re-roll      |
-| Scene Consistency | CLIP embedding           | < 0.85 similarity    | ~20ms/frame | Flag for review   |
-| Prop Presence     | VideoLLM prompt (V2)     | Pass/Fail            | ~5s/clip    | Flag for review   |
+| Identity Drift | ArcFace embedding | < 0.70 similarity | ~10ms/frame | Auto re-roll |
+| (vs Bible) | cosine similarity | | | (max 3 attempts) |
+| Shot Drift | ArcFace first vs last | < 0.70 similarity | ~10ms/frame | Auto re-roll |
+| Object Permanence | YOLOv8 + ByteTrack | Missing >3 frames | ~30ms/frame | Auto re-roll |
+| Flicker | RAFT optical flow | >5% frame affected | ~50ms/pair | Auto re-roll |
+| Gravity Violation | Y-position heuristic | No downward motion | ~1ms/frame | Auto re-roll |
+| Passthrough | Bbox overlap >50% | Solid objects only | ~1ms/frame | Auto re-roll |
+| Scene Consistency | CLIP embedding | < 0.85 similarity | ~20ms/frame | Flag for review |
+| Prop Presence | VideoLLM prompt (V2) | Pass/Fail | ~5s/clip | Flag for review |
 
 **Tech Stack (All Open-Source, Zero-Shot):**
 
-| Component         | Tool                        | Source                          |
+| Component | Tool | Source |
 |-------------------|-----------------------------|---------------------------------|
-| Object Detection  | YOLOv8                      | ultralytics/ultralytics (GitHub)|
-| Object Tracking   | ByteTrack                   | ifzhang/ByteTrack (GitHub)      |
-| Optical Flow      | RAFT                        | princeton-vl/RAFT (GitHub)      |
-| Pose Estimation   | MediaPipe                   | Google (pip install mediapipe)  |
-| Action Recognition| SlowFast (V2)               | facebookresearch/SlowFast       |
-| Video QA (V2)     | Vidi2                       | ByteDance (HuggingFace)         |
+| Object Detection | YOLOv8 | ultralytics/ultralytics (GitHub)|
+| Object Tracking | ByteTrack | ifzhang/ByteTrack (GitHub) |
+| Optical Flow | RAFT | princeton-vl/RAFT (GitHub) |
+| Pose Estimation | MediaPipe | Google (pip install mediapipe) |
+| Action Recognition| SlowFast (V2) | facebookresearch/SlowFast |
+| Video QA (V2) | Vidi2 | ByteDance (HuggingFace) |
 
 **Real-Time Drift Detection: DEFERRED to Phase 2**
 
-Rationale: 
+Rationale:
 * Current models (Wan 2.1, HunyuanVideo) stable for 12-15 seconds
 * Cinematic Pacer cuts at 12s (within stable window)
 * Post-render CV checks are fast enough (<30s per 10s clip)
 * Phase 2 upgrade: Vidi2 grounding for advanced physics/spatial checks
 
+3N. Model Upgrade Path (Future Identity Engines)
+
+As video models evolve rapidly, we maintain a pluggable architecture that can
+adopt new identity preservation techniques without rewriting orchestration code.
+
+--------------------------------------------------------------------------------
+3N.1 CURRENT STATE (Dec 2024 - Validated)
+--------------------------------------------------------------------------------
+
+Stack: Wan 2.1 + SDXL Bridge + IP-Adapter + ControlNet
+Result: ~97% identity consistency (ArcFace validated)
+Limitations:
+  - IP-Adapter not active during I2V (only in hero/bridge frames)
+  - No LoRA in current test pipeline
+  - No face enhancement post-processing
+
+--------------------------------------------------------------------------------
+3N.2 NEAR-TERM UPGRADES (Q1 2025)
+--------------------------------------------------------------------------------
+
+UPGRADE 1: IP-Adapter During I2V
+  - Tool: ComfyUI-IPAdapter-WAN extension
+  - Workflow: pass1_img2vid_ipadapter.json
+  - Expected improvement: 97% --> 99% identity consistency
+  - Effort: Low (workflow creation + node installation)
+
+UPGRADE 2: Stand-In for Wan
+  - Tool: Stand-In Preprocessor node (Tencent research)
+  - What: Native identity branch for Wan (~1% params)
+  - Expected improvement: Comparable or better than IP-Adapter
+  - Effort: Medium (testing, validation, workflow updates)
+  - Decision: Test head-to-head with IP-Adapter, adopt if superior
+
+UPGRADE 3: Face Enhancement Safety Net
+  - Tool: GFPGAN or CodeFormer
+  - What: Post-processing face correction
+  - Expected improvement: Recover ~3-5% of drifted frames
+  - Effort: Low (add pass after video generation)
+
+--------------------------------------------------------------------------------
+3N.3 MEDIUM-TERM UPGRADES (Q2-Q3 2025)
+--------------------------------------------------------------------------------
+
+UPGRADE 4: HunyuanCustom Integration
+  - Source: Tencent open-source (mid-2025)
+  - What: Multi-modal subject customization with dedicated identity enhancement
+  - Claim: "Outperforms other methods in face-ID consistency"
+  - Requirements: High VRAM (multi-GPU recommended)
+  - Integration: New HunyuanCustomRenderer class implementing BaseRenderer
+  - Decision: Evaluate when weights released, compare vs Wan + IP-Adapter
+
+UPGRADE 5: ConsisID (Tuning-Free DiT Method)
+  - Source: PKU research (CVPR 2025)
+  - What: Frequency-based identity control for DiT models
+  - Advantage: No fine-tuning required, works zero-shot
+  - Status: Code released 2025, ComfyUI integration planned
+  - Decision: Monitor for ComfyUI node availability
+
+--------------------------------------------------------------------------------
+3N.4 MODEL COMPARISON MATRIX
+--------------------------------------------------------------------------------
+
+| Model/Method      | Identity | VRAM  | Speed | ComfyUI | Status      |
+|-------------------|----------|-------|-------|---------|-------------|
+| Wan 2.1 + IP-Adapter | ~97%  | 24GB  | Fast  | Yes     | CURRENT     |
+| Wan 2.1 + Stand-In   | ~98%? | 24GB  | Fast  | Partial | TESTING     |
+| Wan 2.2 + IP-Adapter | ~97%  | 24GB  | Fast  | Yes     | AVAILABLE   |
+| HunyuanVideo 1.5     | ~90%  | 48GB+ | Slow  | Yes     | AVAILABLE   |
+| HunyuanCustom        | ~99%? | 48GB+ | Slow  | Yes     | EVALUATE    |
+| CogVideoX 1.5        | ~85%  | 40GB  | Med   | Partial | NOT RECOMMENDED |
+| Mochi-1 (Genmo)      | ~80%  | 40GB  | Fast  | Yes     | NOT RECOMMENDED |
+
+Recommendation: Stay on Wan 2.1/2.2 + IP-Adapter for MVP. Evaluate HunyuanCustom
+for "Pro Lane" when VRAM costs decrease or for premium tier users.
+
+--------------------------------------------------------------------------------
+3N.5 INTEGRATION PRINCIPLE
+--------------------------------------------------------------------------------
+
+All model upgrades plug into existing abstractions:
+
+  class BaseRenderer(ABC):
+      @abstractmethod
+      def render(self, spec: RenderSpec) -> RenderResult: ...
+
+New models implement this interface. Orchestration code unchanged.
+Director Agent doesn't care if it's Wan, Hunyuan, or future models.
+
+This is the "Vibe Coder" principle: swap engines, keep logic.
+
+3O. Face Enhancement Pipeline (Post-Processing Safety Net)
+
+Goal: Recover identity consistency in frames where Layers 1-3 (LoRA, IP-Adapter,
+ControlNet) failed to fully prevent drift. This is the "last line of defense."
+
+--------------------------------------------------------------------------------
+3O.1 WHEN TO USE FACE ENHANCEMENT
+--------------------------------------------------------------------------------
+
+Face enhancement is NOT applied to every frame. It is triggered only when:
+
+1. ArcFace audit detects drift (similarity < 0.85 but > 0.70)
+   - Below 0.70: Re-roll the shot (too damaged to fix)
+   - 0.70-0.85: Attempt face enhancement recovery
+   - Above 0.85: No enhancement needed
+
+2. User explicitly requests "enhanced identity" mode
+   - Higher quality, longer processing time
+   - Applies enhancement to all frames regardless of audit
+
+3. Pro Lane output (premium tier)
+   - Always apply enhancement for maximum quality
+   - Users paying premium expect best possible output
+
+--------------------------------------------------------------------------------
+3O.2 TECHNICAL IMPLEMENTATION
+--------------------------------------------------------------------------------
+
+Tool Options:
+  - GFPGAN: Fast, good for moderate drift (recommended for MVP)
+  - CodeFormer: Higher quality, slower, better for severe drift
+  - Both available as ComfyUI nodes
+
+Workflow: post_face_enhance.json (NEW - to be created)
+  Input: Video frames (extracted from chunk)
+  Process:
+    1. Detect faces in each frame (RetinaFace or similar)
+    2. Extract face regions
+    3. Run GFPGAN/CodeFormer with reference image guidance
+    4. Blend enhanced face back into original frame
+    5. Reassemble video
+  Output: Face-corrected video chunk
+
+Reference Guidance:
+  - Feed Bible reference image to enhancement model
+  - Guides restoration toward canonical identity
+  - Without reference: generic face enhancement (less useful for us)
+
+--------------------------------------------------------------------------------
+3O.3 PIPELINE PLACEMENT
+--------------------------------------------------------------------------------
+
+Face enhancement runs AFTER Pass 1 video generation, BEFORE Pass 2 refinement:
+
+  Pass 1 (Structure) --> Face Enhancement (if needed) --> Pass 2 (Refinement)
+
+Rationale:
+  - Pass 1 may introduce drift that needs correction
+  - Face enhancement on raw Pass 1 output is easier than post-refinement
+  - Pass 2 (vid2vid) can then smooth any artifacts from enhancement
+
+Alternative (if enhancement introduces artifacts):
+  Run after Pass 2: Pass 1 --> Pass 2 --> Face Enhancement --> RIFE
+
+Test both approaches, adopt whichever produces better results.
+
+--------------------------------------------------------------------------------
+3O.4 IMPLEMENTATION STATUS
+--------------------------------------------------------------------------------
+
+  [ ] Install GFPGAN ComfyUI node on RunPod
+  [ ] Install CodeFormer ComfyUI node on RunPod
+  [ ] Create post_face_enhance.json workflow
+  [ ] Add enhancement step to pass1_generator.py (conditional on audit)
+  [ ] Validate: enhanced frames must score >= 0.90 ArcFace similarity
+  [ ] Benchmark: processing time per frame (target < 500ms)
+
+Priority: Phase 2 (after IP-Adapter during I2V is implemented)
+
 ================================================================================
 4. SYSTEMS ARCHITECTURE DIAGRAM (PLAINTEXT)
 ================================================================================
 SCRIPT
-  |
-  v
-[TRUST_&_SAFETY_SENTINEL] 
-  1. Asset Scan: Classify uploaded images for NSFW/Gore. 
-  2. Script Scan: LLM checks for policy violations.
-     -> IF FAIL: Reject Job immediately.
-     -> IF PASS: Proceed to Director.
-  |
-  v
+ |
+ v
+[TRUST_&_SAFETY_SENTINEL]
+ 1. Asset Scan: Classify uploaded images for NSFW/Gore.
+ 2. Script Scan: LLM checks for policy violations.
+ -> IF FAIL: Reject Job immediately.
+ -> IF PASS: Proceed to Director.
+ |
+ v
 DIRECTOR_AGENT (LLM via Cloud API, orchestrated from Mac)
-  - Step 1: Build SCENE_GRAPH (JSON)
-      * scenes, shots, characters, locations, dialogue
-  - Step 2: Query VISUAL_RAG + CONSISTENCY_MEMORY
-      * character LoRAs, face refs, environment panoramas, prop assets, keyframes
-      * [NEW] AUDIO_MANIFEST: Ambience seeds, Leitmotif prompts
-  - Step 3: Generate LAYOUTS + SHOT_SPECS
-      * regions (who stands where), camera notes, chunking plan
-  - Step 4: Build DIALOGUE_MAP & SONIC_MAP
-      * Dialogue: (character, line, shot_id, time_range)
-      * Sonic: (ambience_tag, foley_event, score_mood, timestamp)
-  |
-  v
+ - Step 1: Build SCENE_GRAPH (JSON)
+ * scenes, shots, characters, locations, dialogue
+ - Step 2: Query VISUAL_RAG + CONSISTENCY_MEMORY
+ * character LoRAs, face refs, environment panoramas, prop assets, keyframes
+ * [NEW] AUDIO_MANIFEST: Ambience seeds, Leitmotif prompts
+ - Step 3: Generate LAYOUTS + SHOT_SPECS
+ * regions (who stands where), camera notes, chunking plan
+ - Step 4: Build DIALOGUE_MAP & SONIC_MAP
+ * Dialogue: (character, line, shot_id, time_range)
+ * Sonic: (ambience_tag, foley_event, score_mood, timestamp)
+ |
+ v
 JOB_DISPATCHER (Parallel Execution)
-  |
-  +---> [TRACK A: VISUAL PIPELINE] -------------------------+
-  |      CLOUD_GPU / COMFYUI_SERVER                         |
-  |                                                         |
-  |      +---------------------------------------------+    |
-  |      | PASS 1: STRUCTURAL LONG-FORM VIDEO         |    |
-  |      | - Base model (Wan / Hunyuan / Mochi)       |    |
-  |      | - LoRA (identity) + IP-Adapter (world)     |    |
-  |      | - ControlNet / Layout (physics)            |    |
-  |      | - Bridge Frame Injection (seamless cuts)   |    |
-  |      | - StreamingT2V Chunking                    |    |
-  |      +---------------------------------------------+    |
-  |            |                                            |
-  |            v                                            |
-  |      [REVIEWER_AGENT] (Visual & Physics Audit)          |
-  |        -> Checks Identity, Props, & Gravity             |
-  |        -> FAIL: Trigger Re-Roll of Chunk                |
-  |        -> PASS: Proceed to Pass 2                       |
-  |            |                                            |
-  |            v                                            |
-  |      +---------------------------------------------+    |
-  |      | PASS 2: REFINEMENT & LIPS                  |    |
-  |      | - Vid2Vid / FreeLong++ (flicker reduction) |    |
-  |      | - Lip Sync (Musetalk) using Audio Track    |    |
-  |      | - RIFE Interpolation (12 -> 24 FPS)        |    |
-  |      +---------------------------------------------+    |
-  |            |                                            |
-  |            v                                            |
-  |      RAW_VIDEO_SEGMENTS                                 |
-  |                                                         |
-  +---> [TRACK B: SONIC PIPELINE] --------------------------+
-         CLOUD_AUDIO_SERVER                                  
-                                                             
-         +---------------------------------------------+     
-         | THE SONIC ENGINE                            |     
-         | - Layer 1: Ambience (AudioLDM-2)            |     
-         | - Layer 2: Foley (Event-Triggered SFX)      |     
-         | - Layer 3: Score (MusicGen with Leitmotifs) |     
-         | - Layer 4: Dialogue (TTS Generation)        |     
-         +---------------------------------------------+     
-              |                                              
-              v                                              
-         RAW_AUDIO_TRACKS                                    
+ |
+ +---> [TRACK A: VISUAL PIPELINE] -------------------------+
+ | CLOUD_GPU / COMFYUI_SERVER |
+ | |
+ | +---------------------------------------------+ |
+ | | PASS 1: STRUCTURAL LONG-FORM VIDEO | |
+ | | - Base model (Wan / Hunyuan / Mochi) | |
+ | | - LoRA (identity) + IP-Adapter (world) | |
+ | | - ControlNet / Layout (physics) | |
+ | | - Bridge Frame Injection (seamless cuts) | |
+ | | - StreamingT2V Chunking | |
+ | +---------------------------------------------+ |
+ | | |
+ | v |
+ | [REVIEWER_AGENT] (Visual & Physics Audit) |
+ | -> Checks Identity, Props, & Gravity |
+ | -> FAIL: Trigger Re-Roll of Chunk |
+ | -> PASS: Proceed to Pass 2 |
+ | | |
+ | v |
+ | +---------------------------------------------+ |
+ | | PASS 2: REFINEMENT & LIPS | |
+ | | - Vid2Vid / FreeLong++ (flicker reduction) | |
+ | | - Lip Sync (Musetalk) using Audio Track | |
+ | | - RIFE Interpolation (12 -> 24 FPS) | |
+ | +---------------------------------------------+ |
+ | | |
+ | v |
+ | RAW_VIDEO_SEGMENTS |
+ | |
+ +---> [TRACK B: SONIC PIPELINE] --------------------------+
+ CLOUD_AUDIO_SERVER
 
-  |
-  v
-[THE POST-PRODUCTION ENGINE] 
-  - Auto-Color Normalization (Histogram Match to Master Shot)
-  - Smart Audio Ducking (Lower score volume when Dialogue plays)
-  - Final Assembly (Stitch Video + Audio)
-  |
-  v
+ +---------------------------------------------+
+ | THE SONIC ENGINE |
+ | - Layer 1: Ambience (AudioLDM-2) |
+ | - Layer 2: Foley (Event-Triggered SFX) |
+ | - Layer 3: Score (MusicGen with Leitmotifs) |
+ | - Layer 4: Dialogue (TTS Generation) |
+ +---------------------------------------------+
+ |
+ v
+ RAW_AUDIO_TRACKS
+
+ |
+ v
+[THE POST-PRODUCTION ENGINE]
+ - Auto-Color Normalization (Histogram Match to Master Shot)
+ - Smart Audio Ducking (Lower score volume when Dialogue plays)
+ - Final Assembly (Stitch Video + Audio)
+ |
+ v
 FINAL_CINEMATIC_VIDEO
 
 Optional: Premium API lane (Veo/Sora/etc.) can plug into "PASS 1: STRUCTURAL VIDEO" box as an alternative renderer, but always behind a uniform Renderer interface.
@@ -871,15 +1172,15 @@ The Logic Check (Visual + Physics):
 After each chunk is rendered, the Physics Reviewer runs automated checks:
 
 Visual Consistency (Identity):
-  - ArcFace similarity: first frame vs Bible reference (threshold 0.70)
-  - ArcFace similarity: first frame vs last frame (threshold 0.70)
-  - CLIP embedding: first vs last frame (threshold 0.85)
+ - ArcFace similarity: first frame vs Bible reference (threshold 0.70)
+ - ArcFace similarity: first frame vs last frame (threshold 0.70)
+ - CLIP embedding: first vs last frame (threshold 0.85)
 
 Physics Consistency (CV-Based):
-  - Object Permanence: YOLOv8 + ByteTrack (flag if object missing >3 frames)
-  - Flicker Detection: RAFT optical flow (flag if >5% frame area affected)
-  - Gravity Check: Y-position tracking (flag if unsupported object doesn't fall)
-  - Collision Check: Bounding box overlap (flag if solids overlap >50%)
+ - Object Permanence: YOLOv8 + ByteTrack (flag if object missing >3 frames)
+ - Flicker Detection: RAFT optical flow (flag if >5% frame area affected)
+ - Gravity Check: Y-position tracking (flag if unsupported object doesn't fall)
+ - Collision Check: Bounding box overlap (flag if solids overlap >50%)
 
 Tech Stack: YOLOv8, ByteTrack, RAFT, ArcFace, CLIP
 Budget: <30 seconds per 10-15 second clip (all tools run at 20-30 FPS)
@@ -943,22 +1244,22 @@ The "Repair Dividend": A typical creator might spend $50+ re-rolling prompts on 
 Tiered Pricing: We can offer a "Free/Basic" tier running on pure open source (high margin) and a "Studio Pro" tier that passes through the API costs of Veo/Sora (lower margin, higher volume).
 
 Model Selection Strategy (I2V-First Architecture)
-⚠️ CRITICAL ARCHITECTURAL DECISION: T2V vs I2V-Only Pipeline
+[!] CRITICAL ARCHITECTURAL DECISION: T2V vs I2V-Only Pipeline
 This section documents a fundamental architectural choice that directly impacts our
 core value proposition of consistency.
 
 7A.1 THE FUNDAMENTAL DIFFERENCE: T2V vs I2V
 Both T2V and I2V use the SAME base model (e.g., Wan 2.1). The difference is input:
 T2V (Text-to-Video):
-Input:   Text prompt only
-Process: Noise → Denoise with text conditioning → Video
-Output:  Model's interpretation of the prompt
-Example: "Alice in kitchen" → Model imagines what Alice looks like
+Input: Text prompt only
+Process: Noise --> Denoise with text conditioning --> Video
+Output: Model's interpretation of the prompt
+Example: "Alice in kitchen" --> Model imagines what Alice looks like
 Result: RANDOM Alice (may not match our references)
 I2V (Image-to-Video):
-Input:   Text prompt + init_image
-Process: Image+Noise → Denoise with text+image conditioning → Video
-Output:  Animation starting from the provided image
+Input: Text prompt + init_image
+Process: Image+Noise --> Denoise with text+image conditioning --> Video
+Output: Animation starting from the provided image
 Example: init_image=Alice_from_IP_Adapter, prompt="walks to window"
 Result: OUR Alice animated (identity locked from frame 1)
 Key Insight: I2V accepts text prompts for MOTION guidance while using init_image
@@ -968,14 +1269,14 @@ for VISUAL identity. We get both control AND consistency.
 THE PROBLEM WITH T2V FIRST:
 Current Flow (T2V for Shot 1):
 Shot 1: T2V("Alice in kitchen, morning light...")
-↓
+|
 Model imagines: Blonde hair, round face, blue dress
-↓
+|
 Output: Video of MODEL'S Alice (not OUR Alice)
 Shot 2: Bridge Frame (IP-Adapter with OUR references)
-↓
+|
 Re-anchored: Brown hair, angular face, red dress
-↓
+|
 I2V from bridge frame
 RESULT: Shot 1 has DIFFERENT Alice than Shot 2+
 Viewer sees jarring identity change at first cut!
@@ -984,17 +1285,17 @@ away by using T2V for Shot 1. This is architecturally inconsistent.
 THE CORRECT FLOW (I2V Only):
 Correct Flow (I2V for ALL Shots):
 Shot 1: SDXL generates "Hero Frame"
-- IP-Adapter (face reference) → OUR Alice
-- Location IP-Adapter or LoRA → OUR kitchen
+- IP-Adapter (face reference) --> OUR Alice
+- Location IP-Adapter or LoRA --> OUR kitchen
 - ControlNet Pose (if specific pose needed)
-↓
+|
 I2V animates from hero frame
-↓
+|
 Output: Video of OUR Alice from frame 1
 Shot 2: Bridge Frame (same process as hero frame)
-↓
+|
 I2V animates from bridge frame
-↓
+|
 Output: Video of OUR Alice (same as Shot 1)
 RESULT: SAME Alice in ALL shots. Perfect consistency.
 
@@ -1005,18 +1306,17 @@ UNIFIED I2V-ONLY PIPELINE:
 SHOT 1 (Hero Frame):
 Source: Director Agent generates composition description
 Process: SDXL + IP-Adapter + Location conditioning
-Output: Hero Frame → I2V → Shot 1 Video
+Output: Hero Frame --> I2V --> Shot 1 Video
 SHOT 2+ (Bridge Frame):
 Source: Last frame of previous shot
 Process: SDXL + IP-Adapter + ControlNet Pose
-Output: Bridge Frame → I2V → Shot N Video
+Output: Bridge Frame --> I2V --> Shot N Video
 SAME WORKFLOW, DIFFERENT INPUT SOURCE
 This is actually SIMPLER than T2V+I2V because:
 
-One workflow pattern for all shots (Hero/Bridge → I2V)
+One workflow pattern for all shots (Hero/Bridge --> I2V)
 Same code path, just different input source
 No special-casing for "first shot"
-
 
 7A.4 WHEN T2V IS STILL USEFUL
 T2V should NOT be in the main consistency pipeline, but it has valid uses:
@@ -1043,23 +1343,23 @@ Result: Curate best outputs for training
 After: LoRA trained, used with I2V pipeline
 
 INVALID T2V USE (What We Must Stop Doing):
-✗ Using T2V for Shot 1 of a consistency-focused film
-✗ Mixing T2V and I2V in the same production pipeline
-✗ Relying on T2V when identity matters
+[OK]-- Using T2V for Shot 1 of a consistency-focused film
+[OK]-- Mixing T2V and I2V in the same production pipeline
+[OK]-- Relying on T2V when identity matters
 
 7A.5 DEVELOPMENT VS MVP: THE TRANSITION PLAN
 CURRENT STATE (Development):
 T2V is used for fast testing because:
 
-No SDXL step needed → faster iteration
+No SDXL step needed --> faster iteration
 Tests pipeline mechanics without identity concerns
 Good for catching bugs quickly
 
 MVP REQUIREMENT:
 The main pipeline MUST switch to I2V-only:
 
-Shot 1 uses Hero Frame (SDXL + IP-Adapter) → I2V
-Shot 2+ uses Bridge Frame (SDXL + IP-Adapter + ControlNet) → I2V
+Shot 1 uses Hero Frame (SDXL + IP-Adapter) --> I2V
+Shot 2+ uses Bridge Frame (SDXL + IP-Adapter + ControlNet) --> I2V
 T2V relegated to "exploration mode" only
 
 IMPLEMENTATION CHECKLIST FOR MVP:
@@ -1069,33 +1369,47 @@ IMPLEMENTATION CHECKLIST FOR MVP:
 [ ] Add config flag: generation.mode = "production" (I2V-only) vs "exploration" (T2V)
 [ ] Update CLI/UI to require character refs OR offer exploration mode
 MIGRATION PATH:
-Development:  T2V for testing → "Works but identity random"
-↓
-Pre-MVP:      Add Hero Frame generation → "Identity locked from Shot 1"
-↓
-MVP:          I2V-only pipeline → "Consistency guaranteed"
-↓
-Post-MVP:     T2V as explicit "exploration" feature
+Development: T2V for testing --> "Works but identity random"
+|
+Pre-MVP: Add Hero Frame generation --> "Identity locked from Shot 1"
+|
+MVP: I2V-only pipeline --> "Consistency guaranteed"
+|
+Post-MVP: T2V as explicit "exploration" feature
 
 7A.6 SUMMARY: T2V vs I2V DECISION TABLE
-ScenarioUse T2V?Use I2V?WhyProduction Shot 1NOYESIdentity must be lockedProduction Shot 2+NOYESBridge Frame continuityExploration "what if"YESNONo identity constraintQuick dev testingYESNOSpeed over identityFinal validationNOYESMust test real pipelineLoRA training dataYESNONeed variationsCustomer demoNOYESIdentity is the value prop
+
+| Scenario | Use T2V? | Use I2V? | Why |
+|----------|----------|----------|-----|
+| Production Shot 1 | NO | YES | Identity must be locked |
+| Production Shot 2+ | NO | YES | Bridge Frame continuity |
+| Exploration "what if" | YES | NO | No identity constraint |
+| Quick dev testing | YES | NO | Speed over identity |
+| Final validation | NO | YES | Must test real pipeline |
+| LoRA training data | YES | NO | Need variations |
+| Customer demo | NO | YES | Identity is the value prop |
 
 7A.7 ORIGINAL I2V-FIRST DETAILS (Preserved)
 Our core value proposition is consistency from reference images, not random generation.
 I2V-First vs T2V Approach:
-ApproachShot 1Shot 2+Best ForI2V-First (Preferred)Keyframe â†’ I2VBridge â†’ I2VProfessional filmmaking, max consistencyT2V + I2V (Optional)T2VBridge â†’ I2VExploration mode, "surprise me" users
+
+| Approach | Shot 1 | Shot 2+ | Best For |
+|----------|--------|---------|----------|
+| I2V-First (Preferred) | Keyframe --> I2V | Bridge --> I2V | Professional filmmaking, max consistency |
+| T2V + I2V (Optional) | T2V | Bridge --> I2V | Exploration mode, "surprise me" users |
+
 Why I2V-First is Preferred:
 
-Consistent quality: No jarring T2Vâ†’I2V quality shift (e.g., 1.3B T2V vs 14B I2V)
+Consistent quality: No jarring T2V --> I2V quality shift (e.g., 1.3B T2V vs 14B I2V)
 Better composition control: User/system defines shot 1's framing via keyframe
 Stronger identity from frame 1: Keyframe includes character via IP-Adapter
 Bridge Engine pattern extended: Shot 1 keyframe uses same workflow as bridge frames
 
 Keyframe Generation for Shot 1:
 
-User provides keyframe â†’ Use directly as init_image for I2V
-No keyframe provided â†’ Generate via SDXL + IP-Adapter (same as Bridge Engine workflow)
-Exploration mode â†’ T2V generates multiple options, user picks one, becomes keyframe
+User provides keyframe --> Use directly as init_image for I2V
+No keyframe provided --> Generate via SDXL + IP-Adapter (same as Bridge Engine workflow)
+Exploration mode --> T2V generates multiple options, user picks one, becomes keyframe
 
 Model-Agnostic Design Principle:
 The system MUST allow hot-swapping models/APIs without code changes. The BaseRenderer abstraction enables:
@@ -1107,10 +1421,22 @@ SoraRenderer (Premium Pro Lane)
 
 Critical Insight: Even when users choose "shiny" premium APIs (Veo/Runway/Sora), our Bridge Engine provides the consistency they expect. Premium APIs have WORSE native consistency than our OSS pipeline because they lack LoRA/IP-Adapter support. Bridge Engine fills this gap by re-anchoring identity between API calls.
 Testing vs Production Model Configuration:
-ModeModel ChoicePurposeDev/TestingFast models (Wan 1.3B)Rapid iteration, catch bugs fastValidationProduction models (14B)Verify quality before shippingProductionUser-selected tierFinal output
+
+| Mode | Model Choice | Purpose |
+|------|--------------|---------|
+| Dev/Testing | Fast models (Wan 1.3B) | Rapid iteration, catch bugs fast |
+| Validation | Production models (14B) | Verify quality before shipping |
+| Production | User-selected tier | Final output |
+
 Warning: Testing on different models than production can hide model-specific bugs. The audit system (ArcFace identity check, physics checks) should catch model-agnostic issues, but periodic big-model validation runs during development are essential before shipping new features.
 Future Quality Tiers (Post-MVP):
-TierFirst ShotSubsequent ShotsUse CaseDraftSDXL keyframe â†’ I2V fastI2V fastQuick previewStandardSDXL keyframe â†’ I2V 14BI2V 14BNormal productionProSDXL keyframe â†’ Veo/etcVeo/Runway + BridgePremium output
+
+| Tier | First Shot | Subsequent Shots | Use Case |
+|------|------------|------------------|----------|
+| Draft | SDXL keyframe --> I2V fast | I2V fast | Quick preview |
+| Standard | SDXL keyframe --> I2V 14B | I2V 14B | Normal production |
+| Pro | SDXL keyframe --> Veo/etc | Veo/Runway + Bridge | Premium output |
+
 Note: T2V path preserved for exploration/legacy use cases but not promoted as default workflow.
 
 ================================================================================
@@ -1229,9 +1555,6 @@ $0.02/GB
 $1.00
 Total Production
 
-
-
-
 ~$6.90
 
 Strategic Note: This is our "gross margin king." We can offer this tier for free/cheap to standard users because the cost to generate a full film is negligible.
@@ -1258,9 +1581,6 @@ $0.02/GB
 ~50GB raw assets
 $1.00
 Total Production
-
-
-
 
 ~$122 - $242
 
@@ -1308,8 +1628,6 @@ TOTAL REVISED BUDGET
 ~$1,100-1,200
 ~$2,400
 
-
-
 Note: Original estimate was optimistic. Revised budget accounts for:
 Real-world iteration cycles (expect 3-5x re-renders during testing)
 Audio pipeline costs (essential for VC demo)
@@ -1337,7 +1655,6 @@ TERTIARY
 Ad Agencies (FMCG)
 Need consistent product presence in variants
 Our Visual RAG keeps product identity perfect.
-
 
 9B. The "Trojan Horse" Campaign
 

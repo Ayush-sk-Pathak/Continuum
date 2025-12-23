@@ -462,7 +462,9 @@ class ComfyClient:
         if not self._connected:
             raise ComfyConnectionError("Not connected to ComfyUI")
         
-        prompt_id = await self._post_prompt(workflow)
+        # Strip metadata keys (starting with _) before sending to ComfyUI
+        clean_workflow = {k: v for k, v in workflow.items() if not k.startswith("_")}
+        prompt_id = await self._post_prompt(clean_workflow)
         
         job = ComfyJob(
             prompt_id=prompt_id,

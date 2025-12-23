@@ -504,9 +504,12 @@ class WorkflowLoader:
             errors.append("Workflow is empty")
             return ValidationResult(valid=False, errors=errors, warnings=warnings)
         
-        # Check each node
-        node_ids = set(workflow.keys())
+        
+        # Check each node (skip metadata keys starting with _)
+        node_ids = set(k for k in workflow.keys() if not k.startswith("_"))
         for node_id, node_config in workflow.items():
+            if node_id.startswith("_"):
+                continue  # Skip metadata/documentation keys
             node_errors, node_warnings = self._validate_node(
                 node_id, node_config, node_ids
             )

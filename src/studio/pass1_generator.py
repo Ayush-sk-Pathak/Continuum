@@ -65,7 +65,8 @@ logger = logging.getLogger(__name__)
 class GenerationStage(str, Enum):
     """Stages of the Pass 1 generation pipeline."""
     PREPARING = "preparing"          # Building job spec
-    BRIDGE = "bridge"                # Generating bridge frame
+    HERO_FRAME = "hero_frame"        # Generating hero frame (Shot 1 only)
+    BRIDGE = "bridge"                # Generating bridge frame (Shot 2+)
     RENDERING = "rendering"          # Running video generation
     AUDITING = "auditing"            # Quality check
     REROLLING = "rerolling"          # Retrying with new seed
@@ -80,6 +81,24 @@ class ChunkResult(str, Enum):
     REROLL = "reroll"                # Failed audit, can retry
     FAILURE = "failure"              # Max attempts, no usable output
     ERROR = "error"                  # System error (not audit failure)
+
+
+class Shot1Strategy(str, Enum):
+    """
+    Strategy for generating Shot 1's init frame.
+    
+    Per ARCHITECTURE.md Section 7A.3-7A.5:
+    - Shot 1 needs an init_frame for I2V (just like Shot 2+ needs bridge frames)
+    - The source of that init_frame is configurable
+    - Production uses HERO_FRAME for identity lock from frame 1
+    - Exploration uses T2V for rapid iteration (identity random)
+    
+    The insight: Shot 1's "Hero Frame" and Shot 2+'s "Bridge Frame" serve
+    the same purpose (provide init_frame for I2V), just with different sources.
+    """
+    USER_KEYFRAME = "user_keyframe"   # User provides init_frame (storyboard workflow)
+    HERO_FRAME = "hero_frame"         # System generates via SDXL + IP-Adapter (production)
+    EXPLORATION = "exploration"       # T2V for Shot 1, user picks winner (creative exploration)
 
 
 # =============================================================================
@@ -235,6 +254,8 @@ class GenerationConfig:
         skip_if_exists: Skip chunks that already have outputs
         base_seed: Starting seed (-1 for random)
         quality: Render quality preset
+        shot1_strategy: How to generate Shot 1's init frame (per ARCHITECTURE.md 7A.5)
+        user_keyframe_path: User-provided keyframe for USER_KEYFRAME strategy
     """
     max_reroll_attempts: int = 3
     enable_audit: bool = True
@@ -244,6 +265,25 @@ class GenerationConfig:
     base_seed: int = -1
     quality: str = "standard"
     output_dir: Optional[Path] = None
+    
+    # Shot 1 strategy (per ARCHITECTURE.md Section 7A.5)
+    # - HERO_FRAME: Production mode, identity locked from Shot 1
+    # - EXPLORATION: Development/testing mode, T2V allowed
+    # - USER_KEYFRAME: Storyboard workflow, user provides init frame
+    shot1_strategy: Shot1Strategy = Shot1Strategy.HERO_FRAME
+    user_keyframe_path: Optional[Path] = None  # Required if strategy == USER_KEYFRAME
+    
+    def __post_init__(self):
+        """Validate configuration."""
+        if self.shot1_strategy == Shot1Strategy.USER_KEYFRAME:
+            if not self.user_keyframe_path:
+                raise ValueError(
+                    "user_keyframe_path required when shot1_strategy=USER_KEYFRAME"
+                )
+            if not Path(self.user_keyframe_path).exists():
+                raise ValueError(
+                    f"User keyframe not found: {self.user_keyframe_path}"
+                )
     
     def get_seed_for_attempt(self, chunk_id: str, attempt: int) -> int:
         """Generate deterministic seed for retry attempts."""
@@ -416,13 +456,20 @@ class Pass1Generator:
             )
             
             try:
-                # Step 1: Extract continuity frame if needed
-                # (bridge_engine reserved for future camera transitions)
-                bridge_frame_path = None
+                # Step 1: Get init frame for I2V
+                # Per ARCHITECTURE.md Section 7A.3:
+                # - Shot 2+: Bridge frame (from previous chunk's last frame)
+                # - Shot 1: Depends on shot1_strategy (hero/user_keyframe/exploration)
+                # The init_frame is what makes I2V work - without it, we fall back to T2V
+                init_frame_path = None
                 if self.config.enable_bridge:
-                    bridge_frame_path = await self._generate_bridge_frame(
+                    init_frame_path = await self._get_init_frame(
                         chunk, shot, previous_chunk_output, progress_callback
                     )
+                
+                # Note: init_frame_path may be called "bridge_frame_path" in downstream code
+                # for historical reasons, but it's the same concept (init frame for I2V)
+                bridge_frame_path = init_frame_path
                 
                 # Step 2: Build job specification
                 job_spec = await self._build_job_spec(
@@ -757,6 +804,217 @@ class Pass1Generator:
         
         return job
     
+    async def _get_init_frame(
+        self,
+        chunk: Any,
+        shot: Any,
+        previous_output: Optional[ChunkOutput],
+        progress_callback: Optional[Callable],
+    ) -> Optional[Path]:
+        """
+        Get init frame for I2V generation.
+        
+        This is the UNIFIED entry point for init frame acquisition.
+        Per ARCHITECTURE.md Section 7A.3:
+        
+            "Shot 1's 'Hero Frame' and Shot 2+'s 'Bridge Frame' use the
+            SAME WORKFLOW PATTERN. One workflow for all shots."
+        
+        Decision Logic:
+            - Has previous_output? --> Bridge Frame (Shot 2+ path)
+            - No previous_output? --> Check shot1_strategy:
+                - HERO_FRAME: Generate via SDXL + IP-Adapter
+                - USER_KEYFRAME: Use user-provided image
+                - EXPLORATION: Return None (T2V fallback)
+        
+        Args:
+            chunk: Current chunk being generated
+            shot: Parent shot for context
+            previous_output: Output from previous chunk (None for Shot 1)
+            progress_callback: Optional progress reporting
+            
+        Returns:
+            Path to init frame for I2V, or None for T2V fallback
+        """
+        # Shot 2+: Use bridge frame
+        if previous_output and previous_output.video_path:
+            return await self._generate_bridge_frame(
+                chunk, shot, previous_output, progress_callback
+            )
+        
+        # Shot 1: Check strategy
+        chunk_id = self._get_chunk_id(chunk)
+        strategy = self.config.shot1_strategy
+        
+        logger.info(
+            f"Shot 1 detected for chunk {chunk_id}, "
+            f"using strategy: {strategy.value}"
+        )
+        
+        if strategy == Shot1Strategy.USER_KEYFRAME:
+            # User provided the keyframe
+            keyframe_path = Path(self.config.user_keyframe_path)
+            if not keyframe_path.exists():
+                logger.error(f"User keyframe not found: {keyframe_path}")
+                return None
+            logger.info(f"Using user keyframe: {keyframe_path}")
+            return keyframe_path
+            
+        elif strategy == Shot1Strategy.HERO_FRAME:
+            # Generate hero frame via SDXL + IP-Adapter
+            return await self._generate_hero_frame(
+                chunk, shot, progress_callback
+            )
+            
+        elif strategy == Shot1Strategy.EXPLORATION:
+            # Exploration mode: No init frame, use T2V
+            logger.info(
+                "Exploration mode: Using T2V for Shot 1 "
+                "(identity will be random, pick best candidate)"
+            )
+            return None
+        
+        # Fallback (shouldn't reach here)
+        logger.warning(f"Unknown shot1_strategy: {strategy}, falling back to T2V")
+        return None
+    
+    async def _generate_hero_frame(
+        self,
+        chunk: Any,
+        shot: Any,
+        progress_callback: Optional[Callable],
+    ) -> Optional[Path]:
+        """
+        Generate a Hero Frame for Shot 1 identity lock.
+        
+        Per ARCHITECTURE.md Section 7A.3 and 7A.5:
+        
+            "Shot 1 uses Hero Frame (SDXL + IP-Adapter) --> I2V"
+            
+        The Hero Frame is a txt2img generation (from noise) that:
+        - Uses IP-Adapter to inject character identity from Consistency Dictionary
+        - Creates a visually consistent first frame
+        - Feeds into I2V as init_frame
+        
+        This is different from Bridge Frame which is img2img (transforms existing frame).
+        
+        Workflow: hero_frame.json
+        Key inputs:
+            - FACE_REF_IMAGE: Character's canonical face from Consistency Dictionary
+            - PROMPT: Shot description
+            - IPADAPTER_STRENGTH: Identity lock strength (typically 0.7-0.8)
+        
+        Args:
+            chunk: Current chunk being generated  
+            shot: Parent shot for context (prompt, characters)
+            progress_callback: Optional progress reporting
+            
+        Returns:
+            Path to generated hero frame, or None on failure
+        """
+        chunk_id = self._get_chunk_id(chunk)
+        
+        self._report_progress(
+            GenerationStage.HERO_FRAME,
+            0.1,
+            "Generating identity-locked hero frame for Shot 1...",
+            chunk_id,
+            1,
+            progress_callback,
+        )
+        
+        try:
+            # Step 1: Get character refs from Consistency Dictionary
+            character_refs = self._get_character_refs(shot)
+            
+            if not character_refs:
+                logger.warning(
+                    "No character refs available for hero frame generation. "
+                    "Identity lock will be weak (prompt-only)."
+                )
+            
+            # Step 2: Get face reference image for IP-Adapter
+            face_ref_path = None
+            if character_refs and character_refs[0].face_refs:
+                face_ref_path = character_refs[0].face_refs[0]  # Use first reference
+                logger.info(f"Using face ref for hero frame: {face_ref_path}")
+            else:
+                logger.warning(
+                    "No face reference image available. "
+                    "Hero frame will use prompt-only generation."
+                )
+            
+            # Step 3: Build prompt
+            prompt = self._get_chunk_prompt(chunk, shot)
+            
+            # Step 4: Setup output directory
+            hero_dir = self.config.output_dir / "hero" if self.config.output_dir else Path("workspace/output/hero")
+            hero_dir.mkdir(parents=True, exist_ok=True)
+            output_path = hero_dir / f"{chunk_id}_hero.png"
+            
+            # Step 5: Check if we have the engine/client to generate
+            # Hero frame uses same infrastructure as bridge (ComfyUI)
+            if not self.bridge_engine:
+                logger.warning(
+                    "Bridge engine not configured - cannot generate hero frame. "
+                    "Falling back to T2V (identity will be random)."
+                )
+                return None
+            
+            self._report_progress(
+                GenerationStage.HERO_FRAME,
+                0.3,
+                "Running hero frame workflow (SDXL + IP-Adapter)...",
+                chunk_id,
+                1,
+                progress_callback,
+            )
+            
+            # Step 6: Generate via bridge_engine's ComfyUI client
+            # We reuse the bridge_engine infrastructure but with hero_frame.json workflow
+            from ..studio.bridge_engine import HeroFrameSpec
+            
+            seed = self.config.get_seed_for_attempt(chunk_id, 1)
+            
+            spec = HeroFrameSpec(
+                prompt=prompt,
+                characters=character_refs,
+                face_ref_path=face_ref_path,
+                seed=seed,
+                width=1280,  # TODO: Get from config
+                height=720,
+            )
+            
+            hero_result = await self.bridge_engine.generate_hero_frame(spec)
+            
+            self._report_progress(
+                GenerationStage.HERO_FRAME,
+                0.9,
+                "Hero frame generated successfully",
+                chunk_id,
+                1,
+                progress_callback,
+            )
+            
+            logger.info(
+                f"Hero frame generated: {hero_result.frame_path} "
+                f"(time={hero_result.generation_time_sec:.1f}s)"
+            )
+            
+            return hero_result.frame_path
+            
+        except ImportError as e:
+            # HeroFrameSpec not yet implemented in bridge_engine
+            logger.warning(
+                f"Hero frame generation not yet available: {e}. "
+                "Falling back to T2V."
+            )
+            return None
+            
+        except Exception as e:
+            logger.error(f"Hero frame generation failed: {e}")
+            return None
+
     async def _generate_bridge_frame(
         self,
         chunk: Any,

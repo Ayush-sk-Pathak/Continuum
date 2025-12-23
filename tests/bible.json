@@ -1,10 +1,18 @@
 {
+  "dict_id": "e2e_test",
+  "title": "E2E Test Bible",
   "characters": {
     "alice": {
       "entity_id": "alice",
       "name": "Alice",
-      "description": "Beautiful woman with blond hair",
-      "face_refs": ["assets/refs/alice_ref.png"]
+      "description": "Young woman with honey blonde wavy hair, hazel eyes, wearing cream sweater",
+      "face_refs": [
+        "workspace/assets/alice/alice_01.png",
+        "workspace/assets/alice/alice_02.png",
+        "workspace/assets/alice/alice_03.png"
+      ],
+      "lora_path": null,
+      "lora_strength": 0.8
     }
   },
   "locations": {},
