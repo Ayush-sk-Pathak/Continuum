@@ -626,24 +626,25 @@ class ColorMatcher:
         brightness = adjustments.get("brightness", 0.0)
         contrast = adjustments.get("contrast", 1.0)
         
-        if abs(brightness) > 0.01 or abs(contrast - 1.0) > 0.01:
-            filters.append(f"eq=brightness={brightness:.4f}:contrast={contrast:.4f}")
+        # Always apply brightness/contrast correction per architecture
+        # (forces color palette alignment to master shot)
+        filters.append(f"eq=brightness={brightness:.4f}:contrast={contrast:.4f}")
         
         # RGB balance (colorbalance filter)
         r_shift = adjustments.get("red_shift", 0.0)
         g_shift = adjustments.get("green_shift", 0.0)
         b_shift = adjustments.get("blue_shift", 0.0)
         
-        if abs(r_shift) > 0.01 or abs(g_shift) > 0.01 or abs(b_shift) > 0.01:
-            # colorbalance uses shadows/midtones/highlights
-            # We apply to midtones for general correction
-            filters.append(
-                f"colorbalance=rm={r_shift:.4f}:gm={g_shift:.4f}:bm={b_shift:.4f}"
-            )
+        # Always apply RGB correction per architecture
+        # (forces color palette alignment to master shot)
+        filters.append(
+            f"colorbalance=rm={r_shift:.4f}:gm={g_shift:.4f}:bm={b_shift:.4f}"
+        )
         
-        # If no filters needed, just copy
+        # Per architecture: always force color matching to master shot
+        # This eliminates "checkerboard effect" of AI video
         if not filters:
-            logger.info("No color correction needed, copying file")
+            logger.warning("No filters calculated - this should not happen")
             args = [
                 "-i", str(input_path),
                 "-c", "copy",

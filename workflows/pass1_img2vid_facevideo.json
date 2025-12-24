@@ -1,0 +1,200 @@
+{
+  "_metadata": {
+    "description": "Wan I2V with face_video for per-frame identity anchoring (EXPERIMENTAL)",
+    "version": "0.1.0",
+    "author": "Continuum Engine",
+    "hypothesis": "face_video input provides per-frame face guidance, not just single reference",
+    "test_date": "2024-12-24"
+  },
+  "clip_loader": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "{{CLIP_MODEL}}",
+      "type": "wan",
+      "device": "default"
+    }
+  },
+  "vae_loader": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "{{VAE_MODEL}}"
+    }
+  },
+  "unet_loader": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "{{UNET_MODEL}}",
+      "weight_dtype": "default"
+    }
+  },
+  "clip_vision_loader": {
+    "class_type": "CLIPVisionLoader",
+    "inputs": {
+      "clip_name": "{{CLIP_VISION_MODEL}}"
+    }
+  },
+  "model_sampling": {
+    "class_type": "ModelSamplingSD3",
+    "inputs": {
+      "shift": 8,
+      "model": [
+        "unet_loader",
+        0
+      ]
+    }
+  },
+  "load_init_image": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "{{INIT_IMAGE}}"
+    }
+  },
+  "load_face_ref": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "{{FACE_REF_1}}"
+    }
+  },
+  "repeat_face_ref": {
+    "class_type": "RepeatImageBatch",
+    "inputs": {
+      "image": [
+        "load_face_ref",
+        0
+      ],
+      "amount": "{{FRAMES}}"
+    }
+  },
+  "clip_vision_encode": {
+    "class_type": "CLIPVisionEncode",
+    "inputs": {
+      "crop": "none",
+      "clip_vision": [
+        "clip_vision_loader",
+        0
+      ],
+      "image": [
+        "load_init_image",
+        0
+      ]
+    }
+  },
+  "positive_prompt": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "{{POSITIVE_PROMPT}}",
+      "clip": [
+        "clip_loader",
+        0
+      ]
+    }
+  },
+  "negative_prompt": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "{{NEGATIVE_PROMPT}}",
+      "clip": [
+        "clip_loader",
+        0
+      ]
+    }
+  },
+  "wan_animate": {
+    "class_type": "WanAnimateToVideo",
+    "inputs": {
+      "width": "{{WIDTH}}",
+      "height": "{{HEIGHT}}",
+      "length": "{{FRAMES}}",
+      "batch_size": 1,
+      "continue_motion_max_frames": 5,
+      "video_frame_offset": 0,
+      "positive": [
+        "positive_prompt",
+        0
+      ],
+      "negative": [
+        "negative_prompt",
+        0
+      ],
+      "vae": [
+        "vae_loader",
+        0
+      ],
+      "clip_vision_output": [
+        "clip_vision_encode",
+        0
+      ],
+      "reference_image": [
+        "load_init_image",
+        0
+      ],
+      "face_video": [
+        "repeat_face_ref",
+        0
+      ]
+    }
+  },
+  "sampler": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": "{{SEED}}",
+      "control_after_generate": "fixed",
+      "steps": "{{STEPS}}",
+      "cfg": "{{CFG_SCALE}}",
+      "sampler_name": "uni_pc",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "model_sampling",
+        0
+      ],
+      "positive": [
+        "wan_animate",
+        0
+      ],
+      "negative": [
+        "wan_animate",
+        1
+      ],
+      "latent_image": [
+        "wan_animate",
+        2
+      ]
+    }
+  },
+  "vae_decode": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "sampler",
+        0
+      ],
+      "vae": [
+        "vae_loader",
+        0
+      ]
+    }
+  },
+  "create_video": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "fps": "{{FPS}}",
+      "images": [
+        "vae_decode",
+        0
+      ]
+    }
+  },
+  "save_video": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "continuum/i2v_facevideo",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "create_video",
+        0
+      ]
+    }
+  }
+}

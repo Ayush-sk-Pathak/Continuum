@@ -2431,4 +2431,102 @@ When `KSamplerBatch` (temporal) and `TemporalSmooth` nodes don't exist, replacin
 **Key Insight:** Pass 2 is optional polish. Without proper temporal processing, it's actively harmful - makes output worse, not better.
 
 ---
+### 73. WanAnimateToVideo is NOT an I2V Node
+
+| | |
+|---|---|
+| **Date** | 2025-12-24 |
+| **Error** | Identity score dropped from 97% to 22% when using WanAnimateToVideo instead of WanImageToVideo |
+| **Wrong Assumption** | `clip_vision_output` + `reference_image` would give I2V behavior with identity anchoring |
+| **Correct Interface** | `WanAnimateToVideo` is T2V with identity reference, NOT I2V continuation |
+| **Source of Truth** | ComfyUI object_info API on RunPod |
+
+**Critical Distinction:**
+
+| Node | `start_image` | `clip_vision_output` | `reference_image` | Behavior |
+|------|--------------|---------------------|------------------|----------|
+| `WanImageToVideo` | ✅ | ✅ | ❌ | Frame 1 IS the start_image (I2V) |
+| `WanAnimateToVideo` | ❌ | ✅ | ✅ | Generates FROM SCRATCH using references (T2V) |
+
+**What We Thought:**
+clip_vision_output (bridge frame) → structural guidance
+
+reference_image (face ref) → identity anchor
+= I2V with identity consistency
+
+
+**What Actually Happens:**
+clip_vision_output → WEAK semantic hint only
+
+reference_image → identity TARGET
+= T2V that tries to match reference but IGNORES bridge frame structure
+
+
+**Test Results:**
+- WanImageToVideo with bridge frame: **97.67%** identity
+- WanAnimateToVideo with reference_image: **22.78%** identity (CATASTROPHIC)
+
+**Prevention:** 
+1. Test new node behaviors with single-shot before pipeline integration
+2. Verify node purpose (T2V vs I2V) by checking if `start_image` exists
+3. "Experimental" nodes with empty descriptions should be approached with extreme caution
+
+---
+
+### 74. face_video Input Provides Per-Frame Identity Anchoring
+
+| | |
+|---|---|
+| **Date** | 2025-12-24 |
+| **Discovery** | `WanAnimateToVideo`'s `face_video` input accepts repeated face reference as video frames |
+| **Result** | **98.32% identity** - matches or beats WanImageToVideo |
+| **Why It Works** | Per-frame face guidance, not just single reference |
+
+**Available Inputs on WanAnimateToVideo:**
+```python
+optional: {
+    'clip_vision_output',   # Semantic guidance
+    'reference_image',      # Scene appearance
+    'face_video',          # ← PER-FRAME FACE GUIDANCE
+    'pose_video',          # Motion/pose guidance
+    'background_video',    # Background consistency
+    'continue_motion',     # Multi-chunk continuity
+}
+```
+
+**Working Configuration:**
+Bridge Frame → clip_vision_output (structure)
+Bridge Frame → reference_image (scene appearance)
+Face Ref × N frames → RepeatImageBatch → face_video (per-frame identity)
+
+**Workflow Snippet:**
+```json
+{
+  "repeat_face_ref": {
+    "class_type": "RepeatImageBatch",
+    "inputs": {
+      "image": ["load_face_ref", 0],
+      "amount": "{{FRAMES}}"
+    }
+  },
+  "wan_animate": {
+    "class_type": "WanAnimateToVideo",
+    "inputs": {
+      "clip_vision_output": ["clip_vision_encode", 0],
+      "reference_image": ["load_init_image", 0],
+      "face_video": ["repeat_face_ref", 0]
+    }
+  }
+}
+```
+
+**Key Insight:** 
+- `reference_image` = single image for overall appearance
+- `face_video` = VIDEO input for per-frame face guidance
+- Repeating face ref N times creates a "constant face video" that anchors identity every frame
+
+**This is the IP-Adapter equivalent for Wan video models.**
+
+---
+
 *Add new entries above this line as they're discovered.*

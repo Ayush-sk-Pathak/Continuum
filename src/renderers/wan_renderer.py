@@ -4,12 +4,12 @@ Continuum Engine - Wan 2.x Renderer
 Concrete renderer implementation using Wan 2.1 (or compatible models like
 HunyuanVideo, Mochi) via ComfyUI on cloud GPUs.
 
-This is the "Standard Lane" renderer Ã¢â‚¬â€ OSS, cost-effective, full control.
+This is the "Standard Lane" renderer ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â OSS, cost-effective, full control.
 
 Design Principles:
 1. Translate JobSpec to ComfyUI workflow parameters
-2. Handle the full lifecycle: connect Ã¢â€ â€™ upload Ã¢â€ â€™ generate Ã¢â€ â€™ download
-3. Support graceful degradation (LoRA Ã¢â€ â€™ IP-Adapter Ã¢â€ â€™ prompt-only)
+2. Handle the full lifecycle: connect ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ upload ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ generate ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ download
+3. Support graceful degradation (LoRA ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ IP-Adapter ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ prompt-only)
 4. Track costs and timing for budget management
 """
 
@@ -116,7 +116,9 @@ class WanRenderer(BaseRenderer):
     WORKFLOW_WITH_IPADAPTER = "pass1_structural_ipadapter"
     WORKFLOW_IMG2VID = "pass1_img2vid"
     WORKFLOW_IMG2VID_LORA = "pass1_img2vid_lora"
-    WORKFLOW_IMG2VID_IPADAPTER = "pass1_img2vid_ipadapter"  # Future
+    # WORKFLOW_IMG2VID_IPADAPTER = "pass1_img2vid_ipadapter"  # Uses WanAnimateToVideo for identity anchoring
+    WORKFLOW_IMG2VID_IPADAPTER = "pass1_img2vid_ipadapter"  # DEPRECATED: Failed with WanAnimateToVideo (22% identity)
+    WORKFLOW_IMG2VID_FACEVIDEO = "pass1_img2vid_facevideo"  # Uses face_video input for per-frame identity anchoring (98%+)
     
     # Supported features
     SUPPORTED_FEATURES = {
@@ -185,6 +187,34 @@ class WanRenderer(BaseRenderer):
         self._initialized = False
         logger.info("WanRenderer shut down")
     
+    async def _ensure_connected(self) -> None:
+        """
+        Ensure client is connected, reconnecting if necessary.
+        
+        Needed because bridge_engine jobs can run long enough
+        to cause wan_renderer's WebSocket to timeout.
+        """
+        if self._client is None:
+            await self.initialize()
+            return
+        
+        # Quick health check - if it fails, reconnect
+        try:
+            if not await self._client.health_check():
+                raise ConnectionError("Health check failed")
+        except Exception as e:
+            logger.info(f"ComfyUI connection stale ({e}), reconnecting...")
+            try:
+                await self._client.connect()
+            except Exception as reconnect_error:
+                logger.warning(f"Reconnection failed ({reconnect_error}), creating new client...")
+                try:
+                    await self._client.disconnect()
+                except Exception:
+                    pass
+                self._client = ComfyClient(host=self.comfy_host)
+                await self._client.connect()
+
     async def __aenter__(self) -> "WanRenderer":
         """Async context manager entry."""
         await self.initialize()
@@ -238,6 +268,9 @@ class WanRenderer(BaseRenderer):
             
             # Stage 3: Submit job
             self._report_progress("submitting", 0.2, "Submitting to ComfyUI...", callback=progress_callback)
+            
+            # Ensure connection is alive (may have dropped during long bridge jobs)
+            await self._ensure_connected()
             
             comfy_job = await self._client.submit_workflow(workflow)
             logger.info(f"Submitted job {comfy_job.prompt_id}")
@@ -442,7 +475,8 @@ class WanRenderer(BaseRenderer):
             if has_lora:
                 return self.WORKFLOW_IMG2VID_LORA
             elif has_ipadapter:
-                return self.WORKFLOW_IMG2VID_IPADAPTER
+                # return self.WORKFLOW_IMG2VID_IPADAPTER
+                return self.WORKFLOW_IMG2VID_FACEVIDEO
             return self.WORKFLOW_IMG2VID
         
         # Text-to-Video workflows (no init frame)
@@ -505,22 +539,26 @@ class WanRenderer(BaseRenderer):
                 strict=False,  # Allow missing optional placeholders
                 validate=True
             )
-        except FileNotFoundError:
+        except (FileNotFoundError, ValueError) as e:
             # Graceful degradation: Fall back within the same lane (I2V or T2V)
             # CRITICAL: Never cross from I2V to T2V - that discards the bridge frame
             # See ARCHITECTURE_SUMMARY.md Section 7.7 "Fail Gracefully"
+            #
+            # FileNotFoundError: Template file doesn't exist
+            # ValueError: Validation failed (e.g., missing required placeholders like FACE_REF_1)
             if job.has_init_frame:
                 # I2V job: Must stay in I2V lane to preserve init_frame (bridge)
                 fallback = self.WORKFLOW_IMG2VID
                 logger.warning(
-                    f"Template '{template_name}' not found, falling back to '{fallback}' "
-                    f"(preserving I2V mode for bridge frame)"
+                    f"Template '{template_name}' failed ({type(e).__name__}: {e}), "
+                    f"falling back to '{fallback}' (preserving I2V mode for bridge frame)"
                 )
             else:
                 # T2V job: Fall back to base T2V
                 fallback = self.DEFAULT_WORKFLOW
                 logger.warning(
-                    f"Template '{template_name}' not found, falling back to '{fallback}'"
+                    f"Template '{template_name}' failed ({type(e).__name__}: {e}), "
+                    f"falling back to '{fallback}'"
                 )
             
             workflow = self._loader.load_and_inject(
