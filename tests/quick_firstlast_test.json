@@ -1,0 +1,52 @@
+{
+  "project_id": "firstlast_test",
+  "title": "Quick FirstLast Test",
+  "description": "Testing WanFirstLastFrameToVideo for expression freedom",
+  "scenes": [
+    {
+      "scene_id": "scene_01",
+      "index": 0,
+      "title": "Test Scene",
+      "description": "Quick identity test",
+      "location": {
+        "entity_id": "studio",
+        "entity_type": "location",
+        "display_name": "Studio"
+      },
+      "time_of_day": "day",
+      "characters": [
+        {
+          "entity_id": "alice",
+          "entity_type": "character",
+          "display_name": "Alice"
+        }
+      ],
+      "shots": [
+        {
+          "shot_id": "shot_01",
+          "scene_id": "scene_01",
+          "index": 0,
+          "duration_sec": 1.0,
+          "description": "A woman smiles warmly at the camera",
+          "prompt": "A young woman with blonde hair smiles warmly, soft lighting, portrait shot",
+          "shot_type": "close",
+          "characters": [
+            {
+              "entity_id": "alice",
+              "entity_type": "character",
+              "display_name": "Alice"
+            }
+          ],
+          "location": {
+            "entity_id": "studio",
+            "entity_type": "location",
+            "display_name": "Studio"
+          },
+          "props": [],
+          "chunks": [],
+          "dialogue": []
+        }
+      ]
+    }
+  ]
+}

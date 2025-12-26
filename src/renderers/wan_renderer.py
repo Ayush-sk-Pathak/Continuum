@@ -119,6 +119,8 @@ class WanRenderer(BaseRenderer):
     # WORKFLOW_IMG2VID_IPADAPTER = "pass1_img2vid_ipadapter"  # Uses WanAnimateToVideo for identity anchoring
     WORKFLOW_IMG2VID_IPADAPTER = "pass1_img2vid_ipadapter"  # DEPRECATED: Failed with WanAnimateToVideo (22% identity)
     WORKFLOW_IMG2VID_FACEVIDEO = "pass1_img2vid_facevideo"  # Uses face_video input for per-frame identity anchoring (98%+)
+    WORKFLOW_IMG2VID_PHANTOM = "pass1_img2vid_phantom"  # WanPhantomSubjectToVideo for identity preservation
+    WORKFLOW_IMG2VID_FIRSTLAST = "pass1_img2vid_firstlast"  # Keyframe-only conditioning for expression freedom
     
     # Supported features
     SUPPORTED_FEATURES = {
@@ -476,8 +478,10 @@ class WanRenderer(BaseRenderer):
                 return self.WORKFLOW_IMG2VID_LORA
             elif has_ipadapter:
                 # return self.WORKFLOW_IMG2VID_IPADAPTER
-                return self.WORKFLOW_IMG2VID_FACEVIDEO
-            return self.WORKFLOW_IMG2VID
+                # return self.WORKFLOW_IMG2VID_FACEVIDEO
+                # return self.WORKFLOW_IMG2VID_FIRSTLAST
+                # Lesson #78: face_video/firstlast/phantom all have issues.
+                return self.WORKFLOW_IMG2VID
         
         # Text-to-Video workflows (no init frame)
         if has_lora:

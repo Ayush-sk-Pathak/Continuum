@@ -1,0 +1,156 @@
+{
+  "last_node_id": 20,
+  "last_link_id": 25,
+  "nodes": [
+    {
+      "id": "load_unet",
+      "type": "UNETLoader",
+      "pos": [0, 0],
+      "size": [300, 80],
+      "inputs": [],
+      "outputs": [{"name": "MODEL", "type": "MODEL", "links": ["link_unet_to_flow"]}],
+      "properties": {},
+      "widgets_values": ["{{UNET_NAME}}", "default"]
+    },
+    {
+      "id": "load_clip",
+      "type": "CLIPLoader",
+      "pos": [0, 120],
+      "size": [300, 80],
+      "inputs": [],
+      "outputs": [{"name": "CLIP", "type": "CLIP", "links": ["link_clip_to_pos", "link_clip_to_neg"]}],
+      "properties": {},
+      "widgets_values": ["{{CLIP_NAME}}", "wan"]
+    },
+    {
+      "id": "load_vae",
+      "type": "VAELoader",
+      "pos": [0, 240],
+      "size": [300, 80],
+      "inputs": [],
+      "outputs": [{"name": "VAE", "type": "VAE", "links": ["link_vae_to_phantom", "link_vae_to_decode"]}],
+      "properties": {},
+      "widgets_values": ["{{VAE_NAME}}"]
+    },
+    {
+      "id": "positive_prompt",
+      "type": "CLIPTextEncode",
+      "pos": [350, 0],
+      "size": [300, 100],
+      "inputs": [{"name": "clip", "type": "CLIP", "link": "link_clip_to_pos"}],
+      "outputs": [{"name": "CONDITIONING", "type": "CONDITIONING", "links": ["link_pos_to_phantom"]}],
+      "properties": {},
+      "widgets_values": ["{{PROMPT}}"]
+    },
+    {
+      "id": "negative_prompt",
+      "type": "CLIPTextEncode",
+      "pos": [350, 140],
+      "size": [300, 100],
+      "inputs": [{"name": "clip", "type": "CLIP", "link": "link_clip_to_neg"}],
+      "outputs": [{"name": "CONDITIONING", "type": "CONDITIONING", "links": ["link_neg_to_phantom"]}],
+      "properties": {},
+      "widgets_values": ["{{NEGATIVE_PROMPT}}"]
+    },
+    {
+      "id": "load_face_ref",
+      "type": "LoadImage",
+      "pos": [350, 280],
+      "size": [300, 100],
+      "inputs": [],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": ["link_face_to_phantom"]},
+        {"name": "MASK", "type": "MASK", "links": []}
+      ],
+      "properties": {},
+      "widgets_values": ["{{FACE_REF_1}}"]
+    },
+    {
+      "id": "phantom_subject",
+      "type": "WanPhantomSubjectToVideo",
+      "pos": [700, 100],
+      "size": [350, 200],
+      "inputs": [
+        {"name": "positive", "type": "CONDITIONING", "link": "link_pos_to_phantom"},
+        {"name": "negative", "type": "CONDITIONING", "link": "link_neg_to_phantom"},
+        {"name": "vae", "type": "VAE", "link": "link_vae_to_phantom"},
+        {"name": "images", "type": "IMAGE", "link": "link_face_to_phantom"}
+      ],
+      "outputs": [
+        {"name": "positive", "type": "CONDITIONING", "links": ["link_phantom_pos_to_sampler"]},
+        {"name": "negative_text", "type": "CONDITIONING", "links": ["link_phantom_neg_to_sampler"]},
+        {"name": "negative_img_text", "type": "CONDITIONING", "links": []},
+        {"name": "latent", "type": "LATENT", "links": ["link_phantom_latent_to_sampler"]}
+      ],
+      "properties": {},
+      "widgets_values": ["{{WIDTH}}", "{{HEIGHT}}", "{{LENGTH}}", 1]
+    },
+    {
+      "id": "model_sampling",
+      "type": "ModelSamplingSD3",
+      "pos": [350, 420],
+      "size": [300, 80],
+      "inputs": [{"name": "model", "type": "MODEL", "link": "link_unet_to_flow"}],
+      "outputs": [{"name": "MODEL", "type": "MODEL", "links": ["link_flow_to_sampler"]}],
+      "properties": {},
+      "widgets_values": [8]
+    },
+    {
+      "id": "sampler",
+      "type": "KSampler",
+      "pos": [1100, 100],
+      "size": [300, 300],
+      "inputs": [
+        {"name": "model", "type": "MODEL", "link": "link_flow_to_sampler"},
+        {"name": "positive", "type": "CONDITIONING", "link": "link_phantom_pos_to_sampler"},
+        {"name": "negative", "type": "CONDITIONING", "link": "link_phantom_neg_to_sampler"},
+        {"name": "latent_image", "type": "LATENT", "link": "link_phantom_latent_to_sampler"}
+      ],
+      "outputs": [{"name": "LATENT", "type": "LATENT", "links": ["link_sampler_to_decode"]}],
+      "properties": {},
+      "widgets_values": ["{{SEED}}", "{{STEPS}}", "{{CFG_SCALE}}", "uni_pc", "simple", 1.0, "fixed"]
+    },
+    {
+      "id": "vae_decode",
+      "type": "VAEDecode",
+      "pos": [1450, 100],
+      "size": [200, 80],
+      "inputs": [
+        {"name": "samples", "type": "LATENT", "link": "link_sampler_to_decode"},
+        {"name": "vae", "type": "VAE", "link": "link_vae_to_decode"}
+      ],
+      "outputs": [{"name": "IMAGE", "type": "IMAGE", "links": ["link_decode_to_save"]}],
+      "properties": {}
+    },
+    {
+      "id": "save_video",
+      "type": "VHS_VideoCombine",
+      "pos": [1700, 100],
+      "size": [300, 200],
+      "inputs": [{"name": "images", "type": "IMAGE", "link": "link_decode_to_save"}],
+      "outputs": [{"name": "Filenames", "type": "VHS_FILENAMES", "links": []}],
+      "properties": {},
+      "widgets_values": ["{{FPS}}", 0, false, "i2v_phantom", "video/h264-mp4", false, true, "", null, null]
+    }
+  ],
+  "links": [
+    ["link_unet_to_flow", "load_unet", 0, "model_sampling", 0, "MODEL"],
+    ["link_clip_to_pos", "load_clip", 0, "positive_prompt", 0, "CLIP"],
+    ["link_clip_to_neg", "load_clip", 0, "negative_prompt", 0, "CLIP"],
+    ["link_vae_to_phantom", "load_vae", 0, "phantom_subject", 2, "VAE"],
+    ["link_vae_to_decode", "load_vae", 0, "vae_decode", 1, "VAE"],
+    ["link_pos_to_phantom", "positive_prompt", 0, "phantom_subject", 0, "CONDITIONING"],
+    ["link_neg_to_phantom", "negative_prompt", 0, "phantom_subject", 1, "CONDITIONING"],
+    ["link_face_to_phantom", "load_face_ref", 0, "phantom_subject", 3, "IMAGE"],
+    ["link_phantom_pos_to_sampler", "phantom_subject", 0, "sampler", 1, "CONDITIONING"],
+    ["link_phantom_neg_to_sampler", "phantom_subject", 1, "sampler", 2, "CONDITIONING"],
+    ["link_phantom_latent_to_sampler", "phantom_subject", 3, "sampler", 3, "LATENT"],
+    ["link_flow_to_sampler", "model_sampling", 0, "sampler", 0, "MODEL"],
+    ["link_sampler_to_decode", "sampler", 0, "vae_decode", 0, "LATENT"],
+    ["link_decode_to_save", "vae_decode", 0, "save_video", 0, "IMAGE"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

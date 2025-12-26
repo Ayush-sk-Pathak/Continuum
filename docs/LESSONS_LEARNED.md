@@ -2528,5 +2528,133 @@ Face Ref × N frames → RepeatImageBatch → face_video (per-frame identity)
 **This is the IP-Adapter equivalent for Wan video models.**
 
 ---
+### 77. Identity vs Expression: The Core Disentanglement Problem (Research Summary)
+
+| | |
+|---|---|
+| **Date** | 2025-12-24 |
+| **Source** | Deep research on identity preservation in AI video generation |
+| **Core Problem** | Pixel-level face conditioning locks BOTH identity AND expression |
+| **Solution Direction** | Use embedding-level identity (ArcFace) + separate expression control |
+
+**Why Our face_video Approach Failed for Expressions:**
+
+We used `RepeatImageBatch` to create N copies of the same face image and fed it to `face_video`. This is **pixel-level conditioning on every frame** - the worst case for expression freezing.
+Pixel-level (what we did):     "Make every frame look EXACTLY like these pixels"
+Embedding-level (correct):     "Make every frame be THIS PERSON (identity embedding only)"
+
+**Research-Backed Solutions:**
+
+| Approach | How It Works | Implementation |
+|----------|--------------|----------------|
+| **Embedding-level identity** | Use ArcFace/InsightFace to extract identity-only embedding, not full face pixels | IP-Adapter FaceID uses InsightFace internally |
+| **Strength parameter** | Reduce conditioning strength to 0.5-0.7 (not 1.0) | Check if face_video has weight param |
+| **Keyframe-only conditioning** | Condition first/last frames strongly, let middle interpolate | Don't use RepeatImageBatch for ALL frames |
+| **Multi-reference images** | Provide 3-5 images of same person with DIFFERENT expressions | Model learns identity separate from expression |
+| **Dual-branch architecture** | Separate identity branch from expression/structure branch | Magic Mirror, ConsisID models |
+
+**Key Research Findings:**
+
+1. **Face recognition embeddings (ArcFace) are expression-invariant by design** - they encode "who" not "how they look right now"
+
+2. **IP-Adapter FaceID sweet spot is 0.5-0.7 weight** - 1.0 freezes face, 0.5-0.6 allows expression
+
+3. **Per-frame conditioning = "talking statue"** - every frame converges to reference
+
+4. **ConsisID (CVPR 2025)** uses frequency decomposition: high-frequency = identity (invariant), low-frequency = pose/expression (variable)
+
+5. **Magic Mirror** uses dual-branch: one for identity features, one for structural/expression features
+
+**Models/Tools That Solve This:**
+
+| Model | Approach | Availability |
+|-------|----------|--------------|
+| ConsisID | Frequency decomposition on CogVideoX | Open source (GitHub) |
+| Magic Mirror | Dual-branch identity vs structure | Research paper (2025) |
+| IP-Adapter FaceID v2 | InsightFace embedding + strength control | ComfyUI nodes exist |
+| InstantID | Identity embedding + facial keypoints | ComfyUI nodes exist |
+| PuLID | Tuning-free ID with weak/strong modes | ComfyUI nodes exist |
+
+**Action Items for Continuum:**
+
+1. **Immediate**: Check if WanAnimateToVideo face_video has strength/weight parameter
+2. **Short-term**: Test IP-Adapter FaceID or InstantID nodes with Wan
+3. **Medium-term**: Investigate ConsisID integration (purpose-built for this problem)
+4. **Alternative**: Use post-process expression transfer (SadTalker/Wav2Lip) on identity-locked video
+
+**The Fundamental Insight:**
+
+> "Separating 'who' from 'how they look right now' is the guiding principle."
+
+Our face_video approach conflated both. We need to inject identity at the **feature/embedding level**, not as a hard pixel template.
+
+---
+### 78. Identity Preservation Experiments: Comprehensive Results
+
+| | |
+|---|---|
+| **Date** | 2025-12-24 |
+| **Error** | Multiple approaches tested for identity + expression preservation |
+| **Impact** | Wasted cycles on approaches that don't work with current models |
+
+**The Problem:** Preserve character identity (same person) while allowing natural expressions (smiles, blinks, talking).
+
+**Approaches Tested:**
+
+| Approach | How It Works | Identity | Expression | Quality | Verdict |
+|----------|--------------|----------|------------|---------|---------|
+| **Standard WanImageToVideo + hero frame** | Hero frame (SDXL+IP-Adapter) → I2V animation | 97% ✅ | Natural ✅ | Good ✅ | **CURRENT BEST** |
+| **face_video per-frame** (Lesson #76) | RepeatImageBatch feeds face ref to every frame | 98% ✅ | Frozen ❌ | Good | Reject |
+| **WanFirstLastFrameToVideo** | CLIP vision encodes face at start/end frames only | ~95% | Changes ✅ | Artifacts ❌ | Reject |
+| **WanPhantomSubjectToVideo** (1.3B T2V) | T2V with subject identity baked into conditioning | ~70% ❌ | Changes ✅ | Poor ❌ | Reject |
+
+**Why Each Failed:**
+
+1. **face_video**: Designed for "make every frame look EXACTLY like these pixels" - conflates identity with expression at pixel level. Great for static portraits, terrible for animation.
+
+2. **WanFirstLastFrameToVideo**: Designed for interpolating between TWO DIFFERENT frames (A→B). When fed same image for both start/end, creates confusion → dark halo artifacts, washed out quality.
+
+3. **WanPhantomSubjectToVideo**: Conceptually correct (embedding-level identity), but:
+   - Only 1.3B T2V model available (too small for quality)
+   - 14B T2V model not downloaded
+   - Would need to bypass hero frame generation (architecture change)
+
+**Current Recommendation:**
+```python
+# wan_renderer.py workflow selection
+elif has_ipadapter:
+    # Standard I2V + hero frame gives 97% identity + natural expressions
+    return self.WORKFLOW_IMG2VID
+```
+
+**⚠️ IMPORTANT CAVEAT:**
+
+The 97% identity score is validated on **1-second clips only**. Longer clips may experience:
+- Identity drift over time
+- Accumulating deviation from reference
+- Need for periodic "anchor frames"
+
+**Future Work Required (Post-MVP):**
+
+| Priority | Approach | Notes |
+|----------|----------|-------|
+| High | **Character LoRA training** | Fine-tune model on specific character for persistent identity |
+| High | **Hunyuan + IP-Adapter** | Hunyuan may have better IP-Adapter integration than Wan |
+| Medium | **Download 14B T2V model** | Re-test Phantom with quality model |
+| Medium | **ConsisID/Magic Mirror** | Purpose-built identity-expression disentanglement |
+| Medium | **Other video models + IP-Adapter** | CogVideoX, Mochi, etc. may have native support |
+
+**Not Ruled Out:**
+- IP-Adapter approach is sound in principle (embedding-level identity)
+- Current failure is Wan-specific (nodes designed for SD, not video diffusion)
+- Different model families may have native IP-Adapter-style identity injection
+
+**Key Insight:**
+
+> Hero frame generation is doing the heavy lifting. SDXL + IP-Adapter creates a strong identity anchor at frame 0. WanImageToVideo then animates from that anchor. The identity preservation comes from the init frame, NOT from video-level conditioning.
+
+> For longer clips, the solution is likely LoRA-based (train the model to "know" the character) rather than conditioning-based (tell the model who to generate each frame).
+
+---
 
 *Add new entries above this line as they're discovered.*
