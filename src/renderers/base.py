@@ -28,6 +28,7 @@ class RendererType(str, Enum):
     """Identifies the renderer backend."""
     WAN = "wan"              # Wan 2.x via ComfyUI (OSS)
     HUNYUAN = "hunyuan"      # HunyuanVideo via ComfyUI (OSS)
+    HUNYUAN_CUSTOM = "hunyuan_custom"  # HunyuanCustom - identity-preserving (OSS)
     MOCHI = "mochi"          # Mochi via ComfyUI (OSS)
     RUNWAY = "runway"        # Runway Gen-4 API (Pro Lane)
     VEO = "veo"              # Google Veo API (Pro Lane)
@@ -565,3 +566,73 @@ def get_renderer(renderer_type: RendererType, **kwargs) -> BaseRenderer:
 def list_renderers() -> List[RendererType]:
     """List all registered renderer types."""
     return list(_renderer_registry.keys())
+
+
+def get_renderer_for_config(config: Optional[Any] = None, **kwargs) -> BaseRenderer:
+    """
+    Get the appropriate renderer based on config's video_model.model_family.
+    
+    This is the PRIMARY way to get a renderer in production code.
+    It reads the model_family from config and returns the matching renderer.
+    
+    Args:
+        config: Config object (if None, loads from get_config())
+        **kwargs: Passed to renderer constructor
+        
+    Returns:
+        Instantiated renderer matching the configured model family
+        
+    Raises:
+        ValueError: If model_family has no registered renderer
+        
+    Usage:
+        # In main.py or orchestration code:
+        renderer = get_renderer_for_config()
+        
+        # With explicit config:
+        renderer = get_renderer_for_config(my_config)
+        
+    Architecture Note:
+        This factory is the single source of truth for mapping
+        config.video_model.model_family -> RendererType -> Renderer instance.
+        Adding a new model family requires:
+        1. Add enum value to RendererType
+        2. Create renderer class with @register_renderer decorator
+        3. Add mapping in _MODEL_FAMILY_TO_RENDERER below
+    """
+    # Import here to avoid circular import (config imports from various places)
+    if config is None:
+        from ..core.config import get_config
+        config = get_config()
+    
+    # Get model family from config
+    model_family = config.video_model.model_family
+    
+    # Map model family string to RendererType
+    # This is the single source of truth for family -> renderer mapping
+    family_to_renderer: Dict[str, RendererType] = {
+        "wan": RendererType.WAN,
+        "hunyuan_custom": RendererType.HUNYUAN_CUSTOM,
+        "hunyuan": RendererType.HUNYUAN,
+        "mochi": RendererType.MOCHI,
+    }
+    
+    if model_family not in family_to_renderer:
+        available = list(family_to_renderer.keys())
+        raise ValueError(
+            f"No renderer registered for model_family='{model_family}'. "
+            f"Available families: {available}. "
+            f"Check CONTINUUM_VIDEO_MODEL__MODEL_FAMILY environment variable."
+        )
+    
+    renderer_type = family_to_renderer[model_family]
+    
+    # Check if renderer is actually registered
+    if renderer_type not in _renderer_registry:
+        raise ValueError(
+            f"RendererType.{renderer_type.name} is mapped but not registered. "
+            f"Ensure the renderer class uses @register_renderer({renderer_type.name}) decorator "
+            f"and is imported before calling get_renderer_for_config()."
+        )
+    
+    return get_renderer(renderer_type, **kwargs)

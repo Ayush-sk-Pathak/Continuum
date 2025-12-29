@@ -1,0 +1,273 @@
+{
+  "_metadata": {
+    "name": "HunyuanCustom Image-to-Video (Pass 1)",
+    "description": "Identity-preserving I2V using HunyuanCustom with LLaVA fusion. Validated on RunPod 4x RTX 4090.",
+    "version": "1.0.0",
+    "model_family": "hunyuan_custom",
+    "identity_method": "native_image_token",
+    "validated": "2025-12-29 Phase 4 testing",
+    "source_workflow": "hyvideo_custom_testing_01_validated.json",
+    "requires": ["ComfyUI-HunyuanVideoWrapper", "ComfyUI-KJNodes", "ComfyUI-VideoHelperSuite"],
+    "vram_required_gb": 80,
+    "gpu_config": "4x RTX 4090 or 1x H100"
+  },
+
+  "72": {
+    "class_type": "HyVideoTorchCompileSettings",
+    "inputs": {
+      "backend": "inductor",
+      "fullgraph": false,
+      "mode": "default",
+      "dynamic": false,
+      "dynamo_cache_size_limit": 64,
+      "compile_single_blocks": true,
+      "compile_double_blocks": true,
+      "compile_txt_in": false,
+      "compile_vector_in": false,
+      "compile_final_layer": false
+    }
+  },
+
+  "60": {
+    "class_type": "HyVideoBlockSwap",
+    "inputs": {
+      "double_blocks_to_swap": 20,
+      "single_blocks_to_swap": 0,
+      "offload_txt_in": false,
+      "offload_img_in": false
+    }
+  },
+
+  "7": {
+    "class_type": "HyVideoVAELoader",
+    "inputs": {
+      "model_name": "{{VAE_MODEL}}",
+      "precision": "bf16"
+    }
+  },
+
+  "1": {
+    "class_type": "HyVideoModelLoader",
+    "inputs": {
+      "compile_args": ["72", 0],
+      "block_swap_args": ["60", 0],
+      "model": "{{UNET_MODEL}}",
+      "base_precision": "bf16",
+      "quantization": "fp8_scaled",
+      "load_device": "offload_device",
+      "attention_mode": "{{ATTENTION_MODE}}",
+      "auto_cpu_offload": false,
+      "upcast_rope": true
+    }
+  },
+
+  "42": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "{{FACE_REF_IMAGE}}"
+    }
+  },
+
+  "43": {
+    "class_type": "ImageResizeKJv2",
+    "inputs": {
+      "image": ["42", 0],
+      "width": "{{WIDTH}}",
+      "height": "{{HEIGHT}}",
+      "upscale_method": "lanczos",
+      "keep_proportion": "pad",
+      "pad_color": "255,255,255",
+      "crop_position": "center",
+      "divisible_by": 16,
+      "device": "cpu"
+    }
+  },
+
+  "54": {
+    "class_type": "DualCLIPLoader",
+    "inputs": {
+      "clip_name1": "{{CLIP_L_MODEL}}",
+      "clip_name2": "{{LLAVA_TEXT_ENCODER}}",
+      "type": "hunyuan_video",
+      "device": "default"
+    }
+  },
+
+  "56": {
+    "class_type": "CLIPVisionLoader",
+    "inputs": {
+      "clip_name": "{{CLIP_VISION_MODEL}}"
+    }
+  },
+
+  "55": {
+    "class_type": "CLIPVisionEncode",
+    "inputs": {
+      "clip_vision": ["56", 0],
+      "image": ["43", 0],
+      "crop": "center"
+    }
+  },
+
+  "51": {
+    "class_type": "TextEncodeHunyuanVideo_ImageToVideo",
+    "_comment": "Positive prompt - must include <image> token for identity",
+    "inputs": {
+      "clip": ["54", 0],
+      "clip_vision_output": ["55", 0],
+      "prompt": "{{PROMPT}}",
+      "image_interleave": 2
+    }
+  },
+
+  "52": {
+    "class_type": "TextEncodeHunyuanVideo_ImageToVideo",
+    "_comment": "Negative prompt",
+    "inputs": {
+      "clip": ["54", 0],
+      "clip_vision_output": ["55", 0],
+      "prompt": "{{NEGATIVE_PROMPT}}",
+      "image_interleave": 2
+    }
+  },
+
+  "41": {
+    "class_type": "HyVideoEncode",
+    "_comment": "Encode reference image to latent for I2V conditioning",
+    "inputs": {
+      "vae": ["7", 0],
+      "image": ["43", 0],
+      "enable_vae_tiling": false,
+      "temporal_tiling_sample_size": 64,
+      "spatial_tile_sample_min_size": 256,
+      "auto_tile_size": true,
+      "noise_aug_strength": 0,
+      "latent_strength": 1,
+      "latent_dist": "sample"
+    }
+  },
+
+  "74": {
+    "class_type": "HyVideoTextEmbedBridge",
+    "_comment": "Bridges positive/negative conditioning with CFG settings",
+    "inputs": {
+      "positive": ["51", 0],
+      "negative": ["52", 0],
+      "cfg": "{{CFG_SCALE}}",
+      "start_percent": 0,
+      "end_percent": 1,
+      "batched_cfg": false,
+      "use_cfg_zero_star": true
+    }
+  },
+
+  "62": {
+    "class_type": "HyVideoSampler",
+    "_comment": "Main video generation sampler",
+    "inputs": {
+      "model": ["1", 0],
+      "hyvid_embeds": ["74", 0],
+      "image_cond_latents": ["41", 0],
+      "width": ["43", 1],
+      "height": ["43", 2],
+      "num_frames": "{{FRAMES}}",
+      "steps": "{{STEPS}}",
+      "embedded_guidance_scale": 0,
+      "flow_shift": "{{FLOW_SHIFT}}",
+      "seed": "{{SEED}}",
+      "force_offload": true,
+      "denoise_strength": "{{DENOISE_STRENGTH}}",
+      "scheduler": "FlowMatchDiscreteScheduler",
+      "riflex_freq_index": 0,
+      "i2v_mode": "dynamic"
+    }
+  },
+
+  "5": {
+    "class_type": "HyVideoDecode",
+    "_comment": "Decode latents to video frames",
+    "inputs": {
+      "vae": ["7", 0],
+      "samples": ["62", 0],
+      "enable_vae_tiling": true,
+      "temporal_tiling_sample_size": 64,
+      "spatial_tile_sample_min_size": 256,
+      "auto_tile_size": true,
+      "skip_latents": 0,
+      "balance_brightness": false
+    }
+  },
+
+  "71": {
+    "class_type": "ImageConcatMulti",
+    "_comment": "Concatenate reference image with output for preview comparison",
+    "inputs": {
+      "image_1": ["5", 0],
+      "image_2": ["43", 0],
+      "inputcount": 2,
+      "direction": "left",
+      "match_image_size": false
+    }
+  },
+
+  "34": {
+    "class_type": "VHS_VideoCombine",
+    "_comment": "Final video output",
+    "inputs": {
+      "images": ["71", 0],
+      "frame_rate": "{{FPS}}",
+      "loop_count": 0,
+      "filename_prefix": "{{OUTPUT_PREFIX}}",
+      "format": "video/h264-mp4",
+      "pingpong": false,
+      "save_output": true,
+      "pix_fmt": "yuv420p",
+      "crf": 19,
+      "save_metadata": true,
+      "trim_to_audio": false
+    }
+  },
+
+  "_defaults": {
+    "_comment": "Default values if not provided by renderer",
+    "UNET_MODEL": "hunyuan_video_custom_720p_fp8_scaled.safetensors",
+    "VAE_MODEL": "hunyuan_video_vae_bf16.safetensors",
+    "CLIP_L_MODEL": "clip_l.safetensors",
+    "LLAVA_TEXT_ENCODER": "llava_llama3_fp16.safetensors",
+    "CLIP_VISION_MODEL": "llava_llama3_vision.safetensors",
+    "ATTENTION_MODE": "sdpa",
+    "WIDTH": 720,
+    "HEIGHT": 480,
+    "FRAMES": 25,
+    "STEPS": 25,
+    "CFG_SCALE": 7.5,
+    "FLOW_SHIFT": 13.0,
+    "DENOISE_STRENGTH": 1.0,
+    "FPS": 24,
+    "SEED": -1,
+    "NEGATIVE_PROMPT": "Aerial view, overexposed, low quality, deformation, bad composition, bad hands, bad teeth, bad eyes, bad limbs, distortion, blurring, text, subtitles, static, picture, black border.",
+    "OUTPUT_PREFIX": "hunyuan_i2v"
+  },
+
+  "_placeholders": [
+    "PROMPT",
+    "NEGATIVE_PROMPT",
+    "FACE_REF_IMAGE",
+    "UNET_MODEL",
+    "VAE_MODEL",
+    "CLIP_L_MODEL",
+    "LLAVA_TEXT_ENCODER",
+    "CLIP_VISION_MODEL",
+    "ATTENTION_MODE",
+    "WIDTH",
+    "HEIGHT",
+    "FRAMES",
+    "STEPS",
+    "CFG_SCALE",
+    "FLOW_SHIFT",
+    "DENOISE_STRENGTH",
+    "FPS",
+    "SEED",
+    "OUTPUT_PREFIX"
+  ]
+}

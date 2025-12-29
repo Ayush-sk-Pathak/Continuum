@@ -1,6 +1,7 @@
 {
   "_description": "Model variant registry for Continuum Engine. Defines which model files to use based on quality tier and available VRAM.",
-  "_version": "1.0.0",
+  "_version": "1.1.0",
+  "_updated": "2025-12-29 - Fixed HunyuanCustom paths per Phase 4 validation",
 
   "wan21": {
     "_description": "Wan 2.1 video generation models (Standard Lane)",
@@ -65,6 +66,104 @@
         "vram_required_gb": 40,
         "max_resolution": "1080p",
         "quality_tier": 3
+      }
+    }
+  },
+
+  "hunyuan_custom": {
+    "_description": "HunyuanCustom - identity-preserving video generation (13B params, LLaVA fusion)",
+    "_paper": "arXiv:2505.04512",
+    "_identity_score": "0.627 ArcFace (3x better than Wan VACE)",
+    "_validated": "2025-12-29 Phase 4 testing on RunPod 4x RTX 4090",
+    "_critical_note": "Requires FULL LLaVA LLM (16GB) for identity preservation, not just CLIP vision",
+    
+    "i2v": {
+      "dev": {
+        "_description": "Development - FP8 quantized for faster iteration on 4x RTX 4090",
+        
+        "unet": "hunyuan_video_custom_720p_fp8_scaled.safetensors",
+        "vae": "hunyuan_video_vae_bf16.safetensors",
+        
+        "clip_l": "clip_l.safetensors",
+        "llava_text_encoder": "llava_llama3_fp16.safetensors",
+        "clip_vision": "llava_llama3_vision.safetensors",
+        "llava_llm": "xtuner/llava-llama-3-8b-v1_1-transformers",
+        
+        "attention_mode": "sdpa",
+        "cfg_scale": 7.5,
+        "flow_shift": 13.0,
+        "steps": 15,
+        "denoise_strength": 1.0,
+        
+        "vram_required_gb": 80,
+        "gpu_config": "4x RTX 4090 or 1x H100",
+        "max_resolution": "512x512",
+        "quality_tier": 1,
+        
+        "_fast_test": {
+          "width": 512,
+          "height": 512,
+          "frames": 25,
+          "steps": 15
+        }
+      },
+      "standard": {
+        "_description": "Production - higher resolution, more steps",
+        
+        "unet": "hunyuan_video_custom_720p_fp8_scaled.safetensors",
+        "vae": "hunyuan_video_vae_bf16.safetensors",
+        
+        "clip_l": "clip_l.safetensors",
+        "llava_text_encoder": "llava_llama3_fp16.safetensors",
+        "clip_vision": "llava_llama3_vision.safetensors",
+        "llava_llm": "xtuner/llava-llama-3-8b-v1_1-transformers",
+        
+        "attention_mode": "sdpa",
+        "cfg_scale": 7.5,
+        "flow_shift": 13.0,
+        "steps": 30,
+        "denoise_strength": 1.0,
+        
+        "vram_required_gb": 80,
+        "gpu_config": "4x RTX 4090 or 1x H100",
+        "max_resolution": "720x480",
+        "quality_tier": 2,
+        
+        "_production": {
+          "width": 720,
+          "height": 480,
+          "frames": 49,
+          "steps": 30
+        }
+      },
+      "beast": {
+        "_description": "Demo/pilot - maximum quality for investor presentations",
+        
+        "unet": "hunyuan_video_custom_720p_fp8_scaled.safetensors",
+        "vae": "hunyuan_video_vae_bf16.safetensors",
+        
+        "clip_l": "clip_l.safetensors",
+        "llava_text_encoder": "llava_llama3_fp16.safetensors",
+        "clip_vision": "llava_llama3_vision.safetensors",
+        "llava_llm": "xtuner/llava-llama-3-8b-v1_1-transformers",
+        
+        "attention_mode": "sdpa",
+        "cfg_scale": 7.5,
+        "flow_shift": 13.0,
+        "steps": 50,
+        "denoise_strength": 1.0,
+        
+        "vram_required_gb": 80,
+        "gpu_config": "4x RTX 4090 or 1x H100",
+        "max_resolution": "1280x720",
+        "quality_tier": 3,
+        
+        "_demo": {
+          "width": 1280,
+          "height": 720,
+          "frames": 97,
+          "steps": 50
+        }
       }
     }
   },
@@ -141,8 +240,18 @@
     "3": "Demo/Pilot - maximum quality for presentations"
   },
 
+  "_runpod_model_locations": {
+    "_note": "Paths on RunPod 4x RTX 4090 pod (many_apricot_mastodon)",
+    "diffusion_models": "/workspace/runpod-slim/ComfyUI/models/diffusion_models/",
+    "vae": "/workspace/runpod-slim/ComfyUI/models/vae/",
+    "text_encoders": "/workspace/runpod-slim/ComfyUI/models/text_encoders/",
+    "clip_vision": "/workspace/runpod-slim/ComfyUI/models/clip_vision/",
+    "llm": "/workspace/runpod-slim/ComfyUI/models/LLM/"
+  },
+
   "_usage": {
-    "python_example": "model_config = load_models_json()['wan21']['t2v']['beast']",
-    "env_override": "CONTINUUM_MODEL_TIER=beast (overrides default 'dev')"
+    "python_example": "model_config = load_models_json()['hunyuan_custom']['i2v']['dev']",
+    "env_override": "CONTINUUM_MODEL_TIER=beast (overrides default 'dev')",
+    "model_switch": "CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=hunyuan_custom"
   }
 }

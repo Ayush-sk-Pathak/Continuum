@@ -19,6 +19,11 @@ Usage:
     
     # Override tier explicitly
     config = get_model_config("wan21", "t2v", tier=ModelTier.BEAST)
+    
+    # Get HunyuanCustom I2V config
+    config = get_model_config("hunyuan_custom", "i2v")
+    print(config.clip_l)  # "clip_l.safetensors"
+    print(config.llava_text_encoder)  # "llava_llama3_fp16.safetensors"
 """
 
 import json
@@ -68,34 +73,113 @@ class ModelConfig:
     Immutable container for model paths.
     
     frozen=True prevents accidental modification after loading.
-    All fields are strings (model filenames) except vram_required_gb.
+    
+    Field categories:
+    - Core (required): unet, vae
+    - Text encoder - Wan: clip (single UMT5 encoder)
+    - Text encoder - HunyuanCustom: clip_l + llava_text_encoder (dual encoder)
+    - Vision encoder: clip_vision
+    - HunyuanCustom-specific: attention_mode, cfg_scale, flow_shift, steps, denoise_strength
+    - Resource hints: vram_required_gb, max_resolution, quality_tier, gpu_config
     """
     
+    # Core models (always required)
     unet: str
     vae: str
-    clip: str
-    clip_vision: Optional[str] = None  # Only for I2V
+    
+    # Text encoder - Wan uses single CLIP/UMT5
+    clip: Optional[str] = None
+    
+    # Text encoder - HunyuanCustom uses dual CLIP-L + LLaVA
+    clip_l: Optional[str] = None
+    llava_text_encoder: Optional[str] = None
+    
+    # Vision encoder (for I2V workflows)
+    clip_vision: Optional[str] = None
+    
+    # LLaVA LLM path (for documentation/reference, not directly used in workflow)
+    llava_llm: Optional[str] = None
+    
+    # HunyuanCustom-specific generation parameters
+    attention_mode: Optional[str] = None  # "sdpa" or "sageattn"
+    cfg_scale: Optional[float] = None
+    flow_shift: Optional[float] = None
+    steps: Optional[int] = None
+    denoise_strength: Optional[float] = None
+    
+    # Resource hints
     vram_required_gb: int = 8
     max_resolution: str = "480p"
+    quality_tier: Optional[int] = None
+    gpu_config: Optional[str] = None
     
     def to_workflow_params(self) -> dict:
         """
         Convert to workflow placeholder dict.
         
         Returns keys matching workflow placeholders:
+        
+        Core:
         - {{UNET_MODEL}} -> self.unet
         - {{VAE_MODEL}} -> self.vae
-        - {{CLIP_MODEL}} -> self.clip
+        
+        Wan text encoder:
+        - {{CLIP_MODEL}} -> self.clip (if present)
+        
+        HunyuanCustom text encoders (dual):
+        - {{CLIP_L_MODEL}} -> self.clip_l (if present)
+        - {{LLAVA_TEXT_ENCODER}} -> self.llava_text_encoder (if present)
+        
+        Vision encoder:
         - {{CLIP_VISION_MODEL}} -> self.clip_vision (if present)
+        
+        Generation parameters:
+        - {{ATTENTION_MODE}} -> self.attention_mode (if present)
+        - {{CFG_SCALE}} -> self.cfg_scale (if present)
+        - {{FLOW_SHIFT}} -> self.flow_shift (if present)
+        - {{STEPS}} -> self.steps (if present)
+        - {{DENOISE_STRENGTH}} -> self.denoise_strength (if present)
         """
         params = {
             "UNET_MODEL": self.unet,
             "VAE_MODEL": self.vae,
-            "CLIP_MODEL": self.clip,
         }
+        
+        # Wan text encoder (single)
+        if self.clip:
+            params["CLIP_MODEL"] = self.clip
+        
+        # HunyuanCustom text encoders (dual)
+        if self.clip_l:
+            params["CLIP_L_MODEL"] = self.clip_l
+        if self.llava_text_encoder:
+            params["LLAVA_TEXT_ENCODER"] = self.llava_text_encoder
+        
+        # Vision encoder
         if self.clip_vision:
             params["CLIP_VISION_MODEL"] = self.clip_vision
+        
+        # HunyuanCustom-specific parameters
+        if self.attention_mode:
+            params["ATTENTION_MODE"] = self.attention_mode
+        if self.cfg_scale is not None:
+            params["CFG_SCALE"] = self.cfg_scale
+        if self.flow_shift is not None:
+            params["FLOW_SHIFT"] = self.flow_shift
+        if self.steps is not None:
+            params["STEPS"] = self.steps
+        if self.denoise_strength is not None:
+            params["DENOISE_STRENGTH"] = self.denoise_strength
+        
         return params
+    
+    def is_hunyuan_custom(self) -> bool:
+        """Check if this config is for HunyuanCustom (has dual text encoders)."""
+        return self.clip_l is not None and self.llava_text_encoder is not None
+    
+    def is_wan(self) -> bool:
+        """Check if this config is for Wan (has single CLIP/UMT5 encoder)."""
+        return self.clip is not None and self.clip_l is None
 
 
 # =============================================================================
@@ -103,28 +187,43 @@ class ModelConfig:
 # =============================================================================
 
 @lru_cache(maxsize=1)
-def _load_models_json(workflows_dir: Optional[Path] = None) -> dict:
+def _load_models_json(models_path: Optional[Path] = None) -> dict:
     """
     Load and cache models.json.
     
     Uses lru_cache to ensure we only read the file once per process.
+    
+    Search order:
+    1. Explicit models_path argument
+    2. Project root / models.json
+    3. workflows / models.json (legacy)
     """
-    if workflows_dir is None:
-        # Default to ./workflows relative to project root
-        workflows_dir = Path(__file__).parent.parent.parent / "workflows"
+    if models_path is not None and Path(models_path).exists():
+        path = Path(models_path)
+    else:
+        # Try project root first
+        project_root = Path(__file__).parent.parent.parent
+        root_path = project_root / "models.json"
+        workflows_path = project_root / "workflows" / "models.json"
+        
+        if root_path.exists():
+            path = root_path
+        elif workflows_path.exists():
+            path = workflows_path
+            logger.warning(
+                f"Using legacy models.json location: {workflows_path}. "
+                f"Consider moving to project root."
+            )
+        else:
+            raise FileNotFoundError(
+                f"models.json not found at {root_path} or {workflows_path}. "
+                f"Create it from the template in MODEL_PIVOT.md"
+            )
     
-    models_path = workflows_dir / "models.json"
-    
-    if not models_path.exists():
-        raise FileNotFoundError(
-            f"models.json not found at {models_path}. "
-            f"Create it from the template in MODEL_CONFIGURATION.md"
-        )
-    
-    with open(models_path, "r") as f:
+    with open(path, "r") as f:
         data = json.load(f)
     
-    logger.debug(f"Loaded models.json from {models_path}")
+    logger.debug(f"Loaded models.json from {path}")
     return data
 
 
@@ -132,16 +231,16 @@ def get_model_config(
     model_family: str,
     model_type: str,
     tier: Optional[ModelTier] = None,
-    workflows_dir: Optional[Path] = None,
+    models_path: Optional[Path] = None,
 ) -> ModelConfig:
     """
     Get model configuration for a specific family, type, and tier.
     
     Args:
-        model_family: Model family (e.g., "wan21", "hunyuan")
+        model_family: Model family (e.g., "wan21", "hunyuan_custom")
         model_type: Model type (e.g., "t2v", "i2v")
         tier: Quality tier (defaults to CONTINUUM_MODEL_TIER env var)
-        workflows_dir: Override path to workflows directory
+        models_path: Override path to models.json
     
     Returns:
         ModelConfig with paths for the specified configuration
@@ -151,13 +250,21 @@ def get_model_config(
         FileNotFoundError: If models.json doesn't exist
     
     Example:
+        # Wan 2.1 T2V
         config = get_model_config("wan21", "t2v", ModelTier.BEAST)
         print(config.unet)  # "wan2.1_t2v_14B_fp16.safetensors"
+        print(config.clip)  # "umt5_xxl_fp8_e4m3fn_scaled.safetensors"
+        
+        # HunyuanCustom I2V
+        config = get_model_config("hunyuan_custom", "i2v", ModelTier.DEV)
+        print(config.unet)  # "hunyuan_video_custom_720p_fp8_scaled.safetensors"
+        print(config.clip_l)  # "clip_l.safetensors"
+        print(config.llava_text_encoder)  # "llava_llama3_fp16.safetensors"
     """
     if tier is None:
         tier = ModelTier.from_env()
     
-    models = _load_models_json(workflows_dir)
+    models = _load_models_json(models_path)
     
     # Navigate the JSON structure
     if model_family not in models:
@@ -188,13 +295,37 @@ def get_model_config(
     tier_config = type_config[tier.value]
     
     # Build ModelConfig from JSON
+    # Use .get() for all optional fields to support different model schemas
     return ModelConfig(
+        # Core (required)
         unet=tier_config["unet"],
         vae=tier_config["vae"],
-        clip=tier_config["clip"],
-        clip_vision=tier_config.get("clip_vision"),  # Optional
+        
+        # Wan text encoder
+        clip=tier_config.get("clip"),
+        
+        # HunyuanCustom text encoders (dual)
+        clip_l=tier_config.get("clip_l"),
+        llava_text_encoder=tier_config.get("llava_text_encoder"),
+        
+        # Vision encoder
+        clip_vision=tier_config.get("clip_vision"),
+        
+        # LLaVA LLM reference
+        llava_llm=tier_config.get("llava_llm"),
+        
+        # Generation parameters
+        attention_mode=tier_config.get("attention_mode"),
+        cfg_scale=tier_config.get("cfg_scale"),
+        flow_shift=tier_config.get("flow_shift"),
+        steps=tier_config.get("steps"),
+        denoise_strength=tier_config.get("denoise_strength"),
+        
+        # Resource hints
         vram_required_gb=tier_config.get("vram_required_gb", 8),
         max_resolution=tier_config.get("max_resolution", "480p"),
+        quality_tier=tier_config.get("quality_tier"),
+        gpu_config=tier_config.get("gpu_config"),
     )
 
 
@@ -225,3 +356,8 @@ def get_wan21_t2v_config(tier: Optional[ModelTier] = None) -> ModelConfig:
 def get_wan21_i2v_config(tier: Optional[ModelTier] = None) -> ModelConfig:
     """Shorthand for Wan 2.1 Image-to-Video config."""
     return get_model_config("wan21", "i2v", tier)
+
+
+def get_hunyuan_custom_i2v_config(tier: Optional[ModelTier] = None) -> ModelConfig:
+    """Shorthand for HunyuanCustom Image-to-Video config."""
+    return get_model_config("hunyuan_custom", "i2v", tier)

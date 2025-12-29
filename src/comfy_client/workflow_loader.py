@@ -193,18 +193,45 @@ class WorkflowLoader:
             job = await client.submit_workflow(result.workflow)
     """
     
-    def __init__(self, workflows_dir: Optional[Path] = None):
+    def __init__(
+        self, 
+        workflows_dir: Optional[Path] = None,
+        model_family: Optional[str] = None
+    ):
         """
         Initialize the loader.
         
         Args:
             workflows_dir: Directory containing workflow JSON files.
                           Uses config default if not specified.
+            model_family: Video model family ("wan", "hunyuan_custom").
+                         If None, tries to read from config, falls back to legacy mode.
+        
+        Search priority for workflows:
+            1. workflows/{model_family}/{name}.json (model-specific)
+            2. workflows/shared/{name}.json (shared across models)
+            3. workflows/{name}.json (legacy root, deprecated)
         """
         if workflows_dir is None:
             workflows_dir = get_config().paths.workflows_dir
         
         self.workflows_dir = Path(workflows_dir)
+        
+        # Resolve model_family: explicit param > config > None (legacy)
+        if model_family is None:
+            try:
+                model_family = get_config().video_model.model_family
+            except Exception:
+                # Config not available or video_model not configured
+                model_family = None
+        
+        self.model_family = model_family
+        
+        # Set up search directories (handle None gracefully)
+        self.model_dir: Optional[Path] = (
+            self.workflows_dir / model_family if model_family else None
+        )
+        self.shared_dir: Path = self.workflows_dir / "shared"
         
         # Cache loaded templates
         self._template_cache: Dict[str, WorkflowTemplate] = {}
@@ -236,8 +263,14 @@ class WorkflowLoader:
         # Find the file
         filepath = self._find_workflow_file(name)
         if filepath is None:
+            search_paths = [str(self.workflows_dir)]
+            if self.model_dir:
+                search_paths.insert(0, str(self.model_dir))
+            if self.shared_dir.exists():
+                search_paths.insert(1 if self.model_dir else 0, str(self.shared_dir))
             raise FileNotFoundError(
-                f"Workflow template '{name}' not found in {self.workflows_dir}"
+                f"Workflow template '{name}' not found. "
+                f"Searched: {', '.join(search_paths)}"
             )
         
         # Load and parse
@@ -271,29 +304,77 @@ class WorkflowLoader:
         )
     
     def list_templates(self) -> List[str]:
-        """List all available template names in the workflows directory."""
-        if not self.workflows_dir.exists():
-            return []
+        """
+        List all available template names.
         
-        return [
-            f.stem for f in self.workflows_dir.glob("*.json")
-            if not f.name.startswith("_")  # Skip _private files
-        ]
+        Searches model-specific, shared, and root directories.
+        Returns unique names (model-specific takes precedence).
+        """
+        templates: Set[str] = set()
+        
+        # Search directories in reverse priority (so model-specific overwrites)
+        search_dirs = [self.workflows_dir]  # Legacy root
+        if self.shared_dir.exists():
+            search_dirs.append(self.shared_dir)
+        if self.model_dir is not None and self.model_dir.exists():
+            search_dirs.append(self.model_dir)
+        
+        for search_dir in search_dirs:
+            if search_dir.exists():
+                for f in search_dir.glob("*.json"):
+                    if not f.name.startswith("_"):  # Skip _private files
+                        templates.add(f.stem)
+        
+        return sorted(templates)
     
     def clear_cache(self) -> None:
         """Clear the template cache."""
         self._template_cache.clear()
     
     def _find_workflow_file(self, name: str) -> Optional[Path]:
-        """Find workflow file by name, trying common patterns."""
-        candidates = [
-            self.workflows_dir / f"{name}.json",
-            self.workflows_dir / f"{name}_workflow.json",
-            self.workflows_dir / name,  # If name includes extension
-        ]
+        """
+        Find workflow file by name, searching in priority order.
         
-        for path in candidates:
+        Search order:
+            1. Model-specific: workflows/{model_family}/{name}.json
+            2. Shared: workflows/shared/{name}.json  
+            3. Legacy root: workflows/{name}.json (deprecated, logs warning)
+        
+        Args:
+            name: Workflow name (without .json extension)
+            
+        Returns:
+            Path to workflow file, or None if not found
+        """
+        # Build candidate paths for each search location
+        def candidates_for_dir(base_dir: Path) -> List[Path]:
+            return [
+                base_dir / f"{name}.json",
+                base_dir / f"{name}_workflow.json",
+                base_dir / name,  # If name includes extension
+            ]
+        
+        # 1. Search model-specific directory first
+        if self.model_dir is not None and self.model_dir.exists():
+            for path in candidates_for_dir(self.model_dir):
+                if path.exists() and path.is_file():
+                    logger.debug(f"Found workflow in model dir: {path}")
+                    return path
+        
+        # 2. Search shared directory
+        if self.shared_dir.exists():
+            for path in candidates_for_dir(self.shared_dir):
+                if path.exists() and path.is_file():
+                    logger.debug(f"Found workflow in shared dir: {path}")
+                    return path
+        
+        # 3. Fall back to legacy root (deprecated)
+        for path in candidates_for_dir(self.workflows_dir):
             if path.exists() and path.is_file():
+                logger.warning(
+                    f"Found workflow in legacy root: {path}. "
+                    f"Consider moving to workflows/{self.model_family or 'shared'}/"
+                )
                 return path
         
         return None

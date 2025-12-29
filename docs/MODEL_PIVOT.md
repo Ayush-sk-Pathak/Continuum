@@ -1,47 +1,69 @@
-# MODEL PIVOT DOCUMENT: Wan 2.1 → HunyuanVideo 1.5
+# MODEL PIVOT DOCUMENT: Wan 2.1 → HunyuanCustom
 
-**Version:** 1.0.0  
+**Version:** 2.0.0  
 **Created:** December 26, 2025  
-**Status:** ACTIVE - In Progress  
+**Updated:** December 26, 2025 (Post-Research Validation)  
+**Status:** VALIDATED - Ready for Phase 0 Testing  
 **Timeline:** 10-12 days to investor demo  
+**Research Sources:** Claude Research, ChatGPT Deep Research, Community Feedback
 
 ---
 
 ## Executive Summary
 
-This document provides the complete roadmap for pivoting from Wan 2.1 to HunyuanVideo 1.5 
+This document provides the complete roadmap for pivoting from Wan 2.1 to **HunyuanCustom** 
 as the primary video generation model, while preserving the ability to switch back to Wan.
 
-**Why Pivot:**
-- Hunyuan ecosystem achieves **3× better identity** than Wan (0.627 vs 0.204 ArcFace)
-- Lower VRAM requirements (14-24GB vs 24-40GB)
-- Faster inference (~75 seconds on 4090 with step-distilled model)
-- Better instruction following in benchmarks
-- No existing Wan LoRAs to lose (zero switching cost)
+### Critical Research Correction
 
-**Critical Clarification (Updated After Research):**
-The original assumption that "native IP2V provides 95%+ identity with 1 image" was **oversold**.
-Reality:
-- HunyuanVideo 1.5 has NO external reference input (unlike IP-Adapter)
-- Identity comes ONLY from the init_image (first frame)
-- The 0.627 ArcFace benchmark is from **HunyuanCustom**, not base HunyuanVideo 1.5
-- Our **Bridge Frame strategy becomes MORE critical** - it's the only external reference injection point
+**Original target (INCORRECT):** HunyuanVideo 1.5  
+**Validated target (CORRECT):** HunyuanCustom
 
-**Revised Identity Strategy:**
-```
-SDXL Hero Frame (with IP-Adapter + face reference)
-        ↓
-    [Identity locked here via IP-Adapter]
-        ↓
-HunyuanVideo I2V (preserves init_image identity)
-        ↓
-    [Hunyuan maintains whatever identity was in init_image]
-```
+| Aspect | HunyuanVideo 1.5 | HunyuanCustom |
+|--------|------------------|---------------|
+| Release | Nov 2025 (newer) | May 2025 (older) |
+| Base Architecture | 8.3B params | 13B params |
+| Purpose | Speed + environments | **Identity preservation** |
+| External face reference | ❌ NO | ✅ **YES (LLaVA fusion)** |
+| Identity benchmark | Unknown (~0.2-0.6?) | **0.627 ArcFace** |
+| Community feedback | "Faces morph weirdly" | "State-of-the-art identity" |
+| Audio-driven lip sync | ❌ No | ✅ Yes (CLI only) |
+| VRAM | 14-24 GB | 60-80 GB |
+| ComfyUI | Native | Kijai wrapper |
 
-**Design Constraint:**
+**HunyuanVideo 1.5 is optimized for speed and environments, NOT identity preservation.**
+Community consensus: "For character-focused work, Wan 2.2 remains better than HunyuanVideo 1.5."
+
+### Why Pivot to HunyuanCustom
+
+| Metric | HunyuanCustom | Wan 2.1 (VACE) | Improvement |
+|--------|---------------|----------------|-------------|
+| ArcFace Score | **0.627** | 0.204 | **3× better** |
+| External face reference | ✅ Native | ❌ Requires IP-Adapter | Simpler |
+| Multi-subject | ✅ 2 characters | ❌ No | New capability |
+| Bridge Engine needed | **Optional** | Required | Simpler |
+
+### Identity Preservation Benchmarks (Official)
+
+From HunyuanCustom paper (arXiv:2505.04512):
+
+| Model | Face-Sim (ArcFace) | Source |
+|-------|-------------------|--------|
+| **HunyuanCustom** | **0.627** | Open source |
+| Hailuo | 0.526 | Closed |
+| Kling 1.6 | 0.505 | Closed |
+| Vidu 2.0 | 0.424 | Closed |
+| SkyReels-A2 (Wan 2.1) | 0.402 | Open source |
+| Pika | 0.363 | Closed |
+| **VACE (Wan 2.1)** | **0.204** | Open source |
+
+**HunyuanCustom is #1 in identity preservation among ALL tested models.**
+
+### Design Constraint
+
 Switching between models must be a single config change:
 ```bash
-CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=hunyuan  # or "wan"
+CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=hunyuan_custom  # or "wan"
 ```
 
 ---
@@ -50,13 +72,14 @@ CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=hunyuan  # or "wan"
 
 1. [Current System Analysis](#1-current-system-analysis)
 2. [Target Architecture](#2-target-architecture)
-3. [File Inventory & Classification](#3-file-inventory--classification)
-4. [Implementation Phases](#4-implementation-phases)
-5. [Testing Protocol](#5-testing-protocol)
-6. [Debugging Guide](#6-debugging-guide)
-7. [Rollback Procedure](#7-rollback-procedure)
-8. [Risk Matrix](#8-risk-matrix)
-9. [Day-by-Day Schedule](#9-day-by-day-schedule)
+3. [GPU Strategy](#3-gpu-strategy)
+4. [File Inventory & Classification](#4-file-inventory--classification)
+5. [Implementation Phases](#5-implementation-phases)
+6. [Testing Protocol](#6-testing-protocol)
+7. [Debugging Guide](#7-debugging-guide)
+8. [Rollback Procedure](#8-rollback-procedure)
+9. [Risk Matrix](#9-risk-matrix)
+10. [Day-by-Day Schedule](#10-day-by-day-schedule)
 
 ---
 
@@ -97,7 +120,7 @@ CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=hunyuan  # or "wan"
 │   models.json → model file paths on RunPod                             │
 │                                                                         │
 │   Status: EXTENSIBLE (already supports multiple families)               │
-│   Issue:  Need to add Hunyuan 1.5 entries                               │
+│   Issue:  Need to add HunyuanCustom entries                             │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -109,14 +132,14 @@ CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=hunyuan  # or "wan"
 | `main.py` | Hardcodes `WanRenderer` | Use renderer factory | LOW |
 | `wan_renderer.py` | Wan-specific implementation | Keep as-is, create sibling | NONE |
 | `workflow_loader.py` | Flat directory lookup | Add model-family subdirectory support | MEDIUM |
-| `bridge_engine.py` | Uses SDXL workflows | No change needed (SDXL is shared) | NONE |
+| `bridge_engine.py` | Uses SDXL workflows | **May become optional** for HunyuanCustom | LOW |
 | `pass1_generator.py` | Uses passed renderer | No change needed | NONE |
-| `models.json` | Has wan21 entries | Add hunyuan15 entries | LOW |
+| `models.json` | Has wan21 entries | Add hunyuan_custom entries | LOW |
 | `base.py` | Has RendererType enum | Add factory function | LOW |
 
 ### 1.3 Workflow Classification
 
-**VIDEO MODEL-SPECIFIC (Must be duplicated for Hunyuan):**
+**VIDEO MODEL-SPECIFIC (Must be duplicated for HunyuanCustom):**
 ```
 pass1_img2vid.json           # I2V generation
 pass1_img2vid_lora.json      # I2V with LoRA
@@ -126,7 +149,7 @@ refine_vid2vid_simple.json   # Vid2Vid refinement
 refine_vid2vid_temporal.json # Temporal refinement
 ```
 
-**SHARED SDXL WORKFLOWS (Model-agnostic, no changes needed):**
+**SHARED SDXL WORKFLOWS (Model-agnostic, may become optional):**
 ```
 hero_frame.json              # SDXL + IP-Adapter for Shot 1
 bridge_full.json             # SDXL + ControlNet + IP-Adapter
@@ -137,10 +160,13 @@ bridge_pose_extract.json     # ControlNet preprocessor
 bridge_depth_extract.json    # Depth extraction
 ```
 
+**Note:** With HunyuanCustom's native identity, Bridge Engine becomes **optional** - 
+we'll test whether it's still needed during Phase 0.
+
 **UTILITY WORKFLOWS (Model-agnostic):**
 ```
 rife_interpolation.json      # Frame interpolation
-musetalk_lipsync.json        # Lip sync
+musetalk_lipsync.json        # Lip sync (STILL NEEDED - audio-driven not in ComfyUI)
 ```
 
 **CONFIG FILES (Not workflows):**
@@ -155,7 +181,36 @@ quick_test.json              # Test config
 
 ## 2. Target Architecture
 
-### 2.1 Directory Structure
+### 2.1 Pipeline Comparison
+
+**Current Pipeline (Wan 2.1):**
+```
+Face Ref → SDXL+IP-Adapter (Hero Frame) → Wan 2.1 I2V → MuseTalk → Output
+           ↑                              ↑              ↑
+     Identity injection          Identity preservation  Lip sync
+     (external workaround)       (limited ~0.204)       (works)
+```
+
+**New Pipeline (HunyuanCustom):**
+```
+Face Ref + Prompt → HunyuanCustom → MuseTalk → Output
+                    ↑                ↑
+              Identity injection     Lip sync
+              + Video generation     (still needed)
+              (native 0.627)
+```
+
+### 2.2 Key Architectural Difference
+
+| Aspect | Wan 2.1 Pipeline | HunyuanCustom Pipeline |
+|--------|------------------|------------------------|
+| Identity injection | External (SDXL + IP-Adapter) | **Native (LLaVA fusion)** |
+| Steps for one shot | 3 (Hero → I2V → Lip sync) | 2 (Custom → Lip sync) |
+| Bridge Engine needed? | Yes (for multi-shot) | **Test needed** (may be optional) |
+| Identity preservation | Compound loss (~81-90%) | **Direct (~95%+)** |
+| `<image>` token | No | Yes - "A portrait of `<image>` walking" |
+
+### 2.3 Directory Structure
 
 ```
 /workflows/
@@ -167,11 +222,10 @@ quick_test.json              # Test config
 │   ├── refine_vid2vid_simple.json
 │   └── refine_vid2vid_temporal.json
 │
-├── hunyuan/                          # Hunyuan 1.5 specific
+├── hunyuan_custom/                   # HunyuanCustom specific (NEW)
 │   ├── pass1_img2vid.json            # SAME NAMES, different nodes
 │   ├── pass1_img2vid_lora.json
 │   ├── pass1_t2v.json
-│   ├── pass1_t2v_lora.json
 │   └── refine_vid2vid.json
 │
 ├── shared/                           # Model-agnostic (SDXL-based)
@@ -188,19 +242,19 @@ quick_test.json              # Test config
 └── models.json                       # Stays in root
 ```
 
-### 2.2 Config-Driven Model Selection
+### 2.4 Config-Driven Model Selection
 
 ```python
 # .env or environment
-CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=hunyuan
+CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=hunyuan_custom
 CONTINUUM_VIDEO_MODEL__MODEL_TIER=dev
 
 # Results in:
-config.video_model.model_family  # "hunyuan"
+config.video_model.model_family  # "hunyuan_custom"
 config.video_model.model_tier    # "dev"
 ```
 
-### 2.3 Renderer Factory Pattern
+### 2.5 Renderer Factory Pattern
 
 ```python
 # base.py - NEW FUNCTION
@@ -212,50 +266,79 @@ def get_renderer_for_config(config: Optional[Config] = None) -> BaseRenderer:
     if family == "wan":
         from .wan_renderer import WanRenderer
         return WanRenderer()
-    elif family == "hunyuan":
-        from .hunyuan_renderer import HunyuanRenderer
-        return HunyuanRenderer()
+    elif family == "hunyuan_custom":
+        from .hunyuan_custom_renderer import HunyuanCustomRenderer
+        return HunyuanCustomRenderer()
     else:
         raise ValueError(f"Unknown model family: {family}")
 ```
 
-### 2.4 Workflow Loader Enhancement
+---
 
-```python
-# workflow_loader.py - MODIFIED
-class WorkflowLoader:
-    def __init__(self, workflows_dir: Path, model_family: Optional[str] = None):
-        self.base_dir = workflows_dir
-        self.model_family = model_family or get_config().video_model.model_family
-        self.model_dir = self.base_dir / self.model_family
-        self.shared_dir = self.base_dir / "shared"
-    
-    def _find_workflow_file(self, name: str) -> Optional[Path]:
-        """Try model-specific first, then shared."""
-        # Priority 1: Model-specific
-        model_path = self.model_dir / f"{name}.json"
-        if model_path.exists():
-            return model_path
-        
-        # Priority 2: Shared
-        shared_path = self.shared_dir / f"{name}.json"
-        if shared_path.exists():
-            return shared_path
-        
-        # Priority 3: Legacy (root directory - for backwards compat)
-        legacy_path = self.base_dir / f"{name}.json"
-        if legacy_path.exists():
-            logger.warning(f"Using legacy workflow path: {legacy_path}")
-            return legacy_path
-        
-        return None
+## 3. GPU Strategy
+
+### 3.1 Recommended: 4x RTX 4090 on RunPod
+
+| Spec | Value |
+|------|-------|
+| Total VRAM | **96 GB (4 × 24GB distributed)** |
+| Price | **$2.00/hr** |
+| Availability | High |
+| RAM | 164 GB |
+| ComfyUI Compatible | ✅ Yes (with MultiGPU extension) |
+
+### 3.2 Why 4x RTX 4090 Over Single H100
+
+| Option | VRAM | Price/hr | Notes |
+|--------|------|----------|-------|
+| **4x RTX 4090** | 96GB (distributed) | **$2.00** | Best value, requires MultiGPU extension |
+| H100 PCIe | 80GB (single) | $2.39 | Simpler setup |
+| H100 SXM | 80GB (single) | $2.69 | Fastest single GPU |
+| H100 NVL | 94GB (single) | $3.07 | Overkill |
+| RTX 4090 (Wan) | 24GB (single) | $0.74 | Our current setup |
+
+**4x RTX 4090 provides more total VRAM at lower cost than H100.**
+
+### 3.3 Multi-GPU Performance
+
+From community testing:
+> "Every additional GPU knocks down the render time by 50%"
+
+| Config | Relative Speed |
+|--------|----------------|
+| 1x GPU | 1× (baseline) |
+| 2x GPU | ~2× faster |
+| 4x GPU | ~4× faster |
+
+### 3.4 Required ComfyUI Extensions
+
+```bash
+# 1. Kijai's HunyuanVideo Wrapper (includes HunyuanCustom)
+cd ComfyUI/custom_nodes
+git clone https://github.com/kijai/ComfyUI-HunyuanVideoWrapper
+
+# 2. Multi-GPU Support (REQUIRED for 4x RTX 4090)
+git clone https://github.com/pollockjj/ComfyUI-MultiGPU
+
+# 3. KJNodes (dependency)
+git clone https://github.com/kijai/ComfyUI-KJNodes
+
+# 4. Video Helper Suite
+git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite
 ```
+
+### 3.5 Multi-GPU Node Mapping
+
+| Standard Node | Multi-GPU Version |
+|---------------|-------------------|
+| `HyVideoModelLoader` | `HyVideoModelLoaderDiffSynthMultiGPU` |
+| Device selection | New dropdown in loader nodes |
 
 ---
 
-## 3. File Inventory & Classification
+## 4. File Inventory & Classification
 
-### 3.1 Files to MODIFY
+### 4.1 Files to MODIFY
 
 | File | Change Type | Description |
 |------|-------------|-------------|
@@ -263,19 +346,18 @@ class WorkflowLoader:
 | `main.py` | MODIFY | Replace hardcoded WanRenderer with factory |
 | `workflow_loader.py` | MODIFY | Add model-family directory support |
 | `base.py` | ADD | New `get_renderer_for_config()` function |
-| `models.json` | ADD | Hunyuan 1.5 model entries |
+| `models.json` | ADD | HunyuanCustom model entries |
 
-### 3.2 Files to CREATE
+### 4.2 Files to CREATE
 
 | File | Purpose |
 |------|---------|
-| `hunyuan_renderer.py` | HunyuanVideo 1.5 renderer implementation |
-| `workflows/hunyuan/pass1_img2vid.json` | Hunyuan I2V workflow |
-| `workflows/hunyuan/pass1_img2vid_lora.json` | Hunyuan I2V + LoRA workflow |
-| `workflows/hunyuan/pass1_t2v.json` | Hunyuan T2V workflow |
-| `MODEL_PIVOT_HUNYUAN.md` | This document |
+| `hunyuan_custom_renderer.py` | HunyuanCustom renderer implementation |
+| `workflows/hunyuan_custom/pass1_img2vid.json` | HunyuanCustom I2V workflow |
+| `workflows/hunyuan_custom/pass1_img2vid_lora.json` | HunyuanCustom I2V + LoRA workflow |
+| `workflows/hunyuan_custom/pass1_t2v.json` | HunyuanCustom T2V workflow |
 
-### 3.3 Files to MOVE (Not Modify)
+### 4.3 Files to MOVE (Not Modify)
 
 | Current Location | New Location |
 |------------------|--------------|
@@ -293,12 +375,12 @@ class WorkflowLoader:
 | `rife_interpolation.json` | `workflows/shared/rife_interpolation.json` |
 | `musetalk_lipsync.json` | `workflows/shared/musetalk_lipsync.json` |
 
-### 3.4 Files to LEAVE ALONE
+### 4.4 Files to LEAVE ALONE
 
 | File | Reason |
 |------|--------|
-| `wan_renderer.py` | Keep working, sibling to new hunyuan_renderer.py |
-| `bridge_engine.py` | Uses SDXL workflows, model-agnostic |
+| `wan_renderer.py` | Keep working, sibling to new hunyuan_custom_renderer.py |
+| `bridge_engine.py` | Uses SDXL workflows, may become optional |
 | `pass1_generator.py` | Uses renderer interface, model-agnostic |
 | `identity_checker.py` | Works on output frames, model-agnostic |
 | `physics_checker.py` | Works on output frames, model-agnostic |
@@ -306,680 +388,860 @@ class WorkflowLoader:
 
 ---
 
-## 4. Implementation Phases
+## 5. Implementation Phases
 
-### Phase 0: Pre-Flight Validation (Day 1 Morning)
+### Phase 0: Pre-Flight Validation (Day 1-2)
 
-**CRITICAL: Do NOT write any code until this passes.**
+**CRITICAL: Do NOT write any integration code until this passes.**
 
-```bash
-# On RunPod - Validate Hunyuan 1.5 works at all
-
-# Step 1: Download models
-cd /workspace/ComfyUI/models/diffusion_models
-wget https://huggingface.co/.../hunyuanvideo1.5_720p_i2v_fp16.safetensors
-
-cd /workspace/ComfyUI/models/text_encoders
-wget https://huggingface.co/.../qwen_2.5_vl_7b_fp8_scaled.safetensors
-
-cd /workspace/ComfyUI/models/vae
-wget https://huggingface.co/.../hunyuanvideo15_vae_fp16.safetensors
-
-# Step 2: Test official workflow in ComfyUI UI
-# - Download official Hunyuan 1.5 I2V workflow
-# - Load in ComfyUI
-# - Run with test image
-# - RECORD: exact node class_type names
-
-# Step 3: Test with face reference
-# - Use alice_01.png as init image
-# - Check identity preservation in output
-
-# Step 4: Document findings
-# - Screenshot working workflow
-# - List all node class_type values
-# - Note any quirks or errors
-```
-
-**Exit Criteria:** Hunyuan generates a video from an image with acceptable identity.
-
-### Phase 1: Infrastructure (Days 1-2)
-
-#### 1.1 Add Config Section
-
-**File:** `config.py`
-**Location:** After line 127 (after `PostConfig`)
-
-```python
-class VideoModelConfig(BaseModel):
-    """Video model selection and configuration."""
-    
-    model_family: Literal["wan", "hunyuan"] = Field(
-        default="hunyuan",
-        description="Video generation model family"
-    )
-    model_tier: Literal["dev", "standard", "beast"] = Field(
-        default="dev", 
-        description="Quality/speed tier within model family"
-    )
-    
-    @field_validator("model_family")
-    @classmethod
-    def validate_model_family(cls, v: str) -> str:
-        valid = ["wan", "hunyuan"]
-        if v not in valid:
-            raise ValueError(f"model_family must be one of {valid}")
-        return v
-```
-
-**Then add to Config class (after line 282):**
-
-```python
-video_model: VideoModelConfig = Field(default_factory=VideoModelConfig)
-```
-
-**Test:** 
-```python
-from src.core.config import get_config
-config = get_config()
-assert config.video_model.model_family in ["wan", "hunyuan"]
-```
-
-#### 1.2 Create Directory Structure
+#### Test Environment Setup
 
 ```bash
-# From project root
-mkdir -p workflows/wan
-mkdir -p workflows/hunyuan  
-mkdir -p workflows/shared
+# On RunPod - 4x RTX 4090
 
-# Move Wan-specific workflows
-mv pass1_img2vid.json workflows/wan/
-mv pass1_img2vid_lora.json workflows/wan/
-mv pass1_img2vid_facevideo.json workflows/wan/
-mv pass1_img2vid_firstlast.json workflows/wan/
-mv pass1_img2vid_phantom.json workflows/wan/
-mv pass1_structural.json workflows/wan/
-mv pass1_structural_lora.json workflows/wan/
-mv refine_vid2vid_simple.json workflows/wan/
-mv refine_vid2vid_temporal.json workflows/wan/
+# Step 1: Verify GPU setup
+python -c "
+import torch
+print(f'GPUs available: {torch.cuda.device_count()}')
+for i in range(torch.cuda.device_count()):
+    print(f'  GPU {i}: {torch.cuda.get_device_name(i)}')
+    print(f'    Memory: {torch.cuda.get_device_properties(i).total_memory / 1e9:.1f} GB')
+"
+# Expected: 4 GPUs, each 24GB
 
-# Move shared workflows
-mv hero_frame.json workflows/shared/
-mv bridge_full.json workflows/shared/
-mv bridge_basic.json workflows/shared/
-mv bridge_ipadapter.json workflows/shared/
-mv bridge_pose_only.json workflows/shared/
-mv bridge_pose_extract.json workflows/shared/
-mv bridge_depth_extract.json workflows/shared/
-mv rife_interpolation.json workflows/shared/
-mv musetalk_lipsync.json workflows/shared/
+# Step 2: Install ComfyUI + extensions
+cd /workspace
+git clone https://github.com/comfyanonymous/ComfyUI.git
+cd ComfyUI
+python -m venv venv
+source venv/bin/activate
+pip install torch==2.5.1+cu124 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+pip install -r requirements.txt
+
+cd custom_nodes
+git clone https://github.com/kijai/ComfyUI-HunyuanVideoWrapper
+git clone https://github.com/pollockjj/ComfyUI-MultiGPU
+git clone https://github.com/kijai/ComfyUI-KJNodes
+git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite
+
+pip install sageattention
+
+# Step 3: Download HunyuanCustom models
+cd /workspace/ComfyUI/models
+
+# Main model (FP8 - recommended)
+mkdir -p diffusion_models
+huggingface-cli download Kijai/HunyuanVideo_comfy \
+  hunyuan_video_custom_720p_fp8_scaled.safetensors \
+  --local-dir diffusion_models/
+
+# VAE
+mkdir -p vae
+huggingface-cli download tencent/HunyuanVideo \
+  hunyuan-video-t2v-720p/vae/pytorch_model.pt \
+  --local-dir vae/
+
+# LLaVA (auto-downloads on first use, or manually)
+# ~16 GB for llava-llama-3-8b-v1_1
+
+# CLIP Vision
+mkdir -p clip_vision
+huggingface-cli download openai/clip-vit-large-patch14 \
+  --local-dir clip_vision/
+
+# Step 4: Start ComfyUI
+cd /workspace/ComfyUI
+python main.py --listen 0.0.0.0 --port 8188
 ```
 
-**Test:**
-```bash
-ls workflows/wan/      # Should show pass1_* files
-ls workflows/shared/   # Should show bridge_*, hero_frame.json
-ls workflows/hunyuan/  # Should be empty (we'll populate later)
+#### Test Sequence
+
+**Test 1: Basic Function**
+```
+Goal: Verify HunyuanCustom runs on 4x RTX 4090 with MultiGPU
+Input: Any face image + simple prompt
+Output: Video generates without errors
+Pass Criteria: Video output exists, no OOM
 ```
 
-#### 1.3 Update Workflow Loader
-
-**File:** `workflow_loader.py`
-**Change:** `_find_workflow_file` method (around line 287)
-
-```python
-def __init__(
-    self,
-    workflows_dir: Optional[Path] = None,
-    model_family: Optional[str] = None,  # NEW PARAMETER
-):
-    """
-    Initialize workflow loader.
-    
-    Args:
-        workflows_dir: Root directory for workflows
-        model_family: Model family subdirectory (wan/hunyuan)
-                     If None, reads from config
-    """
-    if workflows_dir is None:
-        workflows_dir = get_config().paths.workflows_dir
-    
-    self.workflows_dir = Path(workflows_dir)
-    
-    # Model family for subdirectory lookup
-    if model_family is None:
-        try:
-            model_family = get_config().video_model.model_family
-        except Exception:
-            model_family = "wan"  # Fallback for backwards compat
-    
-    self.model_family = model_family
-    self.model_dir = self.workflows_dir / model_family
-    self.shared_dir = self.workflows_dir / "shared"
-    
-    # Cache loaded templates
-    self._template_cache: Dict[str, WorkflowTemplate] = {}
-
-def _find_workflow_file(self, name: str) -> Optional[Path]:
-    """
-    Find workflow file with model-family awareness.
-    
-    Search order:
-    1. Model-specific: workflows/{model_family}/{name}.json
-    2. Shared: workflows/shared/{name}.json
-    3. Legacy: workflows/{name}.json (backwards compat, logs warning)
-    """
-    candidates = []
-    
-    # Priority 1: Model-specific directory
-    if self.model_dir.exists():
-        candidates.append(self.model_dir / f"{name}.json")
-    
-    # Priority 2: Shared directory
-    if self.shared_dir.exists():
-        candidates.append(self.shared_dir / f"{name}.json")
-    
-    # Priority 3: Legacy root directory (backwards compatibility)
-    candidates.append(self.workflows_dir / f"{name}.json")
-    candidates.append(self.workflows_dir / f"{name}_workflow.json")
-    
-    for path in candidates:
-        if path.exists() and path.is_file():
-            # Warn if using legacy path
-            if path.parent == self.workflows_dir:
-                logger.warning(
-                    f"Using legacy workflow path: {path}. "
-                    f"Consider moving to workflows/{self.model_family}/ or workflows/shared/"
-                )
-            return path
-    
-    return None
+**Test 2: Identity Preservation (Single Shot)**
+```
+Goal: Measure ArcFace score for single 5-second clip
+Input: Face reference + prompt "Person walking in park"
+Method:
+  - Use HyVideoTextImageEncode with <image> token
+  - Use HyVideoModelLoaderDiffSynthMultiGPU for distribution
+  - Generate 129 frames (5 sec @ 25fps)
+Output: 5-second video
+Measure: ArcFace similarity between reference and each frame
+Target: ≥ 0.60 (matching published benchmark)
 ```
 
-**Test:**
-```python
-from src.comfy_client import WorkflowLoader
+**Test 3: Multi-Shot Identity (CRITICAL)**
+```
+Goal: Test if identity holds across SEPARATE generations
+Shot 1: Face ref + "Person in cafe"
+Shot 2: Face ref + "Person on street" (same face ref, new prompt)
+Shot 3: Face ref + "Person in office" (same face ref, new prompt)
 
-# Test Wan workflows
-loader_wan = WorkflowLoader(model_family="wan")
-assert loader_wan.load("pass1_img2vid") is not None
-
-# Test shared workflows  
-loader_wan = WorkflowLoader(model_family="wan")
-assert loader_wan.load("hero_frame") is not None  # Should find in shared/
-
-# Test Hunyuan (will fail until we create workflows)
-loader_hunyuan = WorkflowLoader(model_family="hunyuan")
-# This should NOT find pass1_img2vid yet
+Measure: ArcFace similarity across all shots
+Target: ≥ 0.55 average (allowing some per-shot variance)
 ```
 
-#### 1.4 Add Renderer Factory
+**Test 4: Bridge Engine Comparison**
+```
+Goal: Determine if Bridge Engine is still needed
+Method A: HunyuanCustom only (same face ref each shot)
+Method B: HunyuanCustom + Bridge Engine (last frame → next first frame)
 
-**File:** `base.py`
-**Location:** After line 565 (after `list_renderers()`)
-
-```python
-def get_renderer_for_config(config: Optional["Config"] = None) -> BaseRenderer:
-    """
-    Create the appropriate renderer based on configuration.
-    
-    This is the CANONICAL way to get a renderer. All code paths should
-    use this function rather than importing specific renderer classes.
-    
-    Args:
-        config: Config object (uses get_config() if None)
-        
-    Returns:
-        Appropriate renderer instance for the configured model family
-        
-    Raises:
-        ValueError: If model family is unknown
-        
-    Example:
-        renderer = get_renderer_for_config()
-        result = await renderer.generate(job)
-    """
-    if config is None:
-        from ..core.config import get_config
-        config = get_config()
-    
-    model_family = config.video_model.model_family
-    
-    if model_family == "wan":
-        from .wan_renderer import WanRenderer
-        return WanRenderer()
-    elif model_family == "hunyuan":
-        from .hunyuan_renderer import HunyuanRenderer
-        return HunyuanRenderer()
-    else:
-        available = ["wan", "hunyuan"]
-        raise ValueError(
-            f"Unknown model family: '{model_family}'. "
-            f"Available: {available}. "
-            f"Set CONTINUUM_VIDEO_MODEL__MODEL_FAMILY environment variable."
-        )
+Compare: Which has better identity consistency?
+Decision: If A ≥ B, Bridge Engine becomes optional
 ```
 
-#### 1.5 Update models.json
+**Test 5: vs Wan Baseline**
+```
+Goal: Confirm HunyuanCustom beats your 97% Wan score
+Method: Same test conditions as your original Wan test
+  - 1 second duration
+  - Low resolution
+  - Init frames method
 
-**File:** `models.json`
-**Add after the wan21 section:**
-
-```json
-"hunyuan15": {
-  "_description": "HunyuanVideo 1.5 (Dec 2025) - Verified model filenames",
-  
-  "t2v": {
-    "dev": {
-      "_description": "720p T2V with CFG distillation",
-      "unet": "hunyuanvideo1.5_720p_t2v_cfg_distilled_fp8_scaled.safetensors",
-      "vae": "hunyuan_video_vae_bf16.safetensors",
-      "clip": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
-      "vram_required_gb": 16,
-      "max_resolution": "720p",
-      "quality_tier": 1
-    }
-  },
-  
-  "i2v": {
-    "dev": {
-      "_description": "720p I2V with CFG distillation (FP8)",
-      "unet": "hunyuanvideo1.5_720p_i2v_cfg_distilled_fp8_scaled.safetensors",
-      "vae": "hunyuan_video_vae_bf16.safetensors",
-      "clip": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
-      "clip_vision": "sigclip_vision_patch14_384.safetensors",
-      "vram_required_gb": 16,
-      "max_resolution": "720p",
-      "quality_tier": 1,
-      "cfg_scale": 1.0,
-      "flow_shift": 7.0,
-      "steps": 50
-    },
-    "standard": {
-      "_description": "720p I2V full precision (FP16)",
-      "unet": "hunyuanvideo1.5_720p_i2v_fp16.safetensors",
-      "vae": "hunyuan_video_vae_bf16.safetensors",
-      "clip": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
-      "clip_vision": "sigclip_vision_patch14_384.safetensors",
-      "vram_required_gb": 24,
-      "max_resolution": "720p",
-      "quality_tier": 2,
-      "cfg_scale": 1.0,
-      "flow_shift": 7.0,
-      "steps": 50
-    }
-  },
-  
-  "i2v_distilled": {
-    "_description": "Step-distilled I2V - 480p ONLY (720p not available yet)",
-    "dev": {
-      "unet": "hunyuanvideo1.5_480p_i2v_step_distilled_fp8_scaled.safetensors",
-      "vae": "hunyuan_video_vae_bf16.safetensors",
-      "clip": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
-      "clip_vision": "sigclip_vision_patch14_384.safetensors",
-      "vram_required_gb": 14,
-      "max_resolution": "480p",
-      "quality_tier": 1,
-      "cfg_scale": 1.0,
-      "flow_shift": 5.0,
-      "steps": 8,
-      "_note": "75 seconds on RTX 4090"
-    }
-  }
-}
+Compare: HunyuanCustom vs Wan 2.1
+Target: HunyuanCustom ≥ Wan
 ```
 
-**Model file sizes (verified):**
-| File | Size |
-|------|------|
-| hunyuanvideo1.5_720p_i2v_cfg_distilled_fp8_scaled.safetensors | 8.33 GB |
-| hunyuanvideo1.5_720p_i2v_fp16.safetensors | 16.7 GB |
-| qwen_2.5_vl_7b_fp8_scaled.safetensors | 9.38 GB |
-| sigclip_vision_patch14_384.safetensors | 857 MB |
-| hunyuan_video_vae_bf16.safetensors | ~2 GB |
+#### Exit Criteria
 
-**Source:** `Comfy-Org/HunyuanVideo_1.5_repackaged` (Hugging Face, updated Dec 25, 2025)
+| Test | Fail | Pass | Good | Excellent |
+|------|------|------|------|-----------|
+| Basic function | Crashes | Runs | Fast | Very fast |
+| Single-shot identity | < 0.50 | ≥ 0.55 | ≥ 0.60 | ≥ 0.65 |
+| Multi-shot identity | < 0.45 | ≥ 0.50 | ≥ 0.55 | ≥ 0.60 |
+| Bridge comparison | A << B | A ≈ B | A > B | A >> B |
+| vs Wan baseline | Worse | Same | Better | Much better |
 
-**Test:**
-```python
-from src.core.model_loader import get_model_config, ModelTier
-config = get_model_config("hunyuan15", "i2v", ModelTier.DEV)
-assert "hunyuanvideo1.5" in config.unet
-assert config.clip_vision == "sigclip_vision_patch14_384.safetensors"
+#### Decision Matrix
+
+| Result | Decision |
+|--------|----------|
+| All tests PASS | ✅ Proceed with HunyuanCustom pivot |
+| Tests 1-3 PASS, Test 4 shows Bridge helps | Proceed, keep Bridge Engine |
+| Test 5 FAIL (Wan better) | ⚠️ Reconsider pivot, stay with Wan |
+| Test 1 FAIL (won't run on 4x4090) | Try H100 80GB single GPU |
+| Test 2 FAIL (identity bad) | ❌ Abort pivot |
+
+### Phase 1: Infrastructure (Days 3-4)
+
+## 5. Implementation Phases
+
+### Implementation Philosophy
+
+**DO NOT** write all code upfront. Each step should be executed as follows:
+
+1. **PRE-FLIGHT CHECK** — Read the actual source file(s) from the project and verify the guidance assumptions are correct
+2. **FLAG MISMATCHES** — If the file structure doesn't match what the guide assumes, stop and reconcile before proceeding
+3. **Generate/update** ONE file at a time
+4. **Test** using the validation command provided
+5. **Proceed** only after validation passes
+
+This prevents compounding errors and catches stale/incorrect guidance.
+
+### Pre-Flight Check Template
+
+Before each step, Claude should:
+
+```
+PRE-FLIGHT CHECK for Step X.Y:
+1. Read: [file path from project files]
+2. Verify: [specific assumption from guide]
+   - Expected: [what guide assumes]
+   - Actual: [what file actually shows]
+3. Status: MATCH / MISMATCH
+4. If MISMATCH: [describe discrepancy and propose resolution]
 ```
 
-### Phase 2: Hunyuan Renderer (Days 3-4)
-
-#### 2.1 Create HunyuanRenderer
-
-**File:** `hunyuan_renderer.py` (NEW FILE)
-
-```python
-"""
-Continuum Engine - HunyuanVideo 1.5 Renderer
-
-Concrete renderer implementation using HunyuanVideo 1.5 via ComfyUI.
-Designed as a drop-in alternative to WanRenderer.
-
-Key Differences from Wan:
-1. Native identity preservation via IP2V (SigLIP + Qwen2.5-VL)
-2. Lower VRAM requirements (14-24GB vs 24-40GB)
-3. Different ComfyUI node types (HunyuanVideoSampler vs WanImageToVideo)
-4. Step-distilled option for faster inference
-
-Design Principles:
-1. Same interface as WanRenderer (implements BaseRenderer)
-2. Same workflow naming convention (pass1_img2vid, etc.)
-3. Same parameter injection pattern ({{PLACEHOLDER}})
-4. Different underlying ComfyUI nodes
-"""
-
-import asyncio
-import logging
-import time
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
-
-from .base import (
-    BaseRenderer,
-    JobSpec,
-    RenderResult,
-    RenderProgress,
-    RendererType,
-    RenderQuality,
-    RenderError,
-    CharacterRef,
-    register_renderer,
-)
-from ..comfy_client import (
-    ComfyClient,
-    ComfyJob,
-    WorkflowLoader,
-    merge_params,
-)
-from ..core.config import get_config
-from ..core.model_loader import get_model_config, ModelTier
-
-logger = logging.getLogger(__name__)
-
-
-@register_renderer(RendererType.HUNYUAN)
-class HunyuanRenderer(BaseRenderer):
-    """
-    Renderer using HunyuanVideo 1.5 via ComfyUI.
-    
-    This is the "Standard Lane" renderer optimized for identity preservation
-    with lower VRAM requirements than Wan.
-    """
-    
-    # Workflow templates - SAME NAMES as Wan for consistency
-    DEFAULT_WORKFLOW = "pass1_t2v"
-    WORKFLOW_WITH_LORA = "pass1_t2v_lora"
-    WORKFLOW_IMG2VID = "pass1_img2vid"
-    WORKFLOW_IMG2VID_LORA = "pass1_img2vid_lora"
-    
-    # Hunyuan-specific: Native identity via image conditioning
-    # No need for separate IP-Adapter workflow - it's built in
-    
-    SUPPORTED_FEATURES = {
-        "init_frame",
-        "lora",
-        "native_identity",  # Hunyuan's key advantage
-        "long_video",
-    }
-    
-    def __init__(
-        self,
-        comfy_host: Optional[str] = None,
-        workflows_dir: Optional[Path] = None,
-        output_dir: Optional[Path] = None,
-    ):
-        super().__init__(RendererType.HUNYUAN)
-        
-        config = get_config()
-        
-        self.comfy_host = comfy_host or config.comfyui.host
-        self.workflows_dir = workflows_dir or config.paths.workflows_dir
-        self.output_dir = output_dir or config.paths.output_dir
-        self.timeout_sec = config.comfyui.timeout_sec
-        
-        self._client: Optional[ComfyClient] = None
-        self._loader: Optional[WorkflowLoader] = None
-        self._initialized = False
-    
-    async def initialize(self) -> None:
-        """Initialize ComfyUI connection and workflow loader."""
-        if self._initialized:
-            return
-        
-        logger.info(f"Initializing HunyuanRenderer (host={self.comfy_host})")
-        
-        # Create workflow loader with hunyuan model family
-        self._loader = WorkflowLoader(
-            self.workflows_dir,
-            model_family="hunyuan"
-        )
-        
-        self._client = ComfyClient(host=self.comfy_host)
-        await self._client.connect()
-        
-        self._initialized = True
-        logger.info("HunyuanRenderer initialized successfully")
-    
-    async def shutdown(self) -> None:
-        """Clean up resources."""
-        if self._client:
-            await self._client.disconnect()
-            self._client = None
-        self._initialized = False
-        logger.info("HunyuanRenderer shut down")
-    
-    async def generate(
-        self,
-        job: JobSpec,
-        progress_callback: Optional[Callable[[RenderProgress], None]] = None
-    ) -> RenderResult:
-        """Generate video using HunyuanVideo 1.5."""
-        # Implementation follows same pattern as WanRenderer
-        # Key difference: Hunyuan has native identity conditioning
-        # so we don't need separate IP-Adapter injection
-        
-        # ... (full implementation similar to WanRenderer)
-        pass
-    
-    def _select_workflow_template(self, job: JobSpec) -> str:
-        """
-        Select appropriate workflow for job.
-        
-        Hunyuan Simplification:
-        - No separate IP-Adapter workflow needed
-        - Native identity via image encoder
-        - Simpler decision tree than Wan
-        """
-        has_lora = False
-        if job.character_refs:
-            has_lora = job.character_refs[0].has_lora()
-        
-        # I2V path (with init_frame)
-        if job.has_init_frame:
-            if has_lora:
-                return self.WORKFLOW_IMG2VID_LORA
-            return self.WORKFLOW_IMG2VID  # Native identity via init_frame
-        
-        # T2V path
-        if has_lora:
-            return self.WORKFLOW_WITH_LORA
-        return self.DEFAULT_WORKFLOW
-    
-    def _get_model_config(self, job: JobSpec) -> Dict[str, Any]:
-        """Get Hunyuan model paths for workflow injection."""
-        model_type = "i2v" if job.has_init_frame else "t2v"
-        
-        try:
-            config = get_model_config("hunyuan15", model_type)
-            return config.to_workflow_params()
-        except (ValueError, FileNotFoundError) as e:
-            logger.warning(f"Could not load Hunyuan model config: {e}")
-            return {}
-    
-    # ... (rest of implementation mirrors WanRenderer structure)
-```
-
-#### 2.2 Create Hunyuan Workflows
-
-**NOTE:** Exact node names must be discovered during Phase 0 validation.
-
-**File:** `workflows/hunyuan/pass1_img2vid.json`
-
-```json
-{
-  "_metadata": {
-    "description": "HunyuanVideo 1.5 Image-to-Video with native identity",
-    "model": "hunyuan15",
-    "type": "i2v"
-  },
-  
-  "hunyuan_model_loader": {
-    "class_type": "HunyuanVideoModelLoader",
-    "inputs": {
-      "model_path": "{{UNET_MODEL}}",
-      "dtype": "bf16"
-    }
-  },
-  
-  "vae_loader": {
-    "class_type": "VAELoader",
-    "inputs": {
-      "vae_name": "{{VAE_MODEL}}"
-    }
-  },
-  
-  "text_encoder": {
-    "class_type": "HunyuanTextEncode",
-    "inputs": {
-      "clip_name": "{{CLIP_MODEL}}",
-      "prompt": "{{POSITIVE_PROMPT}}"
-    }
-  },
-  
-  "load_init_image": {
-    "class_type": "LoadImage",
-    "inputs": {
-      "image": "{{INIT_IMAGE}}"
-    }
-  },
-  
-  "image_encoder": {
-    "class_type": "HunyuanImageEncode",
-    "inputs": {
-      "image": ["load_init_image", 0],
-      "clip_vision": "{{CLIP_VISION_MODEL}}"
-    }
-  },
-  
-  "sampler": {
-    "class_type": "HunyuanVideoSampler",
-    "inputs": {
-      "model": ["hunyuan_model_loader", 0],
-      "positive": ["text_encoder", 0],
-      "image_embeds": ["image_encoder", 0],
-      "seed": "{{SEED}}",
-      "steps": "{{STEPS}}",
-      "cfg": "{{CFG_SCALE}}",
-      "width": "{{WIDTH}}",
-      "height": "{{HEIGHT}}",
-      "num_frames": "{{FRAMES}}"
-    }
-  },
-  
-  "vae_decode": {
-    "class_type": "VAEDecode",
-    "inputs": {
-      "samples": ["sampler", 0],
-      "vae": ["vae_loader", 0]
-    }
-  },
-  
-  "save_video": {
-    "class_type": "SaveVideo",
-    "inputs": {
-      "images": ["vae_decode", 0],
-      "filename_prefix": "continuum/hunyuan_i2v",
-      "fps": "{{FPS}}"
-    }
-  }
-}
-```
-
-### Phase 3: Integration (Days 5-6)
-
-#### 3.1 Update main.py
-
-**File:** `main.py`
-**Change:** Lines 111 and 669-672
-
-```python
-# OLD (line 111):
-from src.renderers.wan_renderer import WanRenderer
-
-# NEW:
-from src.renderers.base import get_renderer_for_config
-
-
-# OLD (lines 669-672):
-if self.dry_run:
-    self.renderer = get_renderer(RendererType.MOCK)
-else:
-    logger.info(f"Initializing WanRenderer (host={self.config.comfyui.host})")
-    self.renderer = WanRenderer()
-
-# NEW:
-if self.dry_run:
-    self.renderer = get_renderer(RendererType.MOCK)
-else:
-    model_family = self.config.video_model.model_family
-    logger.info(f"Initializing {model_family} renderer (host={self.config.comfyui.host})")
-    self.renderer = get_renderer_for_config(self.config)
-```
-
-#### 3.2 Verify Bridge Engine Compatibility
-
-**No changes needed** - BridgeEngine uses SDXL workflows which are in `shared/`.
-
-**Test:**
-```python
-# Bridge engine should still work
-from src.studio.bridge_engine import ComfyUIBridgeEngine
-
-engine = ComfyUIBridgeEngine()
-# Should load hero_frame.json from workflows/shared/
-# Should load bridge_full.json from workflows/shared/
-```
-
-#### 3.3 Update Pass1Generator (If Needed)
-
-Check if Pass1Generator hardcodes any renderer:
-
-```bash
-grep -n "WanRenderer" pass1_generator.py
-```
-
-If found, replace with factory pattern.
-
-### Phase 4: Validation (Days 7-9)
-
-See Section 5: Testing Protocol.
-
-### Phase 5: Buffer (Day 10)
-
-Reserved for unexpected issues.
+**If there's a mismatch, do NOT proceed with the guide blindly.** Surface the issue first.
 
 ---
 
-## 5. Testing Protocol
+### Phase 1: Infrastructure (Days 3-4)
 
-### 5.1 Unit Tests (Run After Each Phase)
+Phase 1 prepares the codebase for multi-model support WITHOUT yet creating the HunyuanCustom renderer.
+
+After Phase 1, the system should:
+- Still work with Wan (backwards compatible)
+- Have config support for model selection
+- Have workflow loader that understands subdirectories
+- Have model loader that handles HunyuanCustom's different schema
+
+---
+
+#### Step 1.1: Update Config
+
+**File:** `src/core/config.py`
+
+**Pre-Flight Check:**
+```
+1. Read: /mnt/project/config.py (or src/core/config.py in actual repo)
+2. Verify these assumptions:
+   - PostConfig class exists and ends around line 128
+   - Config class has a 'paths' field (we add after it)
+   - Pydantic v2 style is used (@field_validator, not @validator)
+   - Literal type is already imported from typing
+3. If any assumption is wrong, flag before proceeding
+```
+
+**What:** Add a new `VideoModelConfig` class and include it in the main `Config` class.
+
+**Why:** We need a config-driven way to select which model family to use. Environment variable `CONTINUUM_VIDEO_MODEL__MODEL_FAMILY` should control this.
+
+**Guidance:**
+- Model the new class after existing ones like `SonicConfig` or `PostConfig`
+- Fields needed: `model_family` (Literal["wan", "hunyuan_custom"]) and `model_tier` (Literal["dev", "standard", "beast"])
+- Default `model_family` to `"wan"` for backwards compatibility during transition (can flip to `"hunyuan_custom"` later)
+- Add a `@field_validator` for `model_family` to fail fast on invalid values
+
+**Insert Location:** 
+- New class: After `PostConfig` class definition
+- New field in `Config`: After the `paths` field
+
+**Validation:**
+```bash
+python -c "
+from src.core.config import get_config
+c = get_config()
+print(f'model_family: {c.video_model.model_family}')
+print(f'model_tier: {c.video_model.model_tier}')
+"
+# Expected: Should print the default values without error
+```
+
+---
+
+#### Step 1.2: Reorganize Workflow Directory
+
+**What:** Create subdirectory structure and move workflow files.
+
+**Why:** Wan and HunyuanCustom use different ComfyUI nodes. Same logical workflow (e.g., "pass1_img2vid") needs different JSON per model family. Shared workflows (SDXL bridge, RIFE) work for both.
+
+**Structure:**
+```
+workflows/
+├── wan/                    # Wan-specific (pass1_*, refine_*)
+├── hunyuan_custom/         # HunyuanCustom-specific (empty for now)
+├── shared/                 # Model-agnostic (bridge_*, hero_frame, rife, musetalk)
+└── models.json             # Stays in root
+```
+
+**Files to Move:**
+- To `wan/`: All `pass1_*.json`, all `refine_*.json`
+- To `shared/`: All `bridge_*.json`, `hero_frame.json`, `rife_interpolation.json`, `musetalk_lipsync.json`
+- Keep in root: `models.json`
+
+**Validation:**
+```bash
+ls workflows/wan/pass1_img2vid.json      # Should exist
+ls workflows/shared/bridge_full.json      # Should exist
+ls workflows/models.json                  # Should exist
+```
+
+---
+
+#### Step 1.3: Update Workflow Loader
+
+**File:** `src/comfy_client/workflow_loader.py`
+
+**Pre-Flight Check:**
+```
+1. Read: /mnt/project/workflow_loader.py (or src/comfy_client/workflow_loader.py)
+2. Verify these assumptions:
+   - WorkflowLoader class exists
+   - __init__ currently takes only workflows_dir parameter
+   - _find_workflow_file method exists and returns Optional[Path]
+   - Class uses self.workflows_dir to store the base path
+   - There's a _template_cache dict
+3. Check current _find_workflow_file logic to understand what we're replacing
+4. If structure differs significantly, flag before proceeding
+```
+
+**What:** Modify `WorkflowLoader` to:
+1. Accept optional `model_family` parameter in `__init__`
+2. Search for workflows in priority order: model-specific → shared → legacy root
+
+**Why:** Same workflow name should resolve to different files depending on active model family.
+
+**Guidance:**
+- Add `model_family: Optional[str] = None` parameter to `__init__`
+- If `model_family` is None, try to read from config; if config fails, fall back to `None` (legacy mode)
+- **CRITICAL:** Handle `model_family=None` gracefully — don't do `Path / None` (TypeError)
+- Store `self.model_dir` (can be None) and `self.shared_dir`
+- Update `_find_workflow_file()` to check: model_dir → shared_dir → root (legacy)
+- Log a warning when using legacy root path (helps migration)
+
+**Key Edge Case:**
+```python
+# WRONG - crashes if model_family is None:
+self.model_dir = self.workflows_dir / model_family
+
+# RIGHT - handle None:
+self.model_dir = self.workflows_dir / model_family if model_family else None
+```
+
+**Validation:**
+```bash
+python -c "
+from src.comfy_client.workflow_loader import WorkflowLoader
+
+# Test Wan lookup
+loader = WorkflowLoader(model_family='wan')
+t = loader.load('pass1_img2vid')
+print(f'Wan workflow: {t.source_path}')
+
+# Test shared lookup (bridge should be found via shared/)
+t2 = loader.load('bridge_full')
+print(f'Shared workflow: {t2.source_path}')
+
+# Test legacy fallback (None model_family)
+loader_legacy = WorkflowLoader(model_family=None)
+print(f'Legacy mode works: {loader_legacy.model_dir}')
+"
+```
+
+---
+
+#### Step 1.4: Update Model Loader
+
+**File:** `src/core/model_loader.py`
+
+**Pre-Flight Check:**
+```
+1. Read: /mnt/project/model_loader.py (or src/core/model_loader.py)
+2. Verify these assumptions:
+   - ModelConfig is a frozen dataclass
+   - Current required fields: unet, vae, clip
+   - Current optional fields: clip_vision, vram_required_gb, max_resolution
+   - get_model_config() function exists and builds ModelConfig from JSON
+   - Function uses tier_config["clip"] (not .get()) - this is what we need to fix
+3. Check if there are convenience functions at end (get_wan21_t2v_config, etc.)
+4. If ModelConfig already has llava field, the guide is stale - flag it
+```
+
+**What:** Extend `ModelConfig` dataclass to support HunyuanCustom's different schema.
+
+**Why:** HunyuanCustom uses `llava` instead of `clip`, and has additional fields (`flow_shift`, `cfg_scale`, `steps`). Current `ModelConfig` requires `clip` and will crash on HunyuanCustom entries.
+
+**Guidance:**
+- Make `clip` field Optional (it's required for Wan, not for HunyuanCustom)
+- Add new Optional fields: `llava`, `cfg_scale`, `flow_shift`, `steps`, `quality_tier`
+- Update `get_model_config()` to use `.get()` for all optional fields
+- Update `to_workflow_params()` to include new fields when present
+
+**Key Change:**
+```python
+# BEFORE (crashes on HunyuanCustom):
+clip=tier_config["clip"]
+
+# AFTER (handles missing gracefully):
+clip=tier_config.get("clip")
+```
+
+**Validation:**
+```bash
+python -c "
+from src.core.model_loader import get_model_config, ModelTier
+
+# Wan should still work
+wan = get_model_config('wan21', 'i2v', ModelTier.DEV)
+print(f'Wan clip: {wan.clip}')
+
+# This will fail until Step 1.5 adds the JSON, but the loader should be ready
+"
+```
+
+---
+
+#### Step 1.5: Add HunyuanCustom to models.json
+
+**File:** `workflows/models.json`
+
+**Pre-Flight Check:**
+```
+1. Read: /mnt/project/models.json (or workflows/models.json)
+2. Verify these assumptions:
+   - File has wan21 section with t2v and i2v subsections
+   - Each tier (dev/standard/beast) has: unet, vae, clip, clip_vision
+   - There's a placeholder "hunyuan" section (not hunyuan_custom)
+   - JSON structure uses nested objects: family -> type -> tier -> config
+3. Check if hunyuan_custom already exists - if so, guide is stale
+4. Identify exact location to insert (after wan21, before hunyuan)
+```
+
+**What:** Add `hunyuan_custom` section with i2v configurations for dev/standard/beast tiers.
+
+**Why:** Model loader needs to know HunyuanCustom model paths and parameters.
+
+**Guidance:**
+- Add after `wan21` section, before `hunyuan` (the generic placeholder)
+- Required fields: `unet`, `vae`, `llava`, `clip_vision`, `vram_required_gb`, `max_resolution`, `quality_tier`
+- HunyuanCustom-specific: `cfg_scale` (7.5), `flow_shift` (13.0), `steps` (30)
+- Note: HunyuanCustom does NOT have `clip` field (uses `llava` instead)
+
+**Key Values:**
+- Model file: `hunyuan_video_custom_720p_fp8_scaled.safetensors` (dev)
+- VAE: `hunyuan_video_vae_bf16.safetensors`
+- LLaVA: `llava-llama-3-8b-v1_1`
+- VRAM: 80 GB
+
+**Validation:**
+```bash
+python -c "
+from src.core.model_loader import get_model_config, ModelTier
+
+config = get_model_config('hunyuan_custom', 'i2v', ModelTier.DEV)
+print(f'unet: {config.unet}')
+print(f'llava: {config.llava}')
+print(f'flow_shift: {config.flow_shift}')
+assert config.llava is not None
+assert config.flow_shift == 13.0
+print('✓ HunyuanCustom model config works')
+"
+```
+
+---
+
+#### Step 1.6: Update Renderer Base
+
+**File:** `src/renderers/base.py`
+
+**Pre-Flight Check:**
+```
+1. Read: /mnt/project/base.py (or src/renderers/base.py)
+2. Verify these assumptions:
+   - RendererType enum exists with WAN, HUNYUAN, MOCHI, etc.
+   - HUNYUAN_CUSTOM does NOT exist yet (if it does, skip enum addition)
+   - get_renderer() function exists and uses _renderer_registry
+   - list_renderers() function exists
+   - @register_renderer decorator exists
+3. Check import structure - we may need TYPE_CHECKING for Config import
+4. Verify there's no existing get_renderer_for_config() function
+```
+
+**What:** 
+1. Add `HUNYUAN_CUSTOM = "hunyuan_custom"` to `RendererType` enum
+2. Add `get_renderer_for_config()` factory function
+
+**Why:** 
+1. The enum value is needed for `@register_renderer` decorator
+2. Factory function is the single source of truth for "which renderer for this config"
+
+**Guidance for Factory Function:**
+- Accept optional `Config` parameter (import from `..core.config` inside function to avoid circular import)
+- Read `config.video_model.model_family`
+- Map family string to `RendererType` enum
+- Call existing `get_renderer()` with the mapped type
+- Raise clear error if family has no registered renderer
+
+**Insert Location:**
+- Enum addition: Add after `HUNYUAN = "hunyuan"` line
+- Factory function: After `list_renderers()` at end of file
+
+**Validation:**
+```bash
+python -c "
+from src.renderers.base import RendererType, get_renderer_for_config
+
+# Enum exists
+print(f'HUNYUAN_CUSTOM = {RendererType.HUNYUAN_CUSTOM.value}')
+
+# Factory function exists (will fail on call until renderer is registered)
+print(f'Factory function: {get_renderer_for_config}')
+"
+```
+
+---
+
+#### Phase 1 Complete Validation
+
+Run all these after completing Phase 1:
+
+```bash
+# 1. Config works
+python -c "from src.core.config import get_config; print(get_config().video_model)"
+
+# 2. Workflow loader finds Wan workflows
+python -c "from src.comfy_client import WorkflowLoader; print(WorkflowLoader(model_family='wan').load('pass1_img2vid').name)"
+
+# 3. Workflow loader finds shared workflows  
+python -c "from src.comfy_client import WorkflowLoader; print(WorkflowLoader(model_family='wan').load('bridge_full').name)"
+
+# 4. Model loader handles HunyuanCustom
+python -c "from src.core.model_loader import get_model_config, ModelTier; c=get_model_config('hunyuan_custom','i2v',ModelTier.DEV); print(c.llava)"
+
+# 5. RendererType enum has new value
+python -c "from src.renderers.base import RendererType; print(RendererType.HUNYUAN_CUSTOM)"
+
+# 6. Existing Wan pipeline still works (CRITICAL - no regression)
+python main.py --project tests/quick_test.json --dry-run -v
+```
+
+---
+
+### Phase 2: HunyuanCustom Renderer (Days 5-6)
+
+Phase 2 creates the actual HunyuanCustom renderer implementation.
+
+---
+
+#### Step 2.1: Create HunyuanCustomRenderer
+
+**File:** `src/renderers/hunyuan_custom_renderer.py` (NEW)
+
+**Pre-Flight Check:**
+```
+1. Read: /mnt/project/wan_renderer.py (or src/renderers/wan_renderer.py)
+   - This is our TEMPLATE - understand its structure before creating sibling
+2. Verify these patterns in wan_renderer.py:
+   - Uses @register_renderer(RendererType.WAN) decorator
+   - Inherits from BaseRenderer
+   - Has WORKFLOW_* class constants for workflow names
+   - Has _select_workflow() method
+   - Has _build_params() method
+   - Uses WorkflowLoader with model_family parameter (or should after 1.3)
+3. Read: /mnt/project/base.py - verify JobSpec, RenderResult, CharacterRef structures
+4. Verify RendererType.HUNYUAN_CUSTOM exists (from Step 1.6)
+5. Verify get_model_config('hunyuan_custom', 'i2v') works (from Step 1.4-1.5)
+```
+
+**What:** Create a new renderer class that implements `BaseRenderer` for HunyuanCustom.
+
+**Why:** HunyuanCustom uses different ComfyUI nodes and has native identity (no IP-Adapter workaround needed).
+
+**Guidance:**
+- Use `wan_renderer.py` as a template — same structure, different details
+- Decorate with `@register_renderer(RendererType.HUNYUAN_CUSTOM)`
+- Key differences from Wan:
+  - Uses `<image>` token in prompt for identity injection
+  - Different default parameters (`flow_shift=13.0`, `cfg_scale=7.5`, `fps=25`)
+  - Uses `llava` from model config instead of `clip`
+  - No separate IP-Adapter step needed
+
+**Critical Implementation Details:**
+1. **Prompt formatting:** Prepend `"A portrait of <image> "` to prompts without `<image>` token
+2. **Model tier:** Use `ModelTier.from_env()`, NOT hardcoded `ModelTier.DEV`
+3. **Workflow loader:** Initialize with `model_family="hunyuan_custom"`
+4. **Multi-subject:** Support up to 2 `<image>` tokens for 2 characters
+
+**Required Methods:**
+- `__init__`, `initialize`, `shutdown` — Lifecycle
+- `generate` — Main entry point
+- `_select_workflow` — Choose workflow based on job params
+- `_build_params` — Build workflow placeholder dict
+- `_format_prompt_with_image_token` — HunyuanCustom-specific prompt formatting
+- `health_check`, `estimate_cost`, `estimate_time` — BaseRenderer requirements
+- `supports_feature`, `get_capabilities` — Feature discovery
+
+**Validation:**
+```bash
+python -c "
+from src.renderers.hunyuan_custom_renderer import HunyuanCustomRenderer
+from src.renderers.base import RendererType
+
+r = HunyuanCustomRenderer()
+print(f'Type: {r.renderer_type}')
+assert r.renderer_type == RendererType.HUNYUAN_CUSTOM
+print('✓ Renderer instantiates')
+"
+```
+
+---
+
+#### Step 2.2: Register Renderer
+
+**File:** `src/renderers/__init__.py`
+
+**Pre-Flight Check:**
+```
+1. Read: The project's src/renderers/__init__.py (check if it exists)
+2. If it exists, verify:
+   - Current imports (likely imports from .base and .wan_renderer)
+   - Current __all__ list
+   - Whether get_renderer_for_config is already exported
+3. If it doesn't exist, we need to create it
+4. Verify hunyuan_custom_renderer.py exists (from Step 2.1)
+```
+
+**What:** Import `HunyuanCustomRenderer` to trigger `@register_renderer` decorator.
+
+**Why:** Python's decorator runs at import time. Without importing the module, the renderer won't be registered.
+
+**Guidance:**
+- Add import: `from .hunyuan_custom_renderer import HunyuanCustomRenderer`
+- Add to `__all__`: `"HunyuanCustomRenderer"`
+- Also export `get_renderer_for_config` from base
+
+**Validation:**
+```bash
+python -c "
+from src.renderers import list_renderers, RendererType
+print(f'Registered: {list_renderers()}')
+assert RendererType.HUNYUAN_CUSTOM in list_renderers()
+print('✓ Renderer registered')
+"
+```
+
+---
+
+#### Step 2.3: Create HunyuanCustom Workflow
+
+**File:** `workflows/hunyuan_custom/pass1_img2vid.json` (NEW)
+
+**Pre-Flight Check:**
+```
+1. Read: /mnt/project/pass1_img2vid.json (the Wan version)
+   - Understand the structure and placeholder patterns used
+2. Verify:
+   - Placeholder format is {{NAME}} 
+   - Workflow has numbered node IDs as keys
+   - Each node has class_type and inputs
+3. Read HunyuanCustomRenderer._build_params() (from Step 2.1)
+   - Note which placeholders it expects to inject
+4. Cross-reference with Kijai's ComfyUI-HunyuanVideoWrapper documentation
+   - Verify node names: HyVideoModelLoader, HyVideoSampler, etc.
+5. Verify workflows/hunyuan_custom/ directory exists (from Step 1.2)
+```
+
+**What:** Create the ComfyUI workflow JSON for HunyuanCustom I2V generation.
+
+**Why:** HunyuanCustom uses different nodes than Wan (HyVideoSampler vs WanImageToVideo).
+
+**Guidance:**
+- Use ComfyUI's workflow export as starting point if possible
+- Key nodes: `HyVideoModelLoaderDiffSynthMultiGPU` (for 4x GPU), `HyVideoTextImageEncode`, `HyVideoSampler`, `HyVideoDecode`
+- Placeholders to include: `{{MODEL_PATH}}`, `{{VAE_PATH}}`, `{{LLAVA_PATH}}`, `{{PROMPT}}`, `{{NEGATIVE_PROMPT}}`, `{{FACE_REF_PATH}}`, `{{STEPS}}`, `{{CFG_SCALE}}`, `{{FLOW_SHIFT}}`, `{{SEED}}`, `{{WIDTH}}`, `{{HEIGHT}}`, `{{FRAMES}}`, `{{FPS}}`
+
+**Note:** This workflow should be validated against actual ComfyUI during Phase 0 testing. The exact node names and connections depend on the Kijai extension version.
+
+**Validation:**
+```bash
+python -c "
+from src.comfy_client import WorkflowLoader
+loader = WorkflowLoader(model_family='hunyuan_custom')
+t = loader.load('pass1_img2vid')
+print(f'Placeholders: {t.placeholders}')
+assert 'PROMPT' in t.placeholders
+"
+```
+
+---
+
+#### Phase 2 Complete Validation
+
+```bash
+# 1. Renderer instantiates
+python -c "from src.renderers import HunyuanCustomRenderer; print(HunyuanCustomRenderer())"
+
+# 2. Renderer is registered
+python -c "from src.renderers import list_renderers, RendererType; assert RendererType.HUNYUAN_CUSTOM in list_renderers()"
+
+# 3. Factory returns correct renderer
+CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=hunyuan_custom python -c "
+from src.core.config import reload_config
+reload_config()
+from src.renderers import get_renderer_for_config, RendererType
+r = get_renderer_for_config()
+assert r.renderer_type == RendererType.HUNYUAN_CUSTOM
+print('✓ Factory works')
+"
+
+# 4. Workflow loads
+python -c "from src.comfy_client import WorkflowLoader; WorkflowLoader(model_family='hunyuan_custom').load('pass1_img2vid')"
+```
+
+---
+
+### Phase 3: Integration (Days 7-8)
+
+Phase 3 connects everything to main.py and verifies end-to-end.
+
+---
+
+#### Step 3.1: Update main.py
+
+**File:** `main.py`
+
+**Pre-Flight Check:**
+```
+1. Read: /mnt/project/main.py
+2. Find the WanRenderer import - note exact line and format
+3. Find renderer initialization - search for "WanRenderer()"
+   - Note the surrounding context (dry_run check, logging, etc.)
+   - Note exact line numbers for surgical replacement
+4. Verify:
+   - get_renderer(RendererType.MOCK) is used for dry_run
+   - self.config exists at point of renderer initialization
+   - self.renderer is the attribute name used
+5. Check if there are other WanRenderer references elsewhere in file
+6. Verify get_renderer_for_config is importable from src.renderers
+```
+
+**What:** Replace hardcoded `WanRenderer` with config-driven renderer factory.
+
+**Why:** main.py should respect `config.video_model.model_family` to choose renderer.
+
+**Guidance:**
+- Find the import of `WanRenderer` and add/replace with `get_renderer_for_config`
+- Find the renderer initialization block (look for `WanRenderer()`)
+- Replace direct `WanRenderer()` instantiation with `get_renderer_for_config(self.config)`
+- Keep the dry-run mock renderer logic unchanged
+- Add logging to show which renderer was selected
+
+**Changes Needed:**
+1. Import: Add `get_renderer_for_config` from `src.renderers`
+2. Initialization: Replace `WanRenderer()` with `get_renderer_for_config(self.config)`
+
+**Validation:**
+```bash
+# Test with Wan (should work same as before)
+CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=wan python main.py --project tests/quick_test.json --dry-run -v
+
+# Test with HunyuanCustom (should select HunyuanCustom renderer)
+CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=hunyuan_custom python main.py --project tests/quick_test.json --dry-run -v
+```
+
+---
+
+#### Step 3.2: Verify Bridge Engine Compatibility
+
+**File:** `src/studio/bridge_engine.py` (VERIFY, may not need changes)
+
+**Pre-Flight Check:**
+```
+1. Read: /mnt/project/bridge_engine.py (or src/studio/bridge_engine.py)
+2. Search for WorkflowLoader usage:
+   - How is it instantiated? (with or without model_family?)
+   - Which workflows does it load? (bridge_full, bridge_pose_only, etc.)
+3. Search for hardcoded workflow paths
+4. Verify:
+   - Bridge workflows are now in workflows/shared/ (from Step 1.2)
+   - WorkflowLoader with model_family=None or unset will find them via shared/ search
+5. Determine if changes are needed or if existing code will work
+```
+
+**What:** Ensure Bridge Engine finds workflows in `shared/` directory.
+
+**Why:** Bridge workflows were moved to `workflows/shared/`. Bridge Engine should still find them.
+
+**Guidance:**
+- Check how Bridge Engine creates its `WorkflowLoader`
+- If it passes no `model_family`, the updated loader should find workflows in shared/ via the search order
+- If it hardcodes paths, update to use `WorkflowLoader(model_family=None)` or rely on shared/ search
+
+**Validation:**
+```bash
+python -c "
+from src.studio.bridge_engine import ComfyUIBridgeEngine
+# If this import works without error, the module at least loads
+print('Bridge engine module loads')
+"
+
+# Full test with dry run
+python main.py --project tests/quick_test.json --dry-run -v
+# Should complete without 'workflow not found' errors for bridge_*
+```
+
+---
+
+#### Phase 3 Complete Validation (Integration Checklist)
+
+| Test | Command | Pass Criteria |
+|------|---------|---------------|
+| Wan dry run | `CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=wan python main.py --project tests/quick_test.json --dry-run -v` | Completes without error |
+| HunyuanCustom dry run | `CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=hunyuan_custom python main.py --project tests/quick_test.json --dry-run -v` | Completes without error, logs show "hunyuan_custom renderer" |
+| Model switching | See validation script below | Both renderers instantiate correctly |
+
+```bash
+# Model switching test
+python -c "
+import os
+from src.core.config import reload_config
+from src.renderers import get_renderer_for_config, RendererType
+
+os.environ['CONTINUUM_VIDEO_MODEL__MODEL_FAMILY'] = 'wan'
+reload_config()
+r1 = get_renderer_for_config()
+print(f'Wan: {r1.renderer_type}')
+assert r1.renderer_type == RendererType.WAN
+
+os.environ['CONTINUUM_VIDEO_MODEL__MODEL_FAMILY'] = 'hunyuan_custom'  
+reload_config()
+r2 = get_renderer_for_config()
+print(f'HunyuanCustom: {r2.renderer_type}')
+assert r2.renderer_type == RendererType.HUNYUAN_CUSTOM
+
+print('✓ Model switching works')
+"
+```
+
+---
+
+### Execution Order Summary
+
+When implementing, follow this exact order:
+
+```
+Phase 1 (Foundation - no new renderer yet)
+├── 1.1 config.py — Add VideoModelConfig
+├── 1.2 workflows/ — Reorganize directories (bash)
+├── 1.3 workflow_loader.py — Add model_family support
+├── 1.4 model_loader.py — Extend ModelConfig schema
+├── 1.5 models.json — Add hunyuan_custom entries
+├── 1.6 base.py — Add enum + factory function
+└── [VALIDATE Phase 1 - Wan still works]
+
+Phase 2 (New renderer)
+├── 2.1 hunyuan_custom_renderer.py — Create renderer (NEW FILE)
+├── 2.2 renderers/__init__.py — Register renderer
+├── 2.3 pass1_img2vid.json — Create workflow (NEW FILE)
+└── [VALIDATE Phase 2 - Renderer works in isolation]
+
+Phase 3 (Integration)
+├── 3.1 main.py — Use factory instead of hardcoded renderer
+├── 3.2 bridge_engine.py — Verify compatibility (may be no-op)
+└── [VALIDATE Phase 3 - Full pipeline works with both models]
+```
+
+**After each step:** Run the validation command. Do not proceed if it fails.
+
+**If validation fails:** Fix the current file before moving on. Do not accumulate errors.
+
+#### 3.2 Verify Bridge Engine Compatibility
+
+Bridge Engine uses SDXL workflows which are in `shared/`. 
+
+**Key Question:** Is Bridge Engine still needed with HunyuanCustom?
+
+| Scenario | With Wan | With HunyuanCustom |
+|----------|----------|-------------------|
+| Single shot | Hero Frame required | Native face ref |
+| Multi-shot | Bridge Frame required | **Test needed** |
+
+**Test during Phase 0:**
+- If HunyuanCustom maintains identity across shots with just face ref → Bridge optional
+- If identity drifts → Keep Bridge Engine
+
+### Phase 4: Validation (Days 9-10)
+
+See Section 6: Testing Protocol.
+
+### Phase 5: Buffer (Days 11-12)
+
+Reserved for unexpected issues and demo preparation.
+
+---
+
+## 6. Testing Protocol
+
+### 6.1 Unit Tests (Run After Each Phase)
 
 ```bash
 # After Phase 1: Infrastructure
@@ -987,7 +1249,7 @@ python -c "
 from src.core.config import get_config
 config = get_config()
 print(f'Model family: {config.video_model.model_family}')
-assert config.video_model.model_family in ['wan', 'hunyuan']
+assert config.video_model.model_family in ['wan', 'hunyuan_custom']
 print('✓ Config test passed')
 "
 
@@ -1001,21 +1263,21 @@ print('✓ Workflow loader test passed')
 
 python -c "
 from src.core.model_loader import get_model_config, ModelTier
-config = get_model_config('hunyuan15', 'i2v', ModelTier.DEV)
-print(f'Hunyuan I2V model: {config.unet}')
+config = get_model_config('hunyuan_custom', 'i2v', ModelTier.DEV)
+print(f'HunyuanCustom I2V model: {config.unet}')
 print('✓ Model loader test passed')
 "
 ```
 
-### 5.2 Integration Tests
+### 6.2 Integration Tests
 
 ```bash
 # Test Wan still works after restructuring
 CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=wan \
 python main.py --project tests/quick_test.json --dry-run -v
 
-# Test Hunyuan renderer instantiation
-CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=hunyuan \
+# Test HunyuanCustom renderer instantiation
+CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=hunyuan_custom \
 python -c "
 from src.renderers.base import get_renderer_for_config
 renderer = get_renderer_for_config()
@@ -1023,7 +1285,7 @@ print(f'Renderer type: {renderer.renderer_type}')
 "
 ```
 
-### 5.3 End-to-End Tests
+### 6.3 End-to-End Tests
 
 ```bash
 # Wan E2E (should work same as before)
@@ -1034,8 +1296,8 @@ python main.py \
   --output workspace/output/wan_test \
   --no-pass2 -v
 
-# Hunyuan E2E
-CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=hunyuan \
+# HunyuanCustom E2E
+CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=hunyuan_custom \
 python main.py \
   --project tests/quick_test.json \
   --consistency tests/bible.json \
@@ -1043,25 +1305,25 @@ python main.py \
   --no-pass2 -v
 ```
 
-### 5.4 Identity Preservation Tests
+### 6.4 Identity Preservation Tests
 
 ```bash
-# 4-second clip identity test
+# 5-second clip identity test
 python main.py \
-  --project tests/identity_test_4sec.json \
+  --project tests/identity_test_5sec.json \
   --consistency tests/bible.json \
   --output workspace/output/identity_test \
   -v
 
 # Check ArcFace scores in output
-# Target: >= 0.95 frame 1 vs frame 96
+# Target: >= 0.60 frame 1 vs frame 129
 ```
 
-### 5.5 Model Switching Test
+### 6.5 Model Switching Test
 
 ```bash
-# Generate with Hunyuan
-CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=hunyuan \
+# Generate with HunyuanCustom
+CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=hunyuan_custom \
 python main.py --project tests/quick_test.json --output workspace/output/switch_hunyuan
 
 # Switch to Wan (same project)
@@ -1073,19 +1335,21 @@ python main.py --project tests/quick_test.json --output workspace/output/switch_
 
 ---
 
-## 6. Debugging Guide
+## 7. Debugging Guide
 
-### 6.1 Common Errors
+### 7.1 Common Errors
 
 | Error | Cause | Solution |
 |-------|-------|----------|
 | `FileNotFoundError: Workflow 'pass1_img2vid' not found` | Workflows not moved to subdirectories | Run Phase 1.2 file moves |
-| `Unknown model family: hunyuan` | Config not updated | Add VideoModelConfig to config.py |
-| `ModuleNotFoundError: hunyuan_renderer` | HunyuanRenderer not created | Create file in Phase 2 |
-| `KeyError: 'hunyuan15'` | models.json not updated | Add hunyuan15 section |
-| `ComfyUI node not found: HunyuanVideoSampler` | Wrong node name | Check exact names from Phase 0 |
+| `Unknown model family: hunyuan_custom` | Config not updated | Add VideoModelConfig to config.py |
+| `ModuleNotFoundError: hunyuan_custom_renderer` | Renderer not created | Create file in Phase 2 |
+| `KeyError: 'hunyuan_custom'` | models.json not updated | Add hunyuan_custom section |
+| `ComfyUI node not found: HyVideoSampler` | Kijai wrapper not installed | Install ComfyUI-HunyuanVideoWrapper |
+| `CUDA out of memory` | Single GPU insufficient | Use ComfyUI-MultiGPU, distribute across 4x4090 |
+| `Black video output` | Wrong flow_shift or CFG | Use flow_shift=13.0, CFG=7.5 |
 
-### 6.2 Diagnostic Commands
+### 7.2 Diagnostic Commands
 
 ```bash
 # Check which model family is configured
@@ -1109,42 +1373,45 @@ async def test():
 asyncio.run(test())
 "
 
-# Check if Hunyuan nodes exist on ComfyUI server
+# Check if HunyuanCustom nodes exist on ComfyUI server
 curl -s http://localhost:8188/object_info | python -c "
 import sys, json
 data = json.load(sys.stdin)
-hunyuan_nodes = [k for k in data.keys() if 'hunyuan' in k.lower()]
-print('Hunyuan nodes:', hunyuan_nodes)
+hy_nodes = [k for k in data.keys() if 'HyVideo' in k or 'hunyuan' in k.lower()]
+print('HunyuanVideo nodes:', hy_nodes)
 "
+
+# Check GPU memory usage
+nvidia-smi
+
+# Monitor during generation
+watch -n 1 nvidia-smi
 ```
 
-### 6.3 Log Locations
+### 7.3 HunyuanCustom-Specific Issues
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Identity not preserved | Wrong prompt format | Use `<image>` token: "A portrait of <image> walking" |
+| Face looks different | ID weight too low | Increase ID_WEIGHT to 1.0 |
+| Multi-GPU not working | Wrong loader node | Use `HyVideoModelLoaderDiffSynthMultiGPU` |
+| Slow generation | Not using all GPUs | Verify ComfyUI-MultiGPU is installed and configured |
+| Audio lip sync broken | Audio-driven not in ComfyUI | Use MuseTalk for now |
+
+### 7.4 Log Locations
 
 ```
 workspace/output/*/generation.log    # Per-project generation logs
 workspace/checkpoints/               # Checkpoint state files
 ```
 
-### 6.4 Workflow Debugging
-
-```python
-# Test workflow loading in isolation
-from src.comfy_client import WorkflowLoader
-
-loader = WorkflowLoader(model_family="hunyuan")
-template = loader.load("pass1_img2vid")
-
-print("Placeholders found:", template.placeholders)
-print("Workflow structure:", list(template.workflow.keys()))
-```
-
 ---
 
-## 7. Rollback Procedure
+## 8. Rollback Procedure
 
-If Hunyuan integration fails and you need to revert to Wan:
+If HunyuanCustom integration fails and you need to revert to Wan:
 
-### 7.1 Quick Rollback (Config Only)
+### 8.1 Quick Rollback (Config Only)
 
 ```bash
 # Set environment variable
@@ -1156,7 +1423,7 @@ echo "CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=wan" >> .env
 # Restart application
 ```
 
-### 7.2 Full Rollback (Code Changes)
+### 8.2 Full Rollback (Code Changes)
 
 ```bash
 # Revert main.py to hardcoded WanRenderer
@@ -1166,241 +1433,159 @@ git checkout main.py
 # Wan workflows still work from workflows/wan/
 ```
 
-### 7.3 Rollback Checklist
+### 8.3 Rollback Checklist
 
 - [ ] Set CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=wan
 - [ ] Verify Wan workflows exist in workflows/wan/
 - [ ] Test quick_test.json with Wan
 - [ ] Confirm identity preservation still works
+- [ ] Switch back to RTX 4090 single GPU ($0.74/hr)
 
 ---
 
-## 8. Risk Matrix
+## 9. Risk Matrix
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
-| Hunyuan nodes don't exist on ComfyUI | Low | High | Phase 0 validation before any code |
+| Multi-GPU extension doesn't work | Low | High | Test early in Phase 0; fallback to H100 |
 | Workflow loader breaks Wan | Medium | High | Legacy path fallback + thorough testing |
-| Identity worse than Wan | Medium | Medium | Side-by-side comparison, can switch back |
-| VRAM higher than claimed | Low | Medium | Test on actual RunPod before committing |
-| Unknown node names | Medium | Medium | Screenshot working workflow in Phase 0 |
-| Bridge frames break | Low | High | Bridge uses SDXL, should be unaffected |
-| Demo deadline missed | Medium | High | Day 10 buffer, can demo Wan if needed |
-| **Native IP2V < 93% identity** | Medium | Low | Fall back to LoRA training (still faster than Wan) |
-| **IP2V claim is oversold** | Low | Medium | We still have IP-Adapter fallback |
+| Identity worse than benchmark | Medium | Medium | Phase 0 validation before committing |
+| VRAM higher than expected | Low | Medium | Have H100 as backup option |
+| Kijai wrapper issues | Medium | Medium | Check GitHub issues, community support |
+| Bridge Engine breaks | Low | High | Bridge uses SDXL, should be unaffected |
+| Demo deadline missed | Medium | High | Day 11-12 buffer, can demo Wan if needed |
+| Audio-driven delayed | High | Low | Already planned: Keep MuseTalk |
 
 ---
 
-## 9. Day-by-Day Schedule
+## 10. Day-by-Day Schedule
 
-### Day 1: Validation (CRITICAL - Tests IP2V Hypothesis)
-- [ ] Morning: Download Hunyuan models to RunPod
-- [ ] Morning: Test official ComfyUI workflow (basic generation)
-- [ ] Afternoon: **Test native IP2V identity** (single reference image, no LoRA)
-- [ ] Afternoon: Measure ArcFace across 4-second clip (target: >= 0.93)
-- [ ] Afternoon: Test high-motion scenario (head turn)
-- [ ] **EXIT GATE:** Native IP2V achieves >= 93% identity (if yes, LoRA is optional for MVP)
+### Day 1-2: Phase 0 Validation (CRITICAL)
+- [ ] Set up 4x RTX 4090 on RunPod
+- [ ] Install ComfyUI + extensions (MultiGPU, Kijai wrapper)
+- [ ] Download HunyuanCustom models (~32 GB)
+- [ ] Run Test 1: Basic function
+- [ ] Run Test 2: Single-shot identity (target: ≥0.60)
+- [ ] Run Test 3: Multi-shot identity (target: ≥0.55)
+- [ ] Run Test 4: Bridge Engine comparison
+- [ ] Run Test 5: vs Wan baseline
+- [ ] **EXIT GATE:** Make go/no-go decision
 
-### Day 2: Infrastructure
+### Day 3-4: Phase 1 Infrastructure
 - [ ] Add VideoModelConfig to config.py
 - [ ] Create directory structure
 - [ ] Move workflow files
 - [ ] Update workflow_loader.py
+- [ ] Update models.json
 - [ ] Test Wan still works
 
-### Day 3: Hunyuan Renderer (Part 1)
-- [ ] Create hunyuan_renderer.py skeleton
+### Day 5-6: Phase 2 HunyuanCustom Renderer
+- [ ] Create hunyuan_custom_renderer.py skeleton
 - [ ] Implement initialize/shutdown
-- [ ] Implement _select_workflow_template
+- [ ] Implement _format_prompt_with_image_token
 - [ ] Add to renderer registry
-
-### Day 4: Hunyuan Renderer (Part 2)
-- [ ] Create Hunyuan workflow JSONs
-- [ ] Implement generate() method
+- [ ] Create HunyuanCustom workflow JSONs
 - [ ] Test basic generation
-- [ ] Debug ComfyUI node issues
 
-### Day 5: Integration
+### Day 7-8: Phase 3 Integration
 - [ ] Update main.py renderer factory
-- [ ] Verify bridge_engine compatibility
+- [ ] Verify bridge_engine compatibility (or disable if not needed)
 - [ ] Run integration tests
 - [ ] Fix any breaks
-
-### Day 6: Identity Testing
-- [ ] Run 4-second identity tests
-- [ ] Compare Wan vs Hunyuan quality
 - [ ] Test multi-shot sequence
+
+### Day 9-10: Phase 4 Validation
+- [ ] Run 5-second identity tests
+- [ ] Compare HunyuanCustom vs Wan quality
+- [ ] Test model switching both directions
 - [ ] Document results
 
-### Day 7: Polish
-- [ ] Fix any remaining bugs
-- [ ] Optimize workflow parameters
-- [ ] Test model switching both directions
-- [ ] Update documentation
-
-### Day 8: Demo Content
+### Day 11-12: Buffer + Demo Prep
 - [ ] Create investor demo project
 - [ ] Generate demo videos
 - [ ] Review quality
 - [ ] Re-render if needed
-
-### Day 9: Demo Polish
-- [ ] Final quality review
 - [ ] Prepare backup Wan demo (if needed)
-- [ ] Test on fresh RunPod instance
-- [ ] Document any gotchas
-
-### Day 10: Buffer
-- [ ] Reserved for unexpected issues
 - [ ] Final rehearsal
-- [ ] Backup everything
 
 ---
 
-## Appendix A: Node Name Discovery
+## Appendix A: ComfyUI Node Reference
 
-### Verified ComfyUI Node Names (From Research)
-
-**Native ComfyUI (v0.3.75+) - RECOMMENDED:**
+### Kijai HunyuanVideoWrapper Nodes
 
 | Purpose | `class_type` | Notes |
 |---------|--------------|-------|
-| Model Loader | `UNETLoader` | Standard loader |
-| Dual CLIP Loader | `DualCLIPLoader` | Loads both text encoders |
-| CLIP Vision Loader | `CLIPVisionLoader` | For SigLIP |
-| CLIP Vision Encode | `CLIPVisionEncode` | Encodes init_image |
-| Text Encoder (I2V) | `TextEncodeHunyuanVideo_ImageToVideo` | I2V-specific |
-| Main I2V Node | `HunyuanImageToVideo` | Core generation |
-| VAE Loader | `VAELoader` | Standard |
-| VAE Decode | `VAEDecode` | Standard |
+| Model Loader | `HyVideoModelLoader` | Standard single-GPU |
+| Model Loader (Multi-GPU) | `HyVideoModelLoaderDiffSynthMultiGPU` | For 4x4090 setup |
+| Sampler | `HyVideoSampler` | Main generation |
+| Text+Image Encode | `HyVideoTextImageEncode` | For face reference |
+| Custom Prompt | `HyVideoCustomPromptTemplate` | Format `<image>` token |
+| VAE Loader | `HyVideoVAELoader` | Load VAE |
+| Decode | `HyVideoDecode` | Latent to video |
 
-**Kijai Wrapper (INCOMPATIBLE - Do Not Mix):**
+### Multi-GPU Configuration
 
-| Purpose | `class_type` |
-|---------|--------------|
-| Model Loader | `HyVideoModelLoader` |
-| Sampler | `HyVideoSampler` |
-| I2V Encode | `HyVideoI2VEncode` |
-| LoRA Select | `HyVideoLoraSelect` |
-
-**DECISION:** Use native ComfyUI nodes. They are:
-- 18% faster on RTX 4090
-- Zero workflow crashes reported
-- Officially supported
-
-**Official Workflow Template:**
-```
-https://raw.githubusercontent.com/Comfy-Org/workflow_templates/refs/heads/main/templates/video_hunyuan_video_1.5_720p_i2v.json
+```python
+# In workflow JSON, use multi-GPU loader:
+{
+  "model_loader": {
+    "class_type": "HyVideoModelLoaderDiffSynthMultiGPU",
+    "inputs": {
+      "model": "hunyuan_video_custom_720p_fp8_scaled.safetensors",
+      "devices": [0, 1, 2, 3]  # All 4 GPUs
+    }
+  }
+}
 ```
 
-## Appendix A.1: Verified Known Issues and Debugging
+---
 
-### Critical Issues (From Research)
-
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| **Silent crashes** | RAM/VRAM exhaustion | Set `export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:128` |
-| **LoRA loading failures** | I2V vs T2V key naming differs | Use correct LoRA type for your workflow |
-| **Black videos** | PyTorch < 2.5.1 OR wrong flow_shift | Upgrade PyTorch; use flow_shift=7.0 for 50 steps, 17.0 for <20 steps |
-| **Static/no motion** | LoRA strength too high | Reduce to 0.5, never exceed 2.0 |
-| **torch.compile + LoRA** | Known incompatibility | Disable torch.compile when using LoRA |
-| **Tiled VAE artifacts** | temporal_size too low | Set temporal_size to 4096 |
-
-### Debugging Checklist
-
-```bash
-# 1. Check VRAM before starting
-nvidia-smi
-
-# 2. Set OOM prevention
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:128
-
-# 3. Clear cache if issues persist
-rm -rf ~/.triton
-rm -rf /tmp/torchinductor_*
-
-# 4. Verify PyTorch version
-python -c "import torch; print(torch.__version__)"  # Should be >= 2.5.1
-
-# 5. Test ComfyUI connection
-curl -s http://localhost:8188/system_stats | python -c "import sys,json; print(json.load(sys.stdin))"
-
-# 6. Check if Hunyuan nodes exist
-curl -s http://localhost:8188/object_info | python -c "
-import sys, json
-data = json.load(sys.stdin)
-nodes = [k for k in data.keys() if 'hunyuan' in k.lower()]
-print('Hunyuan nodes:', nodes)
-"
-```
-
-### Inference Parameters (Verified)
-
-| Model | CFG Scale | Flow Shift | Steps |
-|-------|-----------|------------|-------|
-| 720p I2V (CFG distilled) | **1.0** | **7.0** | **50** |
-| 720p I2V (non-distilled) | 6.0 | 7.0 | 50 |
-| 480p I2V (step distilled) | **1.0** | **5.0** | **8-12** |
-
-**Common mistakes:**
-- Using CFG=6.0 with distilled model (should be 1.0)
-- Using wrong flow_shift for resolution
-- Using 50 steps with step-distilled (only needs 8-12)
-
-## Appendix B: Model Files Checklist (Verified)
+## Appendix B: Model Files Checklist
 
 ```
-RUNPOD MODEL LOCATIONS (Verified Dec 2025):
+RUNPOD MODEL LOCATIONS (4x RTX 4090):
 
 /workspace/ComfyUI/models/diffusion_models/
-  [ ] hunyuanvideo1.5_720p_i2v_cfg_distilled_fp8_scaled.safetensors  (8.33 GB)
-  [ ] hunyuanvideo1.5_720p_i2v_fp16.safetensors                      (16.7 GB) [optional]
-  [ ] hunyuanvideo1.5_480p_i2v_step_distilled_fp8_scaled.safetensors (8.34 GB) [for fast demos]
-
-/workspace/ComfyUI/models/text_encoders/
-  [ ] qwen_2.5_vl_7b_fp8_scaled.safetensors  (9.38 GB)
-
-/workspace/ComfyUI/models/clip_vision/
-  [ ] sigclip_vision_patch14_384.safetensors  (857 MB)
+  [ ] hunyuan_video_custom_720p_fp8_scaled.safetensors  (~13 GB)
 
 /workspace/ComfyUI/models/vae/
   [ ] hunyuan_video_vae_bf16.safetensors  (~2 GB)
 
-TOTAL DOWNLOAD (FP8 config): ~20.5 GB
+/workspace/ComfyUI/models/text_encoders/
+  [ ] llava-llama-3-8b-v1_1/  (~16 GB, auto-downloads)
+
+/workspace/ComfyUI/models/clip_vision/
+  [ ] clip-vit-large-patch14/  (~400 MB, auto-downloads)
+
+TOTAL DOWNLOAD: ~32 GB
 ```
 
-**Download Source:** `Comfy-Org/HunyuanVideo_1.5_repackaged` on Hugging Face
+### Download Commands
 
-**Download Commands:**
 ```bash
 cd /workspace/ComfyUI/models
 
-# Main model (FP8 - recommended)
-huggingface-cli download Comfy-Org/HunyuanVideo_1.5_repackaged \
-  hunyuanvideo1.5_720p_i2v_cfg_distilled_fp8_scaled.safetensors \
+# Main model (FP8)
+huggingface-cli download Kijai/HunyuanVideo_comfy \
+  hunyuan_video_custom_720p_fp8_scaled.safetensors \
   --local-dir diffusion_models/
 
-# Text encoder
-huggingface-cli download Comfy-Org/HunyuanVideo_1.5_repackaged \
-  qwen_2.5_vl_7b_fp8_scaled.safetensors \
-  --local-dir text_encoders/
-
-# CLIP Vision
-huggingface-cli download Comfy-Org/HunyuanVideo_1.5_repackaged \
-  sigclip_vision_patch14_384.safetensors \
-  --local-dir clip_vision/
-
 # VAE
-huggingface-cli download Comfy-Org/HunyuanVideo_1.5_repackaged \
-  hunyuan_video_vae_bf16.safetensors \
+huggingface-cli download tencent/HunyuanVideo \
+  hunyuan-video-t2v-720p/vae/pytorch_model.pt \
   --local-dir vae/
+
+# LLaVA and CLIP Vision auto-download on first use
 ```
+
+---
 
 ## Appendix C: Quick Reference
 
 ```bash
-# Switch to Hunyuan
-export CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=hunyuan
+# Switch to HunyuanCustom
+export CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=hunyuan_custom
 
 # Switch to Wan
 export CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=wan
@@ -1414,454 +1599,208 @@ python main.py --project tests/quick_test.json --no-pass2 -v
 
 ---
 
-## Appendix D: Hunyuan Ecosystem Clarification
+## Appendix D: Identity Mechanism Comparison
 
-Tencent has released multiple products under the "Hunyuan" umbrella. It's critical to understand 
-which product we're targeting and which are overkill for our use case.
+### How Wan 2.1 Identity Works
 
-### Product Matrix (Updated After Research)
-
-| Product | Release Date | Purpose | Identity Method | Our Use |
-|---------|--------------|---------|-----------------|---------|
-| **HunyuanVideo 1.5** | Nov 20, 2025 | Text/Image → Video | Init_image only (VAE+SigLIP) | ✅ **PRIMARY TARGET** |
-| HunyuanVideo 1.5 I2V Distilled | Dec 5, 2025 | Fast I2V (8-12 steps, 75 sec) | Same as above | ✅ For demos |
-| **HunyuanCustom** | Mid-2025 | Multi-modal subject customization | LLaVA fusion + temporal ID | 🔍 **INVESTIGATE** |
-| HY-WorldPlay 1.5 | Dec 17, 2025 | Interactive world exploration | Reconstituted Context Memory | ❌ Overkill |
-| HunyuanWorld-Voyager | Sep 2025 | RGB-D world exploration | N/A | ❌ Not relevant |
-
-### Critical Insight: HunyuanCustom Has Better Identity
-
-The benchmark everyone cites (0.627 ArcFace) is from **HunyuanCustom**, not base HunyuanVideo 1.5:
-
-| Model | ArcFace Score | Identity Method |
-|-------|---------------|-----------------|
-| **HunyuanCustom** | **0.627** | LLaVA text-image fusion + temporal ID enhancement |
-| Keling 1.6 | 0.505 | Unknown |
-| Vidu 2.0 | 0.424 | Unknown |
-| VACE-1.3B (Wan) | 0.204 | VAE latent concat |
-
-**HunyuanCustom advantages:**
-- External reference image input (unlike base HunyuanVideo 1.5)
-- "Temporal ID enhancement" - concatenates target image over time axis
-- Outperforms all competitors on face similarity
-
-### ACTION: Investigate HunyuanCustom Availability
-
-During Phase 0, check:
-```bash
-# Check if HunyuanCustom nodes exist in ComfyUI
-curl -s http://localhost:8188/object_info | python -c "
-import sys, json
-data = json.load(sys.stdin)
-custom_nodes = [k for k in data.keys() if 'custom' in k.lower() or 'hunyuancustom' in k.lower()]
-print('HunyuanCustom nodes:', custom_nodes if custom_nodes else 'NOT FOUND')
-"
-
-# Search for wrapper
-# https://github.com/kijai/ComfyUI-HunyuanVideoWrapper - check if supports Custom
+```
+Face Reference → IP-Adapter (external plugin) → SDXL → Hero Frame
+                                                          ↓
+                                               Wan 2.1 I2V (init_image)
+                                                          ↓
+                                               Identity from init_image only
+                                               (no external reference during I2V)
 ```
 
-**If HunyuanCustom is available:**
-- It becomes our Tier 4 (best quality) option
-- May provide external reference input we lack in base model
-- Would achieve 0.627+ identity directly
+**Wan has NO external reference input during video generation.**
+Identity depends entirely on what's in the init_image.
 
-### Why NOT WorldPlay?
+### How HunyuanCustom Identity Works
 
-HY-WorldPlay is designed for **game-like exploration** with keyboard/mouse control at 24 FPS 
-real-time. It's impressive but solves a different problem:
+```
+Face Reference → LLaVA 8B VLM → Text-Image Fusion
+                                      ↓
+                          Temporal ID Enhancement
+                          (identity at EVERY frame)
+                                      ↓
+                            Video Diffusion
+                            (native identity)
+```
 
-| Feature | WorldPlay | Our Needs |
-|---------|-----------|-----------|
-| Input | Keyboard + mouse | Script + prompts |
-| Output | Streaming exploration video | Narrative shots |
-| Camera | User-controlled in real-time | Director-specified per shot |
-| Consistency | Geometric (3D world) | Identity (characters) |
+**HunyuanCustom has NATIVE external reference input.**
+The `<image>` token allows face reference injection directly into generation.
 
-Our **Bridge Engine + Consistency Dictionary** architecture achieves narrative consistency 
-through a simpler approach than WorldPlay's "Reconstituted Context Memory."
+### The `<image>` Token System
 
-### WorldPlay Concepts for Future Reference
+```python
+# Single subject
+prompt = "A portrait of <image> riding a bicycle in a park"
+# The <image> token is replaced by face reference embedding
 
-If we need 30+ minute continuous video in the future, WorldPlay's concepts are worth exploring:
+# Multi-subject (2 images)  
+prompt = "<image> (Alice) is talking to <image> (Bob) in a cafe"
+# First <image> = first reference image
+# Second <image> = second reference image
+```
 
-- **Reconstituted Context Memory (RCM):** Vector database storing latent keyframes for retrieval
-- **Context Forcing:** Injecting historical latents into current generation
-- **Temporal Reframing:** Pulling old frames into attention window to prevent drift
+### Why This Changes Everything
 
-These are **DEFERRED** until we validate HunyuanVideo 1.5's limitations.
+| Aspect | Wan Pipeline | HunyuanCustom Pipeline |
+|--------|--------------|------------------------|
+| Hero Frame | Required | **Optional** |
+| Bridge Engine | Required for multi-shot | **Test needed** (may be optional) |
+| Identity injection | External (SDXL + IP-Adapter) | **Native** |
+| Identity score | 0.204 (VACE benchmark) | **0.627** (3× better) |
 
 ---
 
-## Appendix E: Identity Strategy - Corrected Understanding
+## Appendix E: Audio-Driven Mode Status
 
-### Critical Correction: IP2V ≠ IP-Adapter
+### Current Status
 
-Initial research suggested HunyuanVideo 1.5's "native IP2V" was similar to IP-Adapter.
-**This is incorrect.** Cross-referenced research reveals:
+| Feature | ComfyUI | CLI |
+|---------|---------|-----|
+| Single-subject (face + prompt → video) | ✅ Available | ✅ Available |
+| **Audio-driven (face + audio → talking video)** | ❌ **NOT YET** | ✅ Available |
+| Video-driven (face swap) | ❌ Not yet | ✅ Available |
 
-| Feature | IP-Adapter (SDXL/Wan) | HunyuanVideo 1.5 |
-|---------|----------------------|------------------|
-| External reference input | ✅ Yes (separate face image) | ❌ No |
-| Strength control | ✅ Yes (0.0-1.0 weight) | ❌ No |
-| Identity source | Reference image | Init_image ONLY |
-| Can generate different content with same face | ✅ Yes | ❌ No (face must be in init_image) |
-
-### How Hunyuan Identity Actually Works
-
-From verified research:
-
-> "The base model accepts only the **init_image (first frame)** — no separate reference 
-> image input like IP-Adapter. Identity comes entirely from processing the init_image 
-> through both VAE and SigLIP pathways."
-
-**Dual-pathway architecture:**
-1. **VAE latent concatenation** - Init_image latent concatenated with noisy latent
-2. **SigLIP semantic embedding** - Provides semantic alignment for the init_image
-
-**What this means for us:**
-- Hunyuan will faithfully reproduce whatever face is in the init_image
-- But we cannot provide a separate "this is Alice's face" reference
-- The Bridge Frame (SDXL + IP-Adapter) is our ONLY external reference injection point
-
-### Benchmark Reality Check
-
-| Model | ArcFace Score | Notes |
-|-------|---------------|-------|
-| **HunyuanCustom** | 0.627 | Enhanced model with LLaVA fusion |
-| Keling 1.6 | 0.505 | |
-| Vidu 2.0 | 0.424 | |
-| VACE-1.3B (Wan-based) | 0.204 | Our current stack's baseline |
-
-**Critical:** The 0.627 score is from **HunyuanCustom**, not base HunyuanVideo 1.5.
-Base HunyuanVideo 1.5 identity benchmarks are NOT published.
-
-### Why Bridge Frame Strategy is Now LOAD-BEARING
+### Current Workaround
 
 ```
-WITHOUT Bridge Engine (Broken):
-┌─────────────────────────────────────────────────────────────┐
-│  User provides: Alice's face reference                      │
-│  Hunyuan says: "I don't have an input for that"            │
-│  Result: Can't inject identity into generation              │
-└─────────────────────────────────────────────────────────────┘
-
-WITH Bridge Engine (Working):
-┌─────────────────────────────────────────────────────────────┐
-│  User provides: Alice's face reference                      │
-│           ↓                                                 │
-│  SDXL + IP-Adapter: Creates hero frame WITH Alice's face   │
-│           ↓                                                 │
-│  Hunyuan I2V: Uses hero frame as init_image                │
-│           ↓                                                 │
-│  Result: Video has Alice because init_image has Alice       │
-└─────────────────────────────────────────────────────────────┘
+HunyuanCustom (face + prompt → video) → MuseTalk (video + audio → lip sync)
 ```
 
-### Revised Identity Tiers
+This is still 2 steps, but:
+- HunyuanCustom provides 3× better identity than Wan
+- MuseTalk handles lip sync reliably
 
-| Tier | Method | Expected Identity | Use Case |
-|------|--------|-------------------|----------|
-| **1** | SDXL Hero → Hunyuan I2V (single shot) | 85-90% | Quick drafts |
-| **2** | Bridge chain (IP-Adapter at each bridge) | 85-90% | Multi-shot |
-| **3** | Tier 2 + Character LoRA | 90-95% | Production |
-| **4** | HunyuanCustom (if available) | 95%+ | Best quality |
+### Future (When Audio ComfyUI Released)
 
-### LoRA Status: RECOMMENDED, Not Optional
+```
+HunyuanCustom (face + prompt + audio → video with lip sync)
+```
 
-Given that HunyuanVideo 1.5 has no external reference mechanism, LoRA becomes more 
-valuable (not less) for production quality:
+One step, built-in lip sync, no MuseTalk needed.
 
-**Without LoRA:**
-- Identity depends entirely on init_image quality
-- Bridge frame must perfectly capture the character
-- Any drift in bridge → drift in video
-
-**With LoRA:**
-- Model "knows" the character intrinsically
-- Can correct for imperfect init_images
-- More robust across varied prompts/poses
-
-**LoRA Training (Confirmed Available):**
-- Official training code: Dec 5, 2025
-- musubi-tuner support: PR #748 merged
-- Muon optimizer required (open-sourced)
-- Training time: 4-24 hours depending on hardware
-- Dataset: 10-50 video clips recommended
-
-### Impact on MVP
-
-**Before research:** "1 image → 95% identity, LoRA optional"
-**After research:** "1 image → Bridge Frame → 85-90% identity, LoRA recommended for production"
-
-This is still **better than Wan** (where we're at ~97% for 1-second but unknown for longer),
-and the Bridge Engine we already built is now the key differentiator.
+**Timeline:** Unknown. Keep MuseTalk for MVP.
 
 ---
 
-## Appendix F: Revised Phase 0 Validation
+## Appendix F: Workflow JSON Template
 
-Based on corrected understanding of Hunyuan's identity mechanism.
+### HunyuanCustom I2V Workflow (Multi-GPU)
 
-### Key Hypothesis to Test
-
-> "Our Bridge Frame strategy (SDXL + IP-Adapter → Hunyuan I2V) provides effective 
-> identity injection even though Hunyuan itself has no external reference input."
-
-### Phase 0 Checklist (Revised)
-
-```bash
-# On RunPod
-
-# ═══════════════════════════════════════════════════════════════
-# TEST 1: Basic Hunyuan I2V Function
-# ═══════════════════════════════════════════════════════════════
-# Goal: Verify Hunyuan works at all
-# Method: Load official workflow, generate from any image
-# Pass: Video generates without errors
-
-# ═══════════════════════════════════════════════════════════════
-# TEST 2: Single-Shot Identity Preservation
-# ═══════════════════════════════════════════════════════════════
-# Goal: Measure how well Hunyuan preserves init_image identity
-# Method: 
-#   - Use alice_portrait.png as init_image
-#   - Generate 4-second (96 frame) clip
-#   - Extract frames 1, 24, 48, 72, 96
-#   - Run ArcFace: init_image vs each frame
-# Target: >= 0.85 similarity
-# This tests Hunyuan's native identity preservation (no external ref)
-
-# ═══════════════════════════════════════════════════════════════
-# TEST 3: Bridge Frame Effectiveness (CRITICAL)
-# ═══════════════════════════════════════════════════════════════
-# Goal: Verify SDXL+IP-Adapter → Hunyuan chain works
-# Method:
-#   - Load alice_portrait.png as IP-Adapter reference
-#   - Generate SDXL hero frame with prompt "alice in a forest"
-#   - Use hero frame as init_image for Hunyuan I2V
-#   - Generate 4-second clip
-#   - Run ArcFace: alice_portrait.png vs Hunyuan output frames
-# Target: >= 0.85 similarity
-# This tests our actual production workflow
-
-# ═══════════════════════════════════════════════════════════════
-# TEST 4: Multi-Shot Chain
-# ═══════════════════════════════════════════════════════════════
-# Goal: Verify identity survives shot transitions
-# Method:
-#   - Shot 1: Bridge frame + Hunyuan I2V (same as Test 3)
-#   - Extract last frame of Shot 1
-#   - Shot 2: New bridge frame (from Shot 1 last frame + same alice ref)
-#   - Generate Shot 2 with Hunyuan I2V
-#   - Run ArcFace: alice_portrait.png vs Shot 2 frames
-# Target: >= 0.80 similarity
-# This tests our multi-shot consistency strategy
-
-# ═══════════════════════════════════════════════════════════════
-# TEST 5: Wan Comparison (Baseline)
-# ═══════════════════════════════════════════════════════════════
-# Goal: Verify Hunyuan is actually better than Wan
-# Method: Run Test 3 equivalent with Wan 2.1
-# Compare: Hunyuan scores vs Wan scores
-# Target: Hunyuan >= Wan (ideally 10%+ better)
-```
-
-### Exit Criteria (Revised - Realistic)
-
-| Test | Fail | Pass | Good | Excellent |
-|------|------|------|------|-----------|
-| Single-shot (frame 1 vs 96) | < 0.75 | 0.75 | 0.85 | 0.90+ |
-| Bridge effectiveness | < 0.80 | 0.80 | 0.85 | 0.90+ |
-| Multi-shot chain | < 0.75 | 0.75 | 0.80 | 0.85+ |
-| vs Wan comparison | Worse | Same | Better | 10%+ better |
-
-### Decision Matrix After Phase 0
-
-| Result | Decision |
-|--------|----------|
-| All tests PASS | Proceed with pivot |
-| Tests 1-3 PASS, Test 4 FAIL | Proceed, but investigate bridge chain |
-| Test 3 FAIL | Bridge strategy broken - reconsider pivot |
-| Test 5: Wan better | Abort pivot, stay on Wan |
-
-### What We're Really Testing
-
-The research revealed that Hunyuan has no external reference mechanism. Our hypothesis is:
-
-> "The Bridge Frame (SDXL + IP-Adapter) compensates for Hunyuan's lack of external 
-> reference by baking identity into the init_image before Hunyuan ever sees it."
-
-**If Test 3 passes:** Our architecture is sound. Bridge Engine is the solution.
-**If Test 3 fails:** We have a fundamental problem. Either:
-- IP-Adapter identity doesn't survive SDXL → Hunyuan handoff
-- Hunyuan degrades whatever identity is in init_image
-- Our workflow has a bug
-
-### Document Exact Node Names During Testing
-
-While testing, capture the exact working configuration:
-
-```
-VERIFIED NODE NAMES (Fill in during Phase 0):
-─────────────────────────────────────────────
-Native ComfyUI (v0.3.75+):
-- Model loader: UNETLoader ✓
-- Text encoder: TextEncodeHunyuanVideo_ImageToVideo ✓
-- I2V node: HunyuanImageToVideo ✓
-- CLIP Vision: CLIPVisionLoader ✓
-- CLIP Encode: CLIPVisionEncode ✓
-- VAE: VAELoader + VAEDecode ✓
-
-Official workflow template:
-https://raw.githubusercontent.com/Comfy-Org/workflow_templates/refs/heads/main/templates/video_hunyuan_video_1.5_720p_i2v.json
+```json
+{
+  "model_loader": {
+    "class_type": "HyVideoModelLoaderDiffSynthMultiGPU",
+    "inputs": {
+      "model": "{{MODEL_PATH}}",
+      "quantization": "fp8_scaled",
+      "devices": [0, 1, 2, 3]
+    }
+  },
+  
+  "vae_loader": {
+    "class_type": "HyVideoVAELoader",
+    "inputs": {
+      "vae_name": "{{VAE_PATH}}"
+    }
+  },
+  
+  "load_face_ref": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "{{FACE_REF_PATH}}"
+    }
+  },
+  
+  "text_image_encode": {
+    "class_type": "HyVideoTextImageEncode",
+    "inputs": {
+      "prompt": "{{PROMPT}}",
+      "image": ["load_face_ref", 0],
+      "id_weight": "{{ID_WEIGHT}}"
+    }
+  },
+  
+  "sampler": {
+    "class_type": "HyVideoSampler",
+    "inputs": {
+      "model": ["model_loader", 0],
+      "positive": ["text_image_encode", 0],
+      "negative": ["text_image_encode", 1],
+      "steps": "{{STEPS}}",
+      "cfg": "{{CFG_SCALE}}",
+      "flow_shift": "{{FLOW_SHIFT}}",
+      "seed": "{{SEED}}",
+      "width": "{{WIDTH}}",
+      "height": "{{HEIGHT}}",
+      "frames": "{{FRAMES}}"
+    }
+  },
+  
+  "vae_decode": {
+    "class_type": "HyVideoDecode",
+    "inputs": {
+      "samples": ["sampler", 0],
+      "vae": ["vae_loader", 0]
+    }
+  },
+  
+  "save_video": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "images": ["vae_decode", 0],
+      "filename_prefix": "continuum/hunyuan_custom",
+      "fps": "{{FPS}}"
+    }
+  }
+}
 ```
 
 ---
 
-## Appendix G: Architecture Alignment (Corrected)
+## Summary
 
-### The Bridge Engine is Now Load-Bearing
+### The Pivot
 
-The research revealed that HunyuanVideo 1.5 has **no external reference input**. This means 
-our existing Bridge Engine architecture becomes MORE important, not less.
+| From | To |
+|------|----|
+| Wan 2.1 + IP-Adapter + Bridge Engine | HunyuanCustom (native identity) |
+| Single RTX 4090 (24GB) @ $0.74/hr | 4x RTX 4090 (96GB) @ $2.00/hr |
+| ~0.204 ArcFace (Wan benchmark) | ~0.627 ArcFace (HunyuanCustom benchmark) |
+| 3-step identity pipeline | 1-step identity pipeline |
 
-```
-ORIGINAL ARCHITECTURE ASSUMPTION:
-┌─────────────────────────────────────────────────────────────┐
-│  Layer 1: Consistency Engine                                │
-│  ├── IP-Adapter (for external reference)     [Both models]  │
-│  ├── Bridge Frame (for shot transitions)     [Helpful]      │
-│  └── LoRA (for production quality)           [Optional]     │
-└─────────────────────────────────────────────────────────────┘
+### What We Gain
 
-CORRECTED UNDERSTANDING:
-┌─────────────────────────────────────────────────────────────┐
-│  Wan 2.1:                                                   │
-│  ├── IP-Adapter: Works (community plugin available)         │
-│  ├── Bridge Frame: Helpful but IP-Adapter can also help     │
-│  └── External reference: YES (via IP-Adapter)               │
-│                                                             │
-│  HunyuanVideo 1.5:                                          │
-│  ├── IP-Adapter: NOT AVAILABLE                              │
-│  ├── Bridge Frame: ONLY way to inject external identity     │
-│  └── External reference: NO (only init_image)               │
-└─────────────────────────────────────────────────────────────┘
-```
+- **3× better identity preservation** (0.627 vs 0.204)
+- **Native face reference** (no SDXL + IP-Adapter workaround)
+- **Simpler pipeline** (fewer steps, fewer failure points)
+- **Multi-subject support** (2 characters in one video)
+- **Future audio-driven** (when ComfyUI support arrives)
 
-### Why Our Architecture Actually Works Better for Hunyuan
+### What We Keep
 
-Ironically, our SDXL-based Bridge Engine compensates for Hunyuan's limitation:
+- MuseTalk for lip sync (until audio-driven in ComfyUI)
+- Bridge Engine for testing (may become optional)
+- Entire audio pipeline (Sonic Engine)
+- Post-production pipeline
+- Director Agent / planning layer
 
-```
-THE HANDOFF CHAIN:
-                                                   
-  User's Face Reference                            
-         │                                         
-         ▼                                         
-  ┌──────────────────┐                             
-  │ SDXL + IP-Adapter │  ← External ref injected HERE
-  │ (Hero Frame)      │                             
-  └────────┬─────────┘                             
-           │ High-quality frame with correct identity
-           ▼                                         
-  ┌──────────────────┐                             
-  │ HunyuanVideo I2V │  ← Receives identity via init_image
-  │                   │     (not via external ref)
-  └────────┬─────────┘                             
-           │ Video with preserved identity
-           ▼                                         
-       Output                                      
-```
+### What We Lose
 
-**Key insight:** SDXL's IP-Adapter does the heavy lifting of identity injection. 
-Hunyuan just needs to preserve what's already in the init_image (which it's good at).
+- Low-cost single GPU option ($0.74/hr → $2.00/hr)
+- Simple single-GPU setup (need MultiGPU extension)
 
-### Tradeoff vs Wan
+### Bottom Line
 
-| Aspect | Wan 2.1 | Hunyuan 1.5 |
-|--------|---------|-------------|
-| External reference during I2V | ✅ Via IP-Adapter plugin | ❌ Not available |
-| Identity from init_image | ✅ Good | ✅ Good (3× better baseline) |
-| Bridge Frame dependency | Medium | **HIGH** (only option) |
-| VRAM | 24-40 GB | 14-24 GB |
-| Speed | ~3-5 min | ~75 sec |
-
-**Wan advantage:** Can inject identity at any point via IP-Adapter
-**Hunyuan advantage:** Better baseline identity, faster, lower VRAM
-
-### Updated Architecture Diagram
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         CONTINUUM ENGINE                                │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │                    CONSISTENCY ENGINE (Layer 1)                  │   │
-│  │                                                                   │   │
-│  │   ┌─────────────────────┐    ┌─────────────────────┐            │   │
-│  │   │  Consistency Dict   │    │     Visual RAG      │            │   │
-│  │   │  (Character refs)   │───▶│  (Frame retrieval)  │            │   │
-│  │   └─────────────────────┘    └─────────────────────┘            │   │
-│  │              │                                                    │   │
-│  │              ▼                                                    │   │
-│  │   ┌─────────────────────────────────────────────────────────┐   │   │
-│  │   │              BRIDGE ENGINE (CRITICAL PATH)               │   │   │
-│  │   │                                                           │   │   │
-│  │   │   Shot 1:  SDXL + IP-Adapter ──▶ Hero Frame              │   │   │
-│  │   │                                      │                    │   │   │
-│  │   │   Shot 2+: SDXL + IP-Adapter + ControlNet ──▶ Bridge     │   │   │
-│  │   │            (from prev frame)              Frame          │   │   │
-│  │   │                                                           │   │   │
-│  │   │   ★ THIS IS WHERE EXTERNAL IDENTITY IS INJECTED ★        │   │   │
-│  │   └─────────────────────────────────────────────────────────┘   │   │
-│  │              │                                                    │   │
-│  └──────────────┼────────────────────────────────────────────────────┘   │
-│                 │                                                         │
-│                 ▼                                                         │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │                    VIDEO RENDERER (Layer 2)                      │   │
-│  │                                                                   │   │
-│  │   ┌─────────────────────┐    ┌─────────────────────┐            │   │
-│  │   │   WanRenderer       │ OR │  HunyuanRenderer    │            │   │
-│  │   │   (Wan 2.1)         │    │  (Hunyuan 1.5)      │            │   │
-│  │   │                     │    │                     │            │   │
-│  │   │  • Has IP-Adapter   │    │  • NO IP-Adapter    │            │   │
-│  │   │  • External ref OK  │    │  • Init_image only  │            │   │
-│  │   └─────────────────────┘    └─────────────────────┘            │   │
-│  │                                                                   │   │
-│  │   Both receive init_image from Bridge Engine                     │   │
-│  │   Both preserve whatever identity is in that init_image          │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-### Why This Design is Robust
-
-The Bridge Engine handles identity injection **before** the video model sees anything. 
-This means:
-
-1. **Model-agnostic identity:** Face reference goes through SDXL, not the video model
-2. **Switching is safe:** Both Wan and Hunyuan receive pre-baked identity
-3. **Hunyuan's limitation is hidden:** Users never know it lacks external reference
-4. **Best of both worlds:** SDXL's IP-Adapter + Hunyuan's speed/quality
-
-### Potential Future Enhancement: HunyuanCustom
-
-If **HunyuanCustom** becomes available for ComfyUI, it would provide native external 
-reference (LLaVA fusion + temporal ID enhancement). This would:
-
-- Bypass the need for Bridge Engine for identity
-- Provide 0.627 ArcFace directly (vs our ~0.85 estimate)
-- Simplify the pipeline
-
-**Action:** Investigate HunyuanCustom availability during Phase 0
+**HunyuanCustom provides 3× better identity at 2.7× the GPU cost.**  
+For an investor demo where quality matters more than cost, this is the right trade-off.
 
 ---
 
-**Document Status:** Ready for implementation  
-**Next Action:** Execute Phase 0 validation on RunPod  
-**Fallback Plan:** Demo with Wan if Hunyuan integration incomplete
-**Key Hypothesis:** Native IP2V may eliminate need for LoRA in MVP
+**Document Status:** Ready for Phase 0 Validation  
+**Next Action:** Set up 4x RTX 4090 on RunPod, run validation tests  
+**Decision Point:** After Test 1-5 results, confirm or abort pivot  
+**Fallback Plan:** Demo with Wan if HunyuanCustom integration incomplete

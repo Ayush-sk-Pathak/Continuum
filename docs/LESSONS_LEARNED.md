@@ -100,7 +100,7 @@ RenderResult(
 )
 ```
 
-**Prevention:** When mocking a dataclass, check ALL fields. Dataclass field order matters ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â required fields come before optional ones with defaults.
+**Prevention:** When mocking a dataclass, check ALL fields. Dataclass field order matters ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â required fields come before optional ones with defaults.
 
 ---
 
@@ -275,7 +275,7 @@ grep -A 20 "class RetryConfig" src/core/error_recovery.py
 3. Then run full tests: `pytest tests/file.py -v`
 
 ### When Tests Fail
-1. Read the **exact error message** ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â it usually names the missing field/method
+1. Read the **exact error message** ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â it usually names the missing field/method
 2. Check the **source of truth file** for correct interface
 3. Fix the **actual bug** (might be in test mock OR in production code)
 4. **Update this document** with the lesson learned
@@ -336,7 +336,7 @@ client.submit_workflow(workflow)  # FAILS
 # Export from ComfyUI with "Save (API Format)" or convert
 ```
 
-**Prevention:** Check if workflow has `"nodes"` key ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â if yes, it's UI format and needs conversion.
+**Prevention:** Check if workflow has `"nodes"` key ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â if yes, it's UI format and needs conversion.
 
 ---
 
@@ -1513,7 +1513,7 @@ duration_sec=scene.total_duration_sec
 duration_sec=scene.duration_sec
 ```
 
-**Prevention:** Check scene_graph.py for exact property names before using. Scene has `duration_sec`, `shot_count`, `chunk_count` â€” none have `total_` prefix.
+**Prevention:** Check scene_graph.py for exact property names before using. Scene has `duration_sec`, `shot_count`, `chunk_count` Ã¢â‚¬â€ none have `total_` prefix.
 
 ---
 
@@ -1528,9 +1528,9 @@ duration_sec=scene.duration_sec
 | **Source of Truth** | Files in project root: `ls *.json` |
 
 **Available refine workflows:**
-- `refine_vid2vid_simple.json` âœ…
-- `refine_vid2vid_temporal.json` âœ…
-- `refine_freelong.json` âŒ (doesn't exist)
+- `refine_vid2vid_simple.json` Ã¢Å“â€¦
+- `refine_vid2vid_temporal.json` Ã¢Å“â€¦
+- `refine_freelong.json` Ã¢ÂÅ’ (doesn't exist)
 
 **Prevention:** Before adding workflow mappings, verify the `.json` file exists:
 ```bash
@@ -1539,7 +1539,7 @@ ls *.json | grep -i refine
 
 ---
 
-### 46. ArcFace Similarity Can Exceed 1.0 â€” Clamp Derived Values
+### 46. ArcFace Similarity Can Exceed 1.0 Ã¢â‚¬â€ Clamp Derived Values
 
 | | |
 |---|---|
@@ -1571,7 +1571,7 @@ severity=max(0.0, min(1.0, 1.0 - (comparison.similarity or 0.0)))
 | **Error** | `ERROR | asyncio | Unclosed client session` at pipeline end |
 | **Wrong Assumption** | Python garbage collection will clean up aiohttp sessions |
 | **Correct Interface** | Each engine with `_client: ComfyClient` must implement `shutdown()` that calls `_client.disconnect()` |
-| **Source of Truth** | `src/comfy_client/client.py` â€” `disconnect()` method closes aiohttp session |
+| **Source of Truth** | `src/comfy_client/client.py` Ã¢â‚¬â€ `disconnect()` method closes aiohttp session |
 
 **Pattern for Base Classes:**
 ```python
@@ -1599,9 +1599,9 @@ class ComfyUIEngine(BaseEngine):
 ```
 
 **Files Updated with This Pattern:**
-- `pass2_refiner.py` â€” `BaseRefiner`, `ComfyUIRefiner`
-- `lip_sync.py` â€” `BaseLipSyncEngine`, `MusetalkComfyEngine`
-- `rife_interpolator.py` â€” `BaseInterpolator`, `ComfyRIFEInterpolator`
+- `pass2_refiner.py` Ã¢â‚¬â€ `BaseRefiner`, `ComfyUIRefiner`
+- `lip_sync.py` Ã¢â‚¬â€ `BaseLipSyncEngine`, `MusetalkComfyEngine`
+- `rife_interpolator.py` Ã¢â‚¬â€ `BaseInterpolator`, `ComfyRIFEInterpolator`
 
 **Prevention:** When creating any new engine that uses `ComfyClient`:
 1. Add `_client = None` in `__init__`
@@ -1652,7 +1652,7 @@ tail -50 /workspace/runpod-slim/comfyui.log | grep -i "frame-interp"
 curl -s http://localhost:8188/system_stats
 ```
 
-**Workflow File:** `rife_interpolation.json` â€” uses `RIFE VFI` node with `rife47.pth`
+**Workflow File:** `rife_interpolation.json` Ã¢â‚¬â€ uses `RIFE VFI` node with `rife47.pth`
 
 **Note:** This installation is on persistent storage (`/workspace/`) so it survives pod restarts. However, you must restart ComfyUI after a fresh pod start to load the node.
 
@@ -1667,12 +1667,12 @@ curl -s http://localhost:8188/system_stats
 | **Wrong Assumption** | Enum names can be guessed (pluralized, past tense, etc.) |
 | **Correct Interface** | Check actual enum definition in `types.py` |
 
-**Wrong â†’ Correct Mappings:**
+**Wrong Ã¢â€ â€™ Correct Mappings:**
 ```python
-FoleyCategory.DOORS       â†’ FoleyCategory.DOOR
-FoleyCategory.ELECTRONICS â†’ FoleyCategory.ELECTRONIC
-FoleyCategory.HANDLING    â†’ FoleyCategory.OBJECT
-AudioGenerationStatus.COMPLETED â†’ AudioGenerationStatus.COMPLETE
+FoleyCategory.DOORS       Ã¢â€ â€™ FoleyCategory.DOOR
+FoleyCategory.ELECTRONICS Ã¢â€ â€™ FoleyCategory.ELECTRONIC
+FoleyCategory.HANDLING    Ã¢â€ â€™ FoleyCategory.OBJECT
+AudioGenerationStatus.COMPLETED Ã¢â€ â€™ AudioGenerationStatus.COMPLETE
 ```
 
 **Prevention:** Before using any enum, verify the exact values:
@@ -1694,7 +1694,7 @@ grep -A 15 "class EnumName" src/core/types.py
 **Wrong (local path):**
 ```python
 params = {
-    "INPUT_VIDEO": str(spec.input_path),  # âŒ Local path doesn't exist on server
+    "INPUT_VIDEO": str(spec.input_path),  # Ã¢ÂÅ’ Local path doesn't exist on server
 }
 ```
 
@@ -1705,7 +1705,7 @@ upload_result = await client.upload_file(spec.input_path, subfolder="", file_typ
 remote_name = upload_result.get("name", spec.input_path.name)
 
 params = {
-    "INPUT_VIDEO": remote_name,  # âœ… Use remote filename
+    "INPUT_VIDEO": remote_name,  # Ã¢Å“â€¦ Use remote filename
 }
 ```
 
@@ -1728,7 +1728,7 @@ params = {
   "class_type": "RIFE VFI",
   "inputs": {
     "ckpt_name": "rife47.pth",
-    "clear_cache_after_n_frames": 10,  // â† Required, prevents OOM
+    "clear_cache_after_n_frames": 10,  // Ã¢â€ Â Required, prevents OOM
     ...
   }
 }
@@ -1884,29 +1884,29 @@ python3 -c "from src.controlnet_aux.dwpose import DWposeDetector; DWposeDetector
 Date2025-12-20Errorunsupported operand type(s) for *: 'dict' * 'float'Wrong Assumptionjob.progress is a float representing completion percentageCorrect Interfacejob.progress is a Dict[str, Any] with "value" and "max" keysSource of Truthsrc/comfy_client/client.py lines 63, 644-645
 Wrong:
 pythonif job.progress:
-    progress_pct = 0.4 + (job.progress * 0.5)  # ❌ dict * float
+    progress_pct = 0.4 + (job.progress * 0.5)  # âŒ dict * float
 Correct:
 pythonif job.progress:
     progress_value = job.progress.get("value", 0)
     progress_max = job.progress.get("max", 100)
     progress_pct = float(progress_value) / float(progress_max) if progress_max > 0 else 0.0
-    final_progress = 0.4 + (progress_pct * 0.5)  # ✅
+    final_progress = 0.4 + (progress_pct * 0.5)  # âœ…
 Prevention: Always check the type of ComfyJob fields in client.py before using them. Progress updates from WebSocket are stored as dicts.
 
 58. MixResult Has .status, Not .success
 Date2025-12-20Error'MixResult' object has no attribute 'success'Wrong AssumptionMixResult has a .success boolean like other result classesCorrect InterfaceMixResult uses .status (AudioGenerationStatus enum) and .output_pathSource of Truthsrc/sonic/types.py lines 424-455
 Wrong:
-pythonif result.success:  # ❌ AttributeError
+pythonif result.success:  # âŒ AttributeError
     use(result.output_path)
 Correct:
-pythonif result.status == AudioGenerationStatus.COMPLETE and result.output_path:  # ✅
+pythonif result.status == AudioGenerationStatus.COMPLETE and result.output_path:  # âœ…
     use(result.output_path)
 Prevention: Check the actual dataclass definition before assuming field names. Not all *Result classes have the same interface.
 
 59. Short Videos Break Frame Extraction Assumptions
 Date2025-12-20ErrorExpected output file not created: sample_t2v_00055__04.pngWrong AssumptionAll videos have enough duration to sample 5 frames at [0.1, 0.3, 0.5, 0.7, 0.9] positionsCorrect InterfaceVideos under 2 seconds may fail frame extraction at late positionsSource of Truthsrc/post/color_match.py _extract_sample_frames()
 Wrong:
-pythonfor pos in [0.1, 0.3, 0.5, 0.7, 0.9]:  # ❌ Assumes video is long enough
+pythonfor pos in [0.1, 0.3, 0.5, 0.7, 0.9]:  # âŒ Assumes video is long enough
     time_sec = duration * pos
     await extract_frame(video, output, time_sec)
 Correct:
@@ -1922,19 +1922,19 @@ Very short videos (< 2s)
 Empty/corrupt videos (0 duration)
 Extraction failures (missing output file)
 
-60. Wan I2V Does NOT Need IP-Adapter — Identity Comes from Bridge Frame
+60. Wan I2V Does NOT Need IP-Adapter â€” Identity Comes from Bridge Frame
 Date2025-12-21Wrong AssumptionNeed to create pass1_img2vid_ipadapter.json workflow for identity in I2VCorrect ArchitectureIdentity is locked at Bridge Engine stage (SDXL + IP-Adapter), then passed to Wan I2V via CLIP Vision encoding of the bridge frameSource of TruthARCHITECTURE_SUMMARY.md Section 2: "Identity lock survives; the style doesn't matter"
 Why this matters:
 
 Wan 2.1 does NOT have native IP-Adapter support in ComfyUI
 The WORKFLOW_IMG2VID_IPADAPTER constant in wan_renderer.py is a placeholder that should NOT be implemented
-Correct flow: Bridge Engine (SDXL+IPAdapter) → bridge_frame.png → Wan I2V (CLIP Vision encodes frame)
+Correct flow: Bridge Engine (SDXL+IPAdapter) â†’ bridge_frame.png â†’ Wan I2V (CLIP Vision encodes frame)
 
 Prevention: Don't try to add IP-Adapter to Wan workflows. Identity anchoring happens BEFORE video generation.
 
 ---
 ---
-### 61. World State Tracking — Full Implementation Pattern
+### 61. World State Tracking â€” Full Implementation Pattern
 
 | | |
 |---|---|
@@ -1951,7 +1951,7 @@ Without dynamic state tracking, continuity breaks:
 - Shot 4: Alice rendered without sword (system forgot the pickup)
 - Shot 5: Sword back on table (teleportation)
 
-**The Solution — 4 File Pattern:**
+**The Solution â€” 4 File Pattern:**
 
 | File | Role | Key Addition |
 |------|------|--------------|
@@ -1961,13 +1961,13 @@ Without dynamic state tracking, continuity breaks:
 | `pass1_generator.py` | Injects state into prompts | `_get_world_state_context()` |
 
 **Data Flow:**
-Shot.description ──┐
-├── ShotEventParser ──► List[StateEvent]
-Shot.events ───────┘                              │
-▼
+Shot.description â”€â”€â”
+â”œâ”€â”€ ShotEventParser â”€â”€â–º List[StateEvent]
+Shot.events â”€â”€â”€â”€â”€â”€â”€â”˜                              â”‚
+â–¼
 WorldState.apply_event()
-│
-▼
+â”‚
+â–¼
 Next shot's prompt includes:
 "Current scene state: sword: held by alice"
 
@@ -2020,7 +2020,7 @@ From ARCHITECTURE_SUMMARY.md:
 ---
 ---
 
-### 62. Claude Project Files Are FLATTENED — Actual Project Uses Nested `src/`
+### 62. Claude Project Files Are FLATTENED â€” Actual Project Uses Nested `src/`
 
 | | |
 |---|---|
@@ -2032,33 +2032,33 @@ From ARCHITECTURE_SUMMARY.md:
 
 **What Claude Sees:**
 /mnt/project/
-├── scene_graph.py
-├── pass1_generator.py
-├── identity_checker.py
-├── mixer.py
-└── ...
+â”œâ”€â”€ scene_graph.py
+â”œâ”€â”€ pass1_generator.py
+â”œâ”€â”€ identity_checker.py
+â”œâ”€â”€ mixer.py
+â””â”€â”€ ...
 
 **What Actually Exists (VS Code):**
 CONTINUUM/
-├── src/
-│   ├── audit/
-│   │   ├── identity_checker.py
-│   │   ├── physics_checker.py
-│   │   └── reviewer.py
-│   ├── director/
-│   │   ├── scene_graph.py
-│   │   ├── world_state.py
-│   │   └── shot_event_parser.py
-│   ├── studio/
-│   │   ├── pass1_generator.py
-│   │   ├── bridge_engine.py
-│   │   └── rife_interpolator.py
-│   ├── sonic/
-│   │   └── mixer.py
-│   └── ...
-├── workflows/
-├── main.py
-└── ...
+â”œâ”€â”€ src/
+â”‚   â”œâ”€â”€ audit/
+â”‚   â”‚   â”œâ”€â”€ identity_checker.py
+â”‚   â”‚   â”œâ”€â”€ physics_checker.py
+â”‚   â”‚   â””â”€â”€ reviewer.py
+â”‚   â”œâ”€â”€ director/
+â”‚   â”‚   â”œâ”€â”€ scene_graph.py
+â”‚   â”‚   â”œâ”€â”€ world_state.py
+â”‚   â”‚   â””â”€â”€ shot_event_parser.py
+â”‚   â”œâ”€â”€ studio/
+â”‚   â”‚   â”œâ”€â”€ pass1_generator.py
+â”‚   â”‚   â”œâ”€â”€ bridge_engine.py
+â”‚   â”‚   â””â”€â”€ rife_interpolator.py
+â”‚   â”œâ”€â”€ sonic/
+â”‚   â”‚   â””â”€â”€ mixer.py
+â”‚   â””â”€â”€ ...
+â”œâ”€â”€ workflows/
+â”œâ”€â”€ main.py
+â””â”€â”€ ...
 
 **Mapping Table:**
 
@@ -2078,7 +2078,7 @@ CONTINUUM/
 1. **Always use `src.` prefix** in import statements
 2. **Check existing imports** in the file before adding new ones
 3. **When creating new files**, ask user which `src/` subfolder it belongs in
-4. **Don't trust** Claude's flat view — reference this table
+4. **Don't trust** Claude's flat view â€” reference this table
 
 **Why This Happens:**
 
@@ -2214,13 +2214,13 @@ known.update(c.entity_id for c in self.consistency_dict.list_characters())
 ```
 
 **Method Return Types:**
-- `list_characters()` → `List[CharacterEntity]`
-- `list_locations()` → `List[LocationEntity]`
-- `list_props()` → `List[PropEntity]`
+- `list_characters()` â†’ `List[CharacterEntity]`
+- `list_locations()` â†’ `List[LocationEntity]`
+- `list_props()` â†’ `List[PropEntity]`
 
 **Prevention:** Check return type hints before using list methods.
 
-### 67. RunPod Template Auto-Starts ComfyUI — Don't Double-Start
+### 67. RunPod Template Auto-Starts ComfyUI â€” Don't Double-Start
 
 | | |
 |---|---|
@@ -2244,8 +2244,8 @@ RunPod's ComfyUI template includes auto-start. When you run the manual start com
 # First, check if ComfyUI is already running
 curl -s http://localhost:8188/system_stats | head -c 100
 
-# If it returns JSON → already running, skip to pip install only
-# If it fails → then start manually:
+# If it returns JSON â†’ already running, skip to pip install only
+# If it fails â†’ then start manually:
 pkill -f "python.*main.py.*8188"
 sleep 2
 cd /workspace/runpod-slim/ComfyUI
@@ -2445,20 +2445,20 @@ When `KSamplerBatch` (temporal) and `TemporalSmooth` nodes don't exist, replacin
 
 | Node | `start_image` | `clip_vision_output` | `reference_image` | Behavior |
 |------|--------------|---------------------|------------------|----------|
-| `WanImageToVideo` | ✅ | ✅ | ❌ | Frame 1 IS the start_image (I2V) |
-| `WanAnimateToVideo` | ❌ | ✅ | ✅ | Generates FROM SCRATCH using references (T2V) |
+| `WanImageToVideo` | âœ… | âœ… | âŒ | Frame 1 IS the start_image (I2V) |
+| `WanAnimateToVideo` | âŒ | âœ… | âœ… | Generates FROM SCRATCH using references (T2V) |
 
 **What We Thought:**
-clip_vision_output (bridge frame) → structural guidance
+clip_vision_output (bridge frame) â†’ structural guidance
 
-reference_image (face ref) → identity anchor
+reference_image (face ref) â†’ identity anchor
 = I2V with identity consistency
 
 
 **What Actually Happens:**
-clip_vision_output → WEAK semantic hint only
+clip_vision_output â†’ WEAK semantic hint only
 
-reference_image → identity TARGET
+reference_image â†’ identity TARGET
 = T2V that tries to match reference but IGNORES bridge frame structure
 
 
@@ -2487,7 +2487,7 @@ reference_image → identity TARGET
 optional: {
     'clip_vision_output',   # Semantic guidance
     'reference_image',      # Scene appearance
-    'face_video',          # ← PER-FRAME FACE GUIDANCE
+    'face_video',          # â† PER-FRAME FACE GUIDANCE
     'pose_video',          # Motion/pose guidance
     'background_video',    # Background consistency
     'continue_motion',     # Multi-chunk continuity
@@ -2495,9 +2495,9 @@ optional: {
 ```
 
 **Working Configuration:**
-Bridge Frame → clip_vision_output (structure)
-Bridge Frame → reference_image (scene appearance)
-Face Ref × N frames → RepeatImageBatch → face_video (per-frame identity)
+Bridge Frame â†’ clip_vision_output (structure)
+Bridge Frame â†’ reference_image (scene appearance)
+Face Ref Ã— N frames â†’ RepeatImageBatch â†’ face_video (per-frame identity)
 
 **Workflow Snippet:**
 ```json
@@ -2603,16 +2603,16 @@ Our face_video approach conflated both. We need to inject identity at the **feat
 
 | Approach | How It Works | Identity | Expression | Quality | Verdict |
 |----------|--------------|----------|------------|---------|---------|
-| **Standard WanImageToVideo + hero frame** | Hero frame (SDXL+IP-Adapter) → I2V animation | 97% ✅ | Natural ✅ | Good ✅ | **CURRENT BEST** |
-| **face_video per-frame** (Lesson #76) | RepeatImageBatch feeds face ref to every frame | 98% ✅ | Frozen ❌ | Good | Reject |
-| **WanFirstLastFrameToVideo** | CLIP vision encodes face at start/end frames only | ~95% | Changes ✅ | Artifacts ❌ | Reject |
-| **WanPhantomSubjectToVideo** (1.3B T2V) | T2V with subject identity baked into conditioning | ~70% ❌ | Changes ✅ | Poor ❌ | Reject |
+| **Standard WanImageToVideo + hero frame** | Hero frame (SDXL+IP-Adapter) â†’ I2V animation | 97% âœ… | Natural âœ… | Good âœ… | **CURRENT BEST** |
+| **face_video per-frame** (Lesson #76) | RepeatImageBatch feeds face ref to every frame | 98% âœ… | Frozen âŒ | Good | Reject |
+| **WanFirstLastFrameToVideo** | CLIP vision encodes face at start/end frames only | ~95% | Changes âœ… | Artifacts âŒ | Reject |
+| **WanPhantomSubjectToVideo** (1.3B T2V) | T2V with subject identity baked into conditioning | ~70% âŒ | Changes âœ… | Poor âŒ | Reject |
 
 **Why Each Failed:**
 
 1. **face_video**: Designed for "make every frame look EXACTLY like these pixels" - conflates identity with expression at pixel level. Great for static portraits, terrible for animation.
 
-2. **WanFirstLastFrameToVideo**: Designed for interpolating between TWO DIFFERENT frames (A→B). When fed same image for both start/end, creates confusion → dark halo artifacts, washed out quality.
+2. **WanFirstLastFrameToVideo**: Designed for interpolating between TWO DIFFERENT frames (Aâ†’B). When fed same image for both start/end, creates confusion â†’ dark halo artifacts, washed out quality.
 
 3. **WanPhantomSubjectToVideo**: Conceptually correct (embedding-level identity), but:
    - Only 1.3B T2V model available (too small for quality)
@@ -2627,7 +2627,7 @@ elif has_ipadapter:
     return self.WORKFLOW_IMG2VID
 ```
 
-**⚠️ IMPORTANT CAVEAT:**
+**âš ï¸ IMPORTANT CAVEAT:**
 
 The 97% identity score is validated on **1-second clips only**. Longer clips may experience:
 - Identity drift over time
@@ -2654,6 +2654,113 @@ The 97% identity score is validated on **1-second clips only**. Longer clips may
 > Hero frame generation is doing the heavy lifting. SDXL + IP-Adapter creates a strong identity anchor at frame 0. WanImageToVideo then animates from that anchor. The identity preservation comes from the init frame, NOT from video-level conditioning.
 
 > For longer clips, the solution is likely LoRA-based (train the model to "know" the character) rather than conditioning-based (tell the model who to generate each frame).
+
+---
+
+### 79. RunPod ComfyUI Blank Page / 502 Bad Gateway
+
+| | |
+|---|---|
+| **Date** | 2025-12-29 |
+| **Error** | ComfyUI shows blank white page or 502 Bad Gateway in browser |
+| **Root Cause** | Missing `scikit-image` dependency causes ComfyUI to partially fail |
+| **Solution** | `pip3 install scikit-image` — no restart needed |
+
+**Symptoms:**
+- Browser shows blank white page
+- Or "502 Bad Gateway" Cloudflare error
+- `curl http://localhost:8188/` returns HTML (server is running)
+- But browser can't render
+
+**The Fix:**
+```bash
+pip3 install scikit-image
+```
+
+**Why:** Impact-Pack and ControlNet-aux nodes require `skimage`. Even if you don't use those nodes, the import failure can cause frontend issues.
+
+**Prevention:** Add to RunPod template startup script or requirements.
+
+---
+
+### 80. HunyuanCustom Text Encoder Downloads (Correct Sources)
+
+| | |
+|---|---|
+| **Date** | 2025-12-29 |
+| **Error** | 404 Not Found when downloading HunyuanCustom text encoders |
+| **Root Cause** | Files not in Kijai's repo, they're in Comfy-Org repo |
+| **Impact** | Wasted time searching for correct download URLs |
+
+**Wrong (404 errors):**
+```bash
+# These DON'T work:
+huggingface-cli download Kijai/HunyuanVideo_comfy clip_l.safetensors
+huggingface-cli download Kijai/HunyuanVideo_comfy llava_llama3_fp16.safetensors
+```
+
+**Correct Sources:**
+```bash
+cd /workspace/runpod-slim/ComfyUI/models/text_encoders/
+
+# CLIP-L (~235MB) - from comfyanonymous
+huggingface-cli download comfyanonymous/flux_text_encoders \
+  clip_l.safetensors --local-dir ./
+
+# LLaVA-Llama3 (~16GB) - from Comfy-Org
+huggingface-cli download Comfy-Org/HunyuanVideo_repackaged \
+  split_files/text_encoders/llava_llama3_fp16.safetensors --local-dir ./
+
+# Move to correct location
+mv split_files/text_encoders/llava_llama3_fp16.safetensors ./
+rm -rf split_files/
+```
+
+**Complete HunyuanCustom Model Checklist:**
+
+| File | Size | Location | Source |
+|------|------|----------|--------|
+| `hunyuan_video_custom_720p_fp8_scaled.safetensors` | ~13 GB | `models/diffusion_models/` | `Kijai/HunyuanVideo_comfy` |
+| `hunyuan_video_vae_bf16.safetensors` | ~500 MB | `models/vae/` | `Kijai/HunyuanVideo_comfy` |
+| `clip_l.safetensors` | ~235 MB | `models/text_encoders/` | `comfyanonymous/flux_text_encoders` |
+| `llava_llama3_fp16.safetensors` | ~16 GB | `models/text_encoders/` | `Comfy-Org/HunyuanVideo_repackaged` |
+
+**Total storage needed:** ~30 GB for HunyuanCustom models
+
+---
+
+### 81. HunyuanCustom ComfyUI Extensions Required
+
+| | |
+|---|---|
+| **Date** | 2025-12-29 |
+| **Context** | Setting up HunyuanCustom on RunPod 4x RTX 4090 |
+| **Required Extensions** | Two custom node repos needed |
+
+**Installation:**
+```bash
+cd /workspace/runpod-slim/ComfyUI/custom_nodes
+
+# Kijai's HunyuanVideo wrapper (required)
+git clone https://github.com/kijai/ComfyUI-HunyuanVideoWrapper
+
+# MultiGPU support (required for 4x GPU setup)
+git clone https://github.com/pollockjj/ComfyUI-MultiGPU
+
+# Install dependencies
+cd ComfyUI-HunyuanVideoWrapper
+pip3 install -r requirements.txt
+```
+
+**Key Nodes Provided:**
+- `HunyuanVideo Model Loader`
+- `HunyuanVideo Sampler`
+- `HunyuanVideo TextImageEncode (IP2V)` — for identity injection
+- `HunyuanVideo VAE Loader`
+- `HunyuanVideo Decode`
+
+**Example Workflows:** Located in `custom_nodes/ComfyUI-HunyuanVideoWrapper/example_workflows/`
+- `hyvideo_custom_testing_01.json` — HunyuanCustom identity test
 
 ---
 

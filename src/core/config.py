@@ -127,6 +127,58 @@ class PostConfig(BaseModel):
     )
 
 
+class VideoModelConfig(BaseModel):
+    """
+    Video model selection and configuration.
+    
+    Supports switching between video generation backends:
+    - "wan": Wan 2.1 via ComfyUI (lower VRAM, proven pipeline)
+    - "hunyuan_custom": HunyuanCustom via ComfyUI (better identity, higher VRAM)
+    
+    Environment variables:
+        CONTINUUM_VIDEO_MODEL__MODEL_FAMILY=wan|hunyuan_custom
+        CONTINUUM_VIDEO_MODEL__MODEL_TIER=dev|standard|beast
+    
+    Architecture Reference:
+        - Renderer selection: src/renderers/base.py::get_renderer_for_config()
+        - Model paths: workflows/models.json
+        - Workflows: workflows/{model_family}/
+    """
+    
+    model_family: Literal["wan", "hunyuan_custom"] = Field(
+        default="wan",
+        description="Video generation model family. 'wan' for backwards compatibility."
+    )
+    model_tier: Literal["dev", "standard", "beast"] = Field(
+        default="dev",
+        description="Quality/speed tier within model family (dev=fast, beast=quality)"
+    )
+    
+    @field_validator("model_family")
+    @classmethod
+    def validate_model_family(cls, v: str) -> str:
+        """Validate model family is supported."""
+        valid = ["wan", "hunyuan_custom"]
+        if v not in valid:
+            raise ValueError(
+                f"model_family must be one of {valid}, got '{v}'. "
+                f"Set CONTINUUM_VIDEO_MODEL__MODEL_FAMILY environment variable."
+            )
+        return v
+    
+    @field_validator("model_tier")
+    @classmethod
+    def validate_model_tier(cls, v: str) -> str:
+        """Validate model tier is supported."""
+        valid = ["dev", "standard", "beast"]
+        if v not in valid:
+            raise ValueError(
+                f"model_tier must be one of {valid}, got '{v}'. "
+                f"Set CONTINUUM_VIDEO_MODEL__MODEL_TIER environment variable."
+            )
+        return v
+
+
 class ComfyUIConfig(BaseModel):
     """Settings for ComfyUI cloud connection."""
     
@@ -280,6 +332,7 @@ class Config(BaseSettings):
     post: PostConfig = Field(default_factory=PostConfig)
     comfyui: ComfyUIConfig = Field(default_factory=ComfyUIConfig)
     paths: PathsConfig = Field(default_factory=PathsConfig)
+    video_model: VideoModelConfig = Field(default_factory=VideoModelConfig)
     
     # -------------------------------------------------------------------------
     # Validators
