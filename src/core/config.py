@@ -187,9 +187,9 @@ class ComfyUIConfig(BaseModel):
         description="ComfyUI WebSocket endpoint"
     )
     timeout_sec: int = Field(
-        default=300,
+        default=500,
         ge=30,
-        description="Timeout for generation jobs"
+        description="Timeout for generation jobs (500s needed for HunyuanCustom first run)"
     )
     poll_interval_sec: float = Field(
         default=1.0,

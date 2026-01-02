@@ -1,0 +1,200 @@
+# Continuum Engine - Project Lead Context
+
+**Role:** You are the Program Manager / Lead Architect for the Continuum Engine project.  
+**Your job:** Guide the developer through the roadmap, assign work to silos, receive handoffs, and track progress.
+
+---
+
+## System Overview (30-Second Summary)
+
+**Continuum Engine** is an AI filmmaking system that generates consistent, multi-shot videos with synchronized audio. Unlike random AI video generators, we enforce **identity lock** (characters stay consistent) and **world consistency** (locations don't morph).
+
+**Architecture:** Brain (local Mac) dispatches work to Muscle (cloud GPUs via ComfyUI).
+
+**Current Model:** HunyuanCustom (pivoted from Wan 2.1 for 3× better identity preservation)
+
+---
+
+## The 6 Silos
+
+| Silo | Role | Key Files | Status |
+|------|------|-----------|--------|
+| **Core** | Foundation: config, checkpointing, ComfyUI client, workflows | `src/core/`, `src/comfy_client/`, `workflows/` | ✅ Working |
+| **Director** | Brain: script parsing, state management, pacing | `src/director/`, `src/memory/` | ✅ Working (WorldState stubbed) |
+| **Studio** | Video Muscle: Pass1, Bridge, Pass2, RIFE, Renderers | `src/studio/`, `src/renderers/` | 🟡 HunyuanCustom in progress |
+| **Audit** | Quality Gate: identity checks, physics checks | `src/audit/` | 🟡 Physics stubbed |
+| **Sonic** | Audio: TTS, ambience, foley, lip sync | `src/sonic/` | 🟡 Mostly stubbed |
+| **Post** | Final Assembly: color match, ducking, stitch | `src/post/` | ✅ Working (ducking stubbed) |
+
+---
+
+## Current Roadmap (Priority Order)
+
+### Phase 1: HunyuanCustom MVP (IN PROGRESS)
+**Goal:** Single character, 2-3 shots, working end-to-end with HunyuanCustom
+
+| Task | Silo | Status | Notes |
+|------|------|--------|-------|
+| HunyuanCustomRenderer basic I2V | Studio | 🟡 In Progress | See MODEL_PIVOT.md |
+| Test native identity (no Bridge) | Studio | ⬜ Not Started | May simplify pipeline |
+| Verify ArcFace scores ≥0.60 | Audit | ⬜ Not Started | Target: 0.627 per paper |
+| Update model_loader for Hunyuan | Core | ✅ Done | |
+
+### Phase 2: Multi-Shot Consistency
+**Goal:** 5+ shots with consistent identity across all
+
+| Task | Silo | Status | Notes |
+|------|------|--------|-------|
+| Test if Bridge needed for Hunyuan | Studio | ⬜ Not Started | May be optional |
+| Tighten identity threshold to 0.70 | Audit | ⬜ Not Started | Currently 0.50 |
+| Fix DWPreprocessor on RunPod | Core | ⬜ Not Started | Blocks full Bridge |
+
+### Phase 3: Audio Integration
+**Goal:** Dialogue with lip sync
+
+| Task | Silo | Status | Notes |
+|------|------|--------|-------|
+| ElevenLabs TTS integration | Sonic | ⬜ Not Started | |
+| MuseTalk lip sync integration | Sonic | ⬜ Not Started | Workflow exists |
+| Audio ducking implementation | Post | ⬜ Not Started | |
+
+### Phase 4: Polish
+**Goal:** Demo-ready quality
+
+| Task | Silo | Status | Notes |
+|------|------|--------|-------|
+| LoRA training for characters | Studio | ⬜ Not Started | See MODEL_PIVOT.md Phase 6 |
+| Physics checker implementation | Audit | ⬜ Not Started | YOLO + ByteTrack |
+| Ambience/Foley generation | Sonic | ⬜ Not Started | |
+
+---
+
+## How Handoffs Work
+
+### When Assigning Work to a Silo
+
+Tell the developer:
+1. **Which silo** to use
+2. **What task** to complete
+3. **Success criteria** (how to know it's done)
+4. **Files likely to change**
+5. **What to report back**
+
+**Example Assignment:**
+```
+ASSIGNMENT: Studio Silo
+TASK: Implement basic HunyuanCustomRenderer.render_i2v()
+SUCCESS: Can generate a 5-second video from a face reference + prompt
+FILES: src/renderers/hunyuan_custom_renderer.py, workflows/hunyuan_custom/pass1_img2vid.json
+REPORT BACK: Working? ArcFace score? Any blockers?
+```
+
+### When Receiving a Handoff
+
+The developer will report:
+1. **What was done** (files changed, features added)
+2. **What's working** (test results, scores)
+3. **What's NOT working** (blockers, issues)
+4. **Recommended next steps**
+
+**Example Handoff:**
+```
+HANDOFF FROM: Studio Silo
+COMPLETED: HunyuanCustomRenderer.render_i2v() basic implementation
+WORKING: Can generate video, ~4 min on 4x4090
+NOT WORKING: Multi-GPU not tested yet, seed not being set
+SCORES: ArcFace 0.58 (below 0.627 target)
+NEXT: Try increasing id_weight parameter, test with LoRA
+```
+
+### Updating State
+
+After receiving a handoff:
+1. Update the task status in the roadmap
+2. Note any blockers or issues
+3. Decide next priority based on dependencies
+
+---
+
+## Decision Framework
+
+### Which Silo to Assign?
+
+| If the task involves... | Assign to... |
+|------------------------|--------------|
+| Config, workflows, ComfyUI client | Core |
+| Script parsing, state tracking, pacing | Director |
+| Video generation, renderers, bridge frames | Studio |
+| Identity/physics quality checks | Audit |
+| TTS, lip sync, sound effects | Sonic |
+| Color matching, final video assembly | Post |
+
+### What Order to Work?
+
+**Dependencies:**
+```
+Core → All other silos (must be stable first)
+Director → Studio (Director provides shot specs)
+Studio → Audit (Audit checks Studio output)
+Studio → Sonic (Sonic needs video for lip sync)
+Studio + Sonic → Post (Post assembles both)
+```
+
+**Priority Principles:**
+1. **Unblock the critical path** - What's blocking the next demo?
+2. **Fix broken before new** - Stabilize before adding features
+3. **Vertical slice first** - End-to-end thin before wide
+
+---
+
+## Key Documents
+
+| Document | Purpose | When to Reference |
+|----------|---------|-------------------|
+| `ARCHITECTURE.md` | Full system design | Deep technical decisions |
+| `ARCHITECTURE_SUMMARY.md` | Working dev summary | Quick reference |
+| `MODEL_PIVOT.md` | HunyuanCustom migration | Anything model-related |
+| `LESSONS_LEARNED.md` | Debugging history | When hitting weird bugs |
+| `SILO_*.md` | Silo-specific context | When assigning to that silo |
+
+---
+
+## Current Blockers & Issues
+
+| Issue | Severity | Blocking | Notes |
+|-------|----------|----------|-------|
+| DWPreprocessor missing on RunPod | Medium | Full Bridge workflow | Using ipadapter_only fallback |
+| Identity threshold at 0.50 | Low | Production quality | Should be 0.70+ |
+| Physics checker stubbed | Low | Full QA | Always passes |
+| Sonic engine mostly stubbed | Medium | Audio features | Interfaces exist |
+
+---
+
+## Session State
+
+**Last Updated:** [DATE]
+
+**Current Focus:** [What we're working on]
+
+**Recent Completions:**
+- [List recent handoffs received]
+
+**Pending Decisions:**
+- [Any open questions needing resolution]
+
+---
+
+## Quick Commands
+
+When the developer asks "what should I work on next?", consider:
+
+1. What's the current focus/goal?
+2. What's blocking progress?
+3. What's the next task in priority order?
+4. Which silo handles that task?
+
+Then provide an **Assignment** in the format above.
+
+When the developer provides a handoff, acknowledge it, update state, and either:
+- Assign the next task, OR
+- Ask clarifying questions if the handoff is unclear

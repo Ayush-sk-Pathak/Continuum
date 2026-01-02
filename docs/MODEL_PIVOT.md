@@ -1804,3 +1804,105 @@ For an investor demo where quality matters more than cost, this is the right tra
 **Next Action:** Set up 4x RTX 4090 on RunPod, run validation tests  
 **Decision Point:** After Test 1-5 results, confirm or abort pivot  
 **Fallback Plan:** Demo with Wan if HunyuanCustom integration incomplete
+
+---
+
+## Phase 6: LoRA Integration (Final MVP Step)
+
+**Timeline:** Days 17-19 (after Sonic Engine integration)  
+**Priority:** P7 - Final polish for maximum identity lock  
+**Status:** PENDING (execute after TTS + Lip Sync complete)
+
+### Why LoRA as Final Step
+
+| Stage | Identity Score | Method |
+|-------|---------------|--------|
+| HunyuanCustom native | 0.627 ArcFace | `<image>` token only |
+| **+ Character LoRA** | **0.75+ ArcFace (est.)** | Native + trained weights |
+
+HunyuanCustom's native identity (0.627) is sufficient for MVP, but LoRA adds:
+- Rock-solid consistency over 50+ shots
+- Specific actor/character likeness
+- Safety margin for longer films
+
+### 6.1 LoRA Training Pipeline
+
+**Input Requirements:**
+- 10-20 high-quality face images per character
+- Consistent lighting, multiple angles
+- No sunglasses, minimal occlusion
+
+**Training Setup:**
+```bash
+# Directory structure
+training_data/
+├── alice/
+│   ├── face_01.png
+│   ├── face_02.png
+│   └── ... (10-20 images)
+└── bob/
+    └── ... (if multi-character)
+
+# Output
+models/loras/
+├── alice_character_v1.safetensors
+└── bob_character_v1.safetensors
+```
+
+### 6.2 Workflow Integration
+
+**File:** `workflows/hunyuan_custom/pass1_img2vid_lora.json`
+
+**New Placeholders:**
+| Placeholder | Default | Description |
+|-------------|---------|-------------|
+| `{{LORA_PATH}}` | `""` (none) | Path to character LoRA |
+| `{{LORA_STRENGTH}}` | `0.8` | LoRA influence (0.0-1.0) |
+
+### 6.3 Bible.json Integration
+
+**Per-Character LoRA Reference:**
+```json
+{
+  "characters": {
+    "alice": {
+      "entity_id": "alice",
+      "display_name": "Alice",
+      "face_refs": ["assets/alice/face_01.png"],
+      "lora": {
+        "path": "alice_character_v1.safetensors",
+        "strength": 0.8
+      }
+    }
+  }
+}
+```
+
+### 6.4 Implementation Checklist
+```
+Phase 6: LoRA Integration
+├── [ ] Research HunyuanCustom LoRA training compatibility
+├── [ ] Set up Kohya/trainer environment
+├── [ ] Collect training images for demo character(s)
+├── [ ] Train character LoRA(s)
+├── [ ] Create pass1_img2vid_lora.json workflow
+├── [ ] Update bible.json with LoRA references
+├── [ ] Update hunyuan_custom_renderer.py
+├── [ ] Test: HunyuanCustom + LoRA generation
+├── [ ] Measure: ArcFace improvement (target: 0.75+)
+└── [ ] Document: LoRA training guide
+```
+
+### 6.5 Expected Outcome
+
+| Metric | Without LoRA | With LoRA |
+|--------|--------------|-----------|
+| ArcFace Score | 0.627 | 0.75+ |
+| Shot Consistency | Good (10-20 shots) | Excellent (50+ shots) |
+| Training Required | None | 1-2 hours per character |
+
+### 6.6 Fallback Strategy
+
+If LoRA training proves incompatible with HunyuanCustom:
+1. Continue with native `<image>` token (0.627 is still 3x better than Wan)
+2. Use more frequent Bridge Frames for drift correction

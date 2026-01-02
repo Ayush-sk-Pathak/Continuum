@@ -95,9 +95,16 @@ class Shot1Strategy(str, Enum):
     
     The insight: Shot 1's "Hero Frame" and Shot 2+'s "Bridge Frame" serve
     the same purpose (provide init_frame for I2V), just with different sources.
+    
+    MODEL_PIVOT.md Update (HunyuanCustom):
+    - Models with native identity (e.g., HunyuanCustom <image> token) don't need
+      SDXL hero frame generation - they inject identity directly
+    - FACE_REF_DIRECT uses Bible face_ref as init frame for such models
+    - When HERO_FRAME is set but renderer has native_identity, auto-upgrades
     """
     USER_KEYFRAME = "user_keyframe"   # User provides init_frame (storyboard workflow)
-    HERO_FRAME = "hero_frame"         # System generates via SDXL + IP-Adapter (production)
+    HERO_FRAME = "hero_frame"         # System generates via SDXL + IP-Adapter (Wan, legacy)
+    FACE_REF_DIRECT = "face_ref_direct"  # Use Bible face_ref directly (HunyuanCustom, native identity)
     EXPLORATION = "exploration"       # T2V for Shot 1, user picks winner (creative exploration)
 
 
@@ -266,9 +273,11 @@ class GenerationConfig:
     quality: str = "standard"
     output_dir: Optional[Path] = None
     
-    # Shot 1 strategy (per ARCHITECTURE.md Section 7A.5)
-    # - HERO_FRAME: Production mode, identity locked from Shot 1
-    # - EXPLORATION: Development/testing mode, T2V allowed
+    # Shot 1 strategy (per ARCHITECTURE.md Section 7A.5, MODEL_PIVOT.md Section 2.2)
+    # - HERO_FRAME: Generate via SDXL + IP-Adapter (Wan, legacy models)
+    #               Auto-upgrades to FACE_REF_DIRECT if renderer has native_identity
+    # - FACE_REF_DIRECT: Use Bible face_ref directly (HunyuanCustom, native identity)
+    # - EXPLORATION: Development/testing mode, T2V allowed (identity random)
     # - USER_KEYFRAME: Storyboard workflow, user provides init frame
     shot1_strategy: Shot1Strategy = Shot1Strategy.HERO_FRAME
     user_keyframe_path: Optional[Path] = None  # Required if strategy == USER_KEYFRAME
@@ -820,10 +829,18 @@ class Pass1Generator:
             "Shot 1's 'Hero Frame' and Shot 2+'s 'Bridge Frame' use the
             SAME WORKFLOW PATTERN. One workflow for all shots."
         
+        MODEL_PIVOT.md Update:
+            Models with native identity (HunyuanCustom) don't need SDXL hero frames.
+            When renderer has 'native_identity' capability, we use Bible face_ref
+            directly as init_frame. The model's <image> token handles identity.
+        
         Decision Logic:
             - Has previous_output? --> Bridge Frame (Shot 2+ path)
             - No previous_output? --> Check shot1_strategy:
-                - HERO_FRAME: Generate via SDXL + IP-Adapter
+                - FACE_REF_DIRECT: Use Bible face_ref as init (native identity models)
+                - HERO_FRAME: 
+                    - If renderer has native_identity → auto-upgrade to FACE_REF_DIRECT
+                    - Otherwise → Generate via SDXL + IP-Adapter
                 - USER_KEYFRAME: Use user-provided image
                 - EXPLORATION: Return None (T2V fallback)
         
@@ -859,9 +876,27 @@ class Pass1Generator:
                 return None
             logger.info(f"Using user keyframe: {keyframe_path}")
             return keyframe_path
+        
+        elif strategy == Shot1Strategy.FACE_REF_DIRECT:
+            # Use Bible face_ref directly (for models with native identity)
+            return await self._get_face_ref_as_init_frame(
+                chunk, shot, progress_callback
+            )
             
         elif strategy == Shot1Strategy.HERO_FRAME:
-            # Generate hero frame via SDXL + IP-Adapter
+            # Check if renderer has native identity capability
+            # If so, auto-upgrade to face_ref_direct (skip SDXL)
+            if self._renderer_has_native_identity():
+                logger.info(
+                    f"Renderer has native_identity capability - "
+                    f"auto-upgrading from HERO_FRAME to FACE_REF_DIRECT "
+                    f"(skipping SDXL hero frame generation)"
+                )
+                return await self._get_face_ref_as_init_frame(
+                    chunk, shot, progress_callback
+                )
+            
+            # No native identity - generate hero frame via SDXL + IP-Adapter
             return await self._generate_hero_frame(
                 chunk, shot, progress_callback
             )
@@ -878,6 +913,101 @@ class Pass1Generator:
         logger.warning(f"Unknown shot1_strategy: {strategy}, falling back to T2V")
         return None
     
+    def _renderer_has_native_identity(self) -> bool:
+        """
+        Check if the current renderer has native identity injection capability.
+        
+        Per MODEL_PIVOT.md Section 2.2:
+            Models like HunyuanCustom have native identity via <image> token.
+            They don't need SDXL hero frames - identity is injected directly
+            through the text encoder's vision component.
+        
+        Returns:
+            True if renderer supports 'native_identity' feature
+        """
+        if not self.renderer:
+            return False
+        
+        # Check if renderer has supports_feature method (BaseRenderer interface)
+        if hasattr(self.renderer, 'supports_feature'):
+            return self.renderer.supports_feature("native_identity")
+        
+        return False
+    
+    async def _get_face_ref_as_init_frame(
+        self,
+        chunk: Any,
+        shot: Any,
+        progress_callback: Optional[Callable],
+    ) -> Optional[Path]:
+        """
+        Use Bible face_ref directly as init frame for Shot 1.
+        
+        Per MODEL_PIVOT.md Section 2.1-2.2:
+            HunyuanCustom's native identity (<image> token) means we don't need
+            SDXL to "bake" identity into a hero frame. The model injects identity
+            throughout generation via LLaVA fusion.
+        
+        Flow:
+            Bible face_ref -> INIT_IMAGE (video starting latent)
+            Bible face_ref -> FACE_REF_IMAGE (identity via <image> token)
+            Same image for both = No style mismatch!
+        
+        Advantages over SDXL hero frame:
+            - No SDXL step (faster, ~30s saved)
+            - No SDXL->VideoModel style gap
+            - Identity comparison: face_ref vs video output (apples to apples)
+        
+        Args:
+            chunk: Current chunk being generated
+            shot: Parent shot for context
+            progress_callback: Optional progress reporting
+            
+        Returns:
+            Path to face_ref image, or None if no character refs available
+        """
+        chunk_id = self._get_chunk_id(chunk)
+        
+        # Report progress
+        if progress_callback:
+            progress_callback(GenerationProgress(
+                stage=GenerationStage.PREPARING,
+                progress=0.1,
+                message="Using face reference as init frame (native identity)...",
+                chunk_id=chunk_id,
+            ))
+        
+        # Get character refs from consistency dictionary
+        character_refs = self._get_character_refs(shot)
+        
+        if not character_refs:
+            logger.warning(
+                f"No character refs found for shot - cannot use FACE_REF_DIRECT. "
+                f"Falling back to T2V (identity will be random)."
+            )
+            return None
+        
+        # Get primary character's face ref
+        if not character_refs[0].face_refs:
+            logger.warning(
+                f"Character '{character_refs[0].entity_id}' has no face refs. "
+                f"Falling back to T2V."
+            )
+            return None
+        
+        face_ref_path = character_refs[0].face_refs[0]
+        
+        if not face_ref_path.exists():
+            logger.error(f"Face ref file not found: {face_ref_path}")
+            return None
+        
+        logger.info(
+            f"Using Bible face_ref as init frame: {face_ref_path} "
+            f"(native identity via <image> token)"
+        )
+        
+        return face_ref_path
+
     async def _generate_hero_frame(
         self,
         chunk: Any,

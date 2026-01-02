@@ -100,7 +100,7 @@ RenderResult(
 )
 ```
 
-**Prevention:** When mocking a dataclass, check ALL fields. Dataclass field order matters ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â required fields come before optional ones with defaults.
+**Prevention:** When mocking a dataclass, check ALL fields. Dataclass field order matters ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â required fields come before optional ones with defaults.
 
 ---
 
@@ -275,7 +275,7 @@ grep -A 20 "class RetryConfig" src/core/error_recovery.py
 3. Then run full tests: `pytest tests/file.py -v`
 
 ### When Tests Fail
-1. Read the **exact error message** ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â it usually names the missing field/method
+1. Read the **exact error message** ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â it usually names the missing field/method
 2. Check the **source of truth file** for correct interface
 3. Fix the **actual bug** (might be in test mock OR in production code)
 4. **Update this document** with the lesson learned
@@ -336,7 +336,7 @@ client.submit_workflow(workflow)  # FAILS
 # Export from ComfyUI with "Save (API Format)" or convert
 ```
 
-**Prevention:** Check if workflow has `"nodes"` key ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â if yes, it's UI format and needs conversion.
+**Prevention:** Check if workflow has `"nodes"` key ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â if yes, it's UI format and needs conversion.
 
 ---
 
@@ -1513,7 +1513,7 @@ duration_sec=scene.total_duration_sec
 duration_sec=scene.duration_sec
 ```
 
-**Prevention:** Check scene_graph.py for exact property names before using. Scene has `duration_sec`, `shot_count`, `chunk_count` Ã¢â‚¬â€ none have `total_` prefix.
+**Prevention:** Check scene_graph.py for exact property names before using. Scene has `duration_sec`, `shot_count`, `chunk_count` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â none have `total_` prefix.
 
 ---
 
@@ -1528,9 +1528,9 @@ duration_sec=scene.duration_sec
 | **Source of Truth** | Files in project root: `ls *.json` |
 
 **Available refine workflows:**
-- `refine_vid2vid_simple.json` Ã¢Å“â€¦
-- `refine_vid2vid_temporal.json` Ã¢Å“â€¦
-- `refine_freelong.json` Ã¢ÂÅ’ (doesn't exist)
+- `refine_vid2vid_simple.json` ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦
+- `refine_vid2vid_temporal.json` ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦
+- `refine_freelong.json` ÃƒÂ¢Ã‚ÂÃ…â€™ (doesn't exist)
 
 **Prevention:** Before adding workflow mappings, verify the `.json` file exists:
 ```bash
@@ -1539,7 +1539,7 @@ ls *.json | grep -i refine
 
 ---
 
-### 46. ArcFace Similarity Can Exceed 1.0 Ã¢â‚¬â€ Clamp Derived Values
+### 46. ArcFace Similarity Can Exceed 1.0 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Clamp Derived Values
 
 | | |
 |---|---|
@@ -1571,7 +1571,7 @@ severity=max(0.0, min(1.0, 1.0 - (comparison.similarity or 0.0)))
 | **Error** | `ERROR | asyncio | Unclosed client session` at pipeline end |
 | **Wrong Assumption** | Python garbage collection will clean up aiohttp sessions |
 | **Correct Interface** | Each engine with `_client: ComfyClient` must implement `shutdown()` that calls `_client.disconnect()` |
-| **Source of Truth** | `src/comfy_client/client.py` Ã¢â‚¬â€ `disconnect()` method closes aiohttp session |
+| **Source of Truth** | `src/comfy_client/client.py` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â `disconnect()` method closes aiohttp session |
 
 **Pattern for Base Classes:**
 ```python
@@ -1599,9 +1599,9 @@ class ComfyUIEngine(BaseEngine):
 ```
 
 **Files Updated with This Pattern:**
-- `pass2_refiner.py` Ã¢â‚¬â€ `BaseRefiner`, `ComfyUIRefiner`
-- `lip_sync.py` Ã¢â‚¬â€ `BaseLipSyncEngine`, `MusetalkComfyEngine`
-- `rife_interpolator.py` Ã¢â‚¬â€ `BaseInterpolator`, `ComfyRIFEInterpolator`
+- `pass2_refiner.py` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â `BaseRefiner`, `ComfyUIRefiner`
+- `lip_sync.py` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â `BaseLipSyncEngine`, `MusetalkComfyEngine`
+- `rife_interpolator.py` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â `BaseInterpolator`, `ComfyRIFEInterpolator`
 
 **Prevention:** When creating any new engine that uses `ComfyClient`:
 1. Add `_client = None` in `__init__`
@@ -1652,7 +1652,7 @@ tail -50 /workspace/runpod-slim/comfyui.log | grep -i "frame-interp"
 curl -s http://localhost:8188/system_stats
 ```
 
-**Workflow File:** `rife_interpolation.json` Ã¢â‚¬â€ uses `RIFE VFI` node with `rife47.pth`
+**Workflow File:** `rife_interpolation.json` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â uses `RIFE VFI` node with `rife47.pth`
 
 **Note:** This installation is on persistent storage (`/workspace/`) so it survives pod restarts. However, you must restart ComfyUI after a fresh pod start to load the node.
 
@@ -1667,12 +1667,12 @@ curl -s http://localhost:8188/system_stats
 | **Wrong Assumption** | Enum names can be guessed (pluralized, past tense, etc.) |
 | **Correct Interface** | Check actual enum definition in `types.py` |
 
-**Wrong Ã¢â€ â€™ Correct Mappings:**
+**Wrong ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Correct Mappings:**
 ```python
-FoleyCategory.DOORS       Ã¢â€ â€™ FoleyCategory.DOOR
-FoleyCategory.ELECTRONICS Ã¢â€ â€™ FoleyCategory.ELECTRONIC
-FoleyCategory.HANDLING    Ã¢â€ â€™ FoleyCategory.OBJECT
-AudioGenerationStatus.COMPLETED Ã¢â€ â€™ AudioGenerationStatus.COMPLETE
+FoleyCategory.DOORS       ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ FoleyCategory.DOOR
+FoleyCategory.ELECTRONICS ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ FoleyCategory.ELECTRONIC
+FoleyCategory.HANDLING    ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ FoleyCategory.OBJECT
+AudioGenerationStatus.COMPLETED ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ AudioGenerationStatus.COMPLETE
 ```
 
 **Prevention:** Before using any enum, verify the exact values:
@@ -1694,7 +1694,7 @@ grep -A 15 "class EnumName" src/core/types.py
 **Wrong (local path):**
 ```python
 params = {
-    "INPUT_VIDEO": str(spec.input_path),  # Ã¢ÂÅ’ Local path doesn't exist on server
+    "INPUT_VIDEO": str(spec.input_path),  # ÃƒÂ¢Ã‚ÂÃ…â€™ Local path doesn't exist on server
 }
 ```
 
@@ -1705,7 +1705,7 @@ upload_result = await client.upload_file(spec.input_path, subfolder="", file_typ
 remote_name = upload_result.get("name", spec.input_path.name)
 
 params = {
-    "INPUT_VIDEO": remote_name,  # Ã¢Å“â€¦ Use remote filename
+    "INPUT_VIDEO": remote_name,  # ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Use remote filename
 }
 ```
 
@@ -1728,7 +1728,7 @@ params = {
   "class_type": "RIFE VFI",
   "inputs": {
     "ckpt_name": "rife47.pth",
-    "clear_cache_after_n_frames": 10,  // Ã¢â€ Â Required, prevents OOM
+    "clear_cache_after_n_frames": 10,  // ÃƒÂ¢Ã¢â‚¬Â Ã‚Â Required, prevents OOM
     ...
   }
 }
@@ -1884,29 +1884,29 @@ python3 -c "from src.controlnet_aux.dwpose import DWposeDetector; DWposeDetector
 Date2025-12-20Errorunsupported operand type(s) for *: 'dict' * 'float'Wrong Assumptionjob.progress is a float representing completion percentageCorrect Interfacejob.progress is a Dict[str, Any] with "value" and "max" keysSource of Truthsrc/comfy_client/client.py lines 63, 644-645
 Wrong:
 pythonif job.progress:
-    progress_pct = 0.4 + (job.progress * 0.5)  # âŒ dict * float
+    progress_pct = 0.4 + (job.progress * 0.5)  # Ã¢ÂÅ’ dict * float
 Correct:
 pythonif job.progress:
     progress_value = job.progress.get("value", 0)
     progress_max = job.progress.get("max", 100)
     progress_pct = float(progress_value) / float(progress_max) if progress_max > 0 else 0.0
-    final_progress = 0.4 + (progress_pct * 0.5)  # âœ…
+    final_progress = 0.4 + (progress_pct * 0.5)  # Ã¢Å“â€¦
 Prevention: Always check the type of ComfyJob fields in client.py before using them. Progress updates from WebSocket are stored as dicts.
 
 58. MixResult Has .status, Not .success
 Date2025-12-20Error'MixResult' object has no attribute 'success'Wrong AssumptionMixResult has a .success boolean like other result classesCorrect InterfaceMixResult uses .status (AudioGenerationStatus enum) and .output_pathSource of Truthsrc/sonic/types.py lines 424-455
 Wrong:
-pythonif result.success:  # âŒ AttributeError
+pythonif result.success:  # Ã¢ÂÅ’ AttributeError
     use(result.output_path)
 Correct:
-pythonif result.status == AudioGenerationStatus.COMPLETE and result.output_path:  # âœ…
+pythonif result.status == AudioGenerationStatus.COMPLETE and result.output_path:  # Ã¢Å“â€¦
     use(result.output_path)
 Prevention: Check the actual dataclass definition before assuming field names. Not all *Result classes have the same interface.
 
 59. Short Videos Break Frame Extraction Assumptions
 Date2025-12-20ErrorExpected output file not created: sample_t2v_00055__04.pngWrong AssumptionAll videos have enough duration to sample 5 frames at [0.1, 0.3, 0.5, 0.7, 0.9] positionsCorrect InterfaceVideos under 2 seconds may fail frame extraction at late positionsSource of Truthsrc/post/color_match.py _extract_sample_frames()
 Wrong:
-pythonfor pos in [0.1, 0.3, 0.5, 0.7, 0.9]:  # âŒ Assumes video is long enough
+pythonfor pos in [0.1, 0.3, 0.5, 0.7, 0.9]:  # Ã¢ÂÅ’ Assumes video is long enough
     time_sec = duration * pos
     await extract_frame(video, output, time_sec)
 Correct:
@@ -1922,19 +1922,19 @@ Very short videos (< 2s)
 Empty/corrupt videos (0 duration)
 Extraction failures (missing output file)
 
-60. Wan I2V Does NOT Need IP-Adapter â€” Identity Comes from Bridge Frame
+60. Wan I2V Does NOT Need IP-Adapter Ã¢â‚¬â€ Identity Comes from Bridge Frame
 Date2025-12-21Wrong AssumptionNeed to create pass1_img2vid_ipadapter.json workflow for identity in I2VCorrect ArchitectureIdentity is locked at Bridge Engine stage (SDXL + IP-Adapter), then passed to Wan I2V via CLIP Vision encoding of the bridge frameSource of TruthARCHITECTURE_SUMMARY.md Section 2: "Identity lock survives; the style doesn't matter"
 Why this matters:
 
 Wan 2.1 does NOT have native IP-Adapter support in ComfyUI
 The WORKFLOW_IMG2VID_IPADAPTER constant in wan_renderer.py is a placeholder that should NOT be implemented
-Correct flow: Bridge Engine (SDXL+IPAdapter) â†’ bridge_frame.png â†’ Wan I2V (CLIP Vision encodes frame)
+Correct flow: Bridge Engine (SDXL+IPAdapter) Ã¢â€ â€™ bridge_frame.png Ã¢â€ â€™ Wan I2V (CLIP Vision encodes frame)
 
 Prevention: Don't try to add IP-Adapter to Wan workflows. Identity anchoring happens BEFORE video generation.
 
 ---
 ---
-### 61. World State Tracking â€” Full Implementation Pattern
+### 61. World State Tracking Ã¢â‚¬â€ Full Implementation Pattern
 
 | | |
 |---|---|
@@ -1951,7 +1951,7 @@ Without dynamic state tracking, continuity breaks:
 - Shot 4: Alice rendered without sword (system forgot the pickup)
 - Shot 5: Sword back on table (teleportation)
 
-**The Solution â€” 4 File Pattern:**
+**The Solution Ã¢â‚¬â€ 4 File Pattern:**
 
 | File | Role | Key Addition |
 |------|------|--------------|
@@ -1961,13 +1961,13 @@ Without dynamic state tracking, continuity breaks:
 | `pass1_generator.py` | Injects state into prompts | `_get_world_state_context()` |
 
 **Data Flow:**
-Shot.description â”€â”€â”
-â”œâ”€â”€ ShotEventParser â”€â”€â–º List[StateEvent]
-Shot.events â”€â”€â”€â”€â”€â”€â”€â”˜                              â”‚
-â–¼
+Shot.description Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ ShotEventParser Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€“Âº List[StateEvent]
+Shot.events Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Ëœ                              Ã¢â€â€š
+Ã¢â€“Â¼
 WorldState.apply_event()
-â”‚
-â–¼
+Ã¢â€â€š
+Ã¢â€“Â¼
 Next shot's prompt includes:
 "Current scene state: sword: held by alice"
 
@@ -2020,7 +2020,7 @@ From ARCHITECTURE_SUMMARY.md:
 ---
 ---
 
-### 62. Claude Project Files Are FLATTENED â€” Actual Project Uses Nested `src/`
+### 62. Claude Project Files Are FLATTENED Ã¢â‚¬â€ Actual Project Uses Nested `src/`
 
 | | |
 |---|---|
@@ -2032,33 +2032,33 @@ From ARCHITECTURE_SUMMARY.md:
 
 **What Claude Sees:**
 /mnt/project/
-â”œâ”€â”€ scene_graph.py
-â”œâ”€â”€ pass1_generator.py
-â”œâ”€â”€ identity_checker.py
-â”œâ”€â”€ mixer.py
-â””â”€â”€ ...
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ scene_graph.py
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ pass1_generator.py
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ identity_checker.py
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ mixer.py
+Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ ...
 
 **What Actually Exists (VS Code):**
 CONTINUUM/
-â”œâ”€â”€ src/
-â”‚   â”œâ”€â”€ audit/
-â”‚   â”‚   â”œâ”€â”€ identity_checker.py
-â”‚   â”‚   â”œâ”€â”€ physics_checker.py
-â”‚   â”‚   â””â”€â”€ reviewer.py
-â”‚   â”œâ”€â”€ director/
-â”‚   â”‚   â”œâ”€â”€ scene_graph.py
-â”‚   â”‚   â”œâ”€â”€ world_state.py
-â”‚   â”‚   â””â”€â”€ shot_event_parser.py
-â”‚   â”œâ”€â”€ studio/
-â”‚   â”‚   â”œâ”€â”€ pass1_generator.py
-â”‚   â”‚   â”œâ”€â”€ bridge_engine.py
-â”‚   â”‚   â””â”€â”€ rife_interpolator.py
-â”‚   â”œâ”€â”€ sonic/
-â”‚   â”‚   â””â”€â”€ mixer.py
-â”‚   â””â”€â”€ ...
-â”œâ”€â”€ workflows/
-â”œâ”€â”€ main.py
-â””â”€â”€ ...
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ src/
+Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ audit/
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ identity_checker.py
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ physics_checker.py
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ reviewer.py
+Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ director/
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ scene_graph.py
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ world_state.py
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ shot_event_parser.py
+Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ studio/
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ pass1_generator.py
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ bridge_engine.py
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ rife_interpolator.py
+Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ sonic/
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ mixer.py
+Ã¢â€â€š   Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ ...
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ workflows/
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ main.py
+Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ ...
 
 **Mapping Table:**
 
@@ -2078,7 +2078,7 @@ CONTINUUM/
 1. **Always use `src.` prefix** in import statements
 2. **Check existing imports** in the file before adding new ones
 3. **When creating new files**, ask user which `src/` subfolder it belongs in
-4. **Don't trust** Claude's flat view â€” reference this table
+4. **Don't trust** Claude's flat view Ã¢â‚¬â€ reference this table
 
 **Why This Happens:**
 
@@ -2214,13 +2214,13 @@ known.update(c.entity_id for c in self.consistency_dict.list_characters())
 ```
 
 **Method Return Types:**
-- `list_characters()` â†’ `List[CharacterEntity]`
-- `list_locations()` â†’ `List[LocationEntity]`
-- `list_props()` â†’ `List[PropEntity]`
+- `list_characters()` Ã¢â€ â€™ `List[CharacterEntity]`
+- `list_locations()` Ã¢â€ â€™ `List[LocationEntity]`
+- `list_props()` Ã¢â€ â€™ `List[PropEntity]`
 
 **Prevention:** Check return type hints before using list methods.
 
-### 67. RunPod Template Auto-Starts ComfyUI â€” Don't Double-Start
+### 67. RunPod Template Auto-Starts ComfyUI Ã¢â‚¬â€ Don't Double-Start
 
 | | |
 |---|---|
@@ -2244,8 +2244,8 @@ RunPod's ComfyUI template includes auto-start. When you run the manual start com
 # First, check if ComfyUI is already running
 curl -s http://localhost:8188/system_stats | head -c 100
 
-# If it returns JSON â†’ already running, skip to pip install only
-# If it fails â†’ then start manually:
+# If it returns JSON Ã¢â€ â€™ already running, skip to pip install only
+# If it fails Ã¢â€ â€™ then start manually:
 pkill -f "python.*main.py.*8188"
 sleep 2
 cd /workspace/runpod-slim/ComfyUI
@@ -2445,20 +2445,20 @@ When `KSamplerBatch` (temporal) and `TemporalSmooth` nodes don't exist, replacin
 
 | Node | `start_image` | `clip_vision_output` | `reference_image` | Behavior |
 |------|--------------|---------------------|------------------|----------|
-| `WanImageToVideo` | âœ… | âœ… | âŒ | Frame 1 IS the start_image (I2V) |
-| `WanAnimateToVideo` | âŒ | âœ… | âœ… | Generates FROM SCRATCH using references (T2V) |
+| `WanImageToVideo` | Ã¢Å“â€¦ | Ã¢Å“â€¦ | Ã¢ÂÅ’ | Frame 1 IS the start_image (I2V) |
+| `WanAnimateToVideo` | Ã¢ÂÅ’ | Ã¢Å“â€¦ | Ã¢Å“â€¦ | Generates FROM SCRATCH using references (T2V) |
 
 **What We Thought:**
-clip_vision_output (bridge frame) â†’ structural guidance
+clip_vision_output (bridge frame) Ã¢â€ â€™ structural guidance
 
-reference_image (face ref) â†’ identity anchor
+reference_image (face ref) Ã¢â€ â€™ identity anchor
 = I2V with identity consistency
 
 
 **What Actually Happens:**
-clip_vision_output â†’ WEAK semantic hint only
+clip_vision_output Ã¢â€ â€™ WEAK semantic hint only
 
-reference_image â†’ identity TARGET
+reference_image Ã¢â€ â€™ identity TARGET
 = T2V that tries to match reference but IGNORES bridge frame structure
 
 
@@ -2487,7 +2487,7 @@ reference_image â†’ identity TARGET
 optional: {
     'clip_vision_output',   # Semantic guidance
     'reference_image',      # Scene appearance
-    'face_video',          # â† PER-FRAME FACE GUIDANCE
+    'face_video',          # Ã¢â€ Â PER-FRAME FACE GUIDANCE
     'pose_video',          # Motion/pose guidance
     'background_video',    # Background consistency
     'continue_motion',     # Multi-chunk continuity
@@ -2495,9 +2495,9 @@ optional: {
 ```
 
 **Working Configuration:**
-Bridge Frame â†’ clip_vision_output (structure)
-Bridge Frame â†’ reference_image (scene appearance)
-Face Ref Ã— N frames â†’ RepeatImageBatch â†’ face_video (per-frame identity)
+Bridge Frame Ã¢â€ â€™ clip_vision_output (structure)
+Bridge Frame Ã¢â€ â€™ reference_image (scene appearance)
+Face Ref Ãƒâ€” N frames Ã¢â€ â€™ RepeatImageBatch Ã¢â€ â€™ face_video (per-frame identity)
 
 **Workflow Snippet:**
 ```json
@@ -2603,16 +2603,16 @@ Our face_video approach conflated both. We need to inject identity at the **feat
 
 | Approach | How It Works | Identity | Expression | Quality | Verdict |
 |----------|--------------|----------|------------|---------|---------|
-| **Standard WanImageToVideo + hero frame** | Hero frame (SDXL+IP-Adapter) â†’ I2V animation | 97% âœ… | Natural âœ… | Good âœ… | **CURRENT BEST** |
-| **face_video per-frame** (Lesson #76) | RepeatImageBatch feeds face ref to every frame | 98% âœ… | Frozen âŒ | Good | Reject |
-| **WanFirstLastFrameToVideo** | CLIP vision encodes face at start/end frames only | ~95% | Changes âœ… | Artifacts âŒ | Reject |
-| **WanPhantomSubjectToVideo** (1.3B T2V) | T2V with subject identity baked into conditioning | ~70% âŒ | Changes âœ… | Poor âŒ | Reject |
+| **Standard WanImageToVideo + hero frame** | Hero frame (SDXL+IP-Adapter) Ã¢â€ â€™ I2V animation | 97% Ã¢Å“â€¦ | Natural Ã¢Å“â€¦ | Good Ã¢Å“â€¦ | **CURRENT BEST** |
+| **face_video per-frame** (Lesson #76) | RepeatImageBatch feeds face ref to every frame | 98% Ã¢Å“â€¦ | Frozen Ã¢ÂÅ’ | Good | Reject |
+| **WanFirstLastFrameToVideo** | CLIP vision encodes face at start/end frames only | ~95% | Changes Ã¢Å“â€¦ | Artifacts Ã¢ÂÅ’ | Reject |
+| **WanPhantomSubjectToVideo** (1.3B T2V) | T2V with subject identity baked into conditioning | ~70% Ã¢ÂÅ’ | Changes Ã¢Å“â€¦ | Poor Ã¢ÂÅ’ | Reject |
 
 **Why Each Failed:**
 
 1. **face_video**: Designed for "make every frame look EXACTLY like these pixels" - conflates identity with expression at pixel level. Great for static portraits, terrible for animation.
 
-2. **WanFirstLastFrameToVideo**: Designed for interpolating between TWO DIFFERENT frames (Aâ†’B). When fed same image for both start/end, creates confusion â†’ dark halo artifacts, washed out quality.
+2. **WanFirstLastFrameToVideo**: Designed for interpolating between TWO DIFFERENT frames (AÃ¢â€ â€™B). When fed same image for both start/end, creates confusion Ã¢â€ â€™ dark halo artifacts, washed out quality.
 
 3. **WanPhantomSubjectToVideo**: Conceptually correct (embedding-level identity), but:
    - Only 1.3B T2V model available (too small for quality)
@@ -2627,7 +2627,7 @@ elif has_ipadapter:
     return self.WORKFLOW_IMG2VID
 ```
 
-**âš ï¸ IMPORTANT CAVEAT:**
+**Ã¢Å¡Â Ã¯Â¸Â IMPORTANT CAVEAT:**
 
 The 97% identity score is validated on **1-second clips only**. Longer clips may experience:
 - Identity drift over time
@@ -2664,7 +2664,7 @@ The 97% identity score is validated on **1-second clips only**. Longer clips may
 | **Date** | 2025-12-29 |
 | **Error** | ComfyUI shows blank white page or 502 Bad Gateway in browser |
 | **Root Cause** | Missing `scikit-image` dependency causes ComfyUI to partially fail |
-| **Solution** | `pip3 install scikit-image` — no restart needed |
+| **Solution** | `pip3 install scikit-image` â€” no restart needed |
 
 **Symptoms:**
 - Browser shows blank white page
@@ -2755,13 +2755,227 @@ pip3 install -r requirements.txt
 **Key Nodes Provided:**
 - `HunyuanVideo Model Loader`
 - `HunyuanVideo Sampler`
-- `HunyuanVideo TextImageEncode (IP2V)` — for identity injection
+- `HunyuanVideo TextImageEncode (IP2V)` â€” for identity injection
 - `HunyuanVideo VAE Loader`
 - `HunyuanVideo Decode`
 
 **Example Workflows:** Located in `custom_nodes/ComfyUI-HunyuanVideoWrapper/example_workflows/`
-- `hyvideo_custom_testing_01.json` — HunyuanCustom identity test
+- `hyvideo_custom_testing_01.json` â€” HunyuanCustom identity test
 
 ---
 
+### 60. RunPod HunyuanVideo Starter Pack (Complete Setup Guide)
+
+| | |
+|---|---|
+| **Date** | 2026-01-02 |
+| **Context** | Fresh RunPod with 4x RTX 4090 fails to run HunyuanCustom workflows |
+| **Root Cause** | Missing Python dependencies: `diffusers`, `accelerate` |
+| **Symptoms** | `Cannot execute because node HyVideoBlockSwap does not exist` |
+
+**The Problem:** HunyuanVideoWrapper custom nodes exist in `/custom_nodes/` but fail to load due to missing Python packages. ComfyUI logs show:
+```
+ModuleNotFoundError: No module named 'diffusers'
+ModuleNotFoundError: No module named 'accelerate'
+IMPORT FAILED: /workspace/runpod-slim/ComfyUI/custom_nodes/ComfyUI-HunyuanVideoWrapper
+```
+
+**Complete Setup Commands (Run on Fresh RunPod):**
+
+```bash
+# 1. Install missing Python dependencies
+pip3 install diffusers accelerate
+
+# 2. Restart ComfyUI
+pkill -f "python3.*main.py"
+sleep 2
+cd /workspace/runpod-slim/ComfyUI
+nohup python3 main.py --listen 0.0.0.0 --port 8188 > comfyui.log 2>&1 &
+
+# 3. Wait for startup (HunyuanVideo loads slowly)
+sleep 45
+
+# 4. Verify HunyuanVideo nodes loaded
+curl -s http://localhost:8188/object_info | python3 -c "import sys,json; d=json.load(sys.stdin); print([k for k in d.keys() if 'HyVideo' in k])"
+```
+
+**Expected Output (should see 30+ nodes):**
+```
+['HyVideoSampler', 'HyVideoDecode', 'HyVideoTextEncode', 'HyVideoModelLoader', 
+ 'HyVideoVAELoader', 'HyVideoEncode', 'HyVideoBlockSwap', 'HyVideoTextEmbedBridge', ...]
+```
+
+**If Only 1 Node Shows (`TorchCompileModelHyVideo`):**
+- Dependencies not installed or ComfyUI not restarted
+- Check logs: `grep -i "error\|failed" comfyui.log | head -30`
+
+**Debug Commands:**
+```bash
+# Check if extension folder exists
+ls /workspace/runpod-slim/ComfyUI/custom_nodes/ | grep -i hunyuan
+
+# Check ComfyUI startup errors
+cat /workspace/runpod-slim/ComfyUI/comfyui.log | grep -i "error\|failed\|import" | head -50
+
+# Check if ComfyUI is running
+ps aux | grep python3
+
+# Check which nodes are available
+curl -s http://localhost:8188/object_info | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d), 'nodes loaded')"
+```
+
+**Path Notes (RunPod-specific):**
+- ComfyUI location: `/workspace/runpod-slim/ComfyUI/` (NOT `/workspace/ComfyUI/`)
+- Custom nodes: `/workspace/runpod-slim/ComfyUI/custom_nodes/`
+- Workflows: `/workspace/runpod-slim/ComfyUI/user/default/workflows/`
+- Models: `/workspace/runpod-slim/ComfyUI/models/`
+
+**Prevention:** When spinning up a new RunPod for HunyuanCustom, always run `pip3 install diffusers accelerate` before testing workflows.
+
+---
+
+### 82. HunyuanCustom Identity Failure: noise_aug_strength and Frame Count
+
+| | |
+|---|---|
+| **Date** | 2026-01-02 |
+| **Error** | Identity scores failing (0.10-0.38) despite validated ComfyUI workflow working in UI |
+| **Root Cause** | Two combined issues: (1) `noise_aug_strength: 0.025` corrupts identity, (2) insufficient frames for motion with `noise_aug_strength: 0` |
+
+**The Problem:**
+
+HunyuanCustom identity-preserving I2V was producing videos where the face didn't match the reference image. The validated ComfyUI workflow worked perfectly when run manually in the UI, but the Python pipeline consistently failed identity checks.
+
+**Debugging Approach (First Principles):**
+
+1. Created minimal bash test (`test_identity.sh`) to submit exact validated workflow via API
+2. Bash test succeeded → confirmed bug was in Python code, not ComfyUI/models
+3. Added workflow dump (`debug_workflow.json`) to compare Python vs bash workflows
+4. Identified two key differences:
+   - `noise_aug_strength`: Python=0.025, Bash=0
+   - `num_frames`: Python=13, Bash=25
+
+**Root Cause 1: noise_aug_strength**
+```json
+// BROKEN (our default)
+"NOISE_AUG_STRENGTH": 0.025
+
+// WORKING (validated workflow)
+"NOISE_AUG_STRENGTH": 0
+```
+
+This parameter adds noise to the init image latent:
+- `0.025` = 2.5% noise mixed in → easier motion, but **corrupts identity signal**
+- `0` = pure image → **identity preserved perfectly**
+
+The official ComfyUI-HunyuanVideoWrapper default is `0.0` per source code tooltip: "Strength of noise augmentation, helpful for leapfusion I2V where some noise can add motion."
+
+**Root Cause 2: Frame Count**
+
+With `noise_aug_strength=0`, the model needs sufficient frames to develop motion from prompt alone:
+- 13 frames (1.0s × 12fps): **Frozen** video, good identity
+- 25 frames (2.1s × 12fps): **Motion** AND good identity
+
+**The Fix:**
+
+1. Changed `workflows/hunyuan_custom/pass1_img2vid.json`:
+```json
+   "_defaults": {
+     "NOISE_AUG_STRENGTH": 0,  // was 0.025
+   }
+```
+
+2. Changed `src/renderers/hunyuan_custom_renderer.py`:
+```python
+   DEFAULT_NOISE_AUG_STRENGTH = 0.0  # was 0.025
+```
+
+3. Increased shot duration to 2.1s to get 25 frames (workaround until fps properly passed to JobSpec)
+
+**Additional Bug Found:**
+
+`target_fps` in project JSON isn't passed to JobSpec - it defaults to 12fps regardless. The `frame_count` property calculates `duration_sec * fps`, so 1.0s × 12fps = 12 frames even when `target_fps: 24` is set.
+```python
+# In base.py JobSpec
+fps: int = 12  # Default, not overridden from project config
+
+@property
+def frame_count(self) -> int:
+    return int(self.duration_sec * self.fps)
+```
+
+**TODO:** Fix `pass1_generator.py` to pass project's `target_fps` to JobSpec construction.
+
+**Workflow Caching Gotcha:**
+
+WorkflowLoader caches templates in memory:
+Using cached template: pass1_img2vid
+
+Editing workflow JSON files requires **restarting Python** (Ctrl+C, re-run) to pick up changes. The cache persists within a single Python process, including across rerolls.
+
+**Prevention Checklist:**
+
+1. Always compare against validated workflow when debugging identity issues
+2. Check `noise_aug_strength` - default should be `0` for HunyuanCustom
+3. Ensure minimum ~25 frames for motion when `noise_aug_strength=0`
+4. Use bash test scripts to isolate Python code vs ComfyUI issues
+5. Restart Python after editing workflow JSON files
+6. Dump actual workflow JSON (`debug_workflow.json`) to verify what's being sent
+
+**Test Script for Future Debugging:**
+```bash
+# test_identity.sh - submits exact workflow via curl, bypassing Python
+./test_identity.sh <RUNPOD_HOST> <IMAGE_PATH>
+
+# Compare workflows
+python3 -c "
+import json
+with open('workspace/output/debug_workflow.json') as f:
+    py = json.load(f)
+print('noise_aug:', py['41']['inputs']['noise_aug_strength'])
+print('num_frames:', py['62']['inputs']['num_frames'])
+"
+```
+
+---
+
+### 83. Debugging Strategy: Isolate with Minimal Reproducers
+
+| | |
+|---|---|
+| **Date** | 2026-01-02 |
+| **Principle** | When Python pipeline fails but UI works, create minimal bash/curl test to isolate the issue |
+
+**The Pattern:**
+
+1. **Establish ground truth:** Confirm the validated workflow works in ComfyUI UI
+2. **Create minimal reproducer:** Bash script that submits exact same workflow via API
+3. **Test reproducer:** If it works → bug is in Python code. If it fails → bug is elsewhere
+4. **Diff the workflows:** Dump Python's actual workflow JSON and compare node-by-node
+
+**Bash Test Template:**
+```bash
+#!/bin/bash
+# Upload image
+UPLOADED=$(curl -s -X POST "https://$HOST/upload/image" -F "image=@$IMAGE" | python3 -c "import sys,json; print(json.load(sys.stdin)['name'])")
+
+# Submit workflow (hardcoded from validated workflow)
+WORKFLOW='{"1": {...}, "41": {...}}'  # Exact validated workflow
+curl -s -X POST "https://$HOST/prompt" -H "Content-Type: application/json" -d "{\"prompt\": $WORKFLOW}"
+```
+
+**Why This Works:**
+
+- Eliminates all Python code complexity
+- Tests the exact API path ComfyUI uses
+- Makes A/B comparison trivial (bash vs Python output)
+- Faster iteration than full pipeline runs
+
+**When to Use:**
+
+- Identity/quality issues where UI works but pipeline doesn't
+- Mysterious failures with no clear error message
+- Validating workflow templates before integration
+
+---
 *Add new entries above this line as they're discovered.*

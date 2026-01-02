@@ -12,22 +12,6 @@
     "gpu_config": "4x RTX 4090 or 1x H100"
   },
 
-  "72": {
-    "class_type": "HyVideoTorchCompileSettings",
-    "inputs": {
-      "backend": "inductor",
-      "fullgraph": false,
-      "mode": "default",
-      "dynamic": false,
-      "dynamo_cache_size_limit": 64,
-      "compile_single_blocks": true,
-      "compile_double_blocks": true,
-      "compile_txt_in": false,
-      "compile_vector_in": false,
-      "compile_final_layer": false
-    }
-  },
-
   "60": {
     "class_type": "HyVideoBlockSwap",
     "inputs": {
@@ -49,7 +33,6 @@
   "1": {
     "class_type": "HyVideoModelLoader",
     "inputs": {
-      "compile_args": ["72", 0],
       "block_swap_args": ["60", 0],
       "model": "{{UNET_MODEL}}",
       "base_precision": "bf16",
@@ -70,6 +53,7 @@
 
   "43": {
     "class_type": "ImageResizeKJv2",
+    "_comment": "Resize face ref - feeds BOTH CLIPVisionEncode (identity) AND HyVideoEncode (init latent). Per validated workflow.",
     "inputs": {
       "image": ["42", 0],
       "width": "{{WIDTH}}",
@@ -82,6 +66,8 @@
       "device": "cpu"
     }
   },
+
+
 
   "54": {
     "class_type": "DualCLIPLoader",
@@ -133,7 +119,7 @@
 
   "41": {
     "class_type": "HyVideoEncode",
-    "_comment": "Encode reference image to latent for I2V conditioning",
+    "_comment": "Encode face ref image to latent for I2V. Same image used for identity AND init (per validated workflow).",
     "inputs": {
       "vae": ["7", 0],
       "image": ["43", 0],
@@ -141,7 +127,7 @@
       "temporal_tiling_sample_size": 64,
       "spatial_tile_sample_min_size": 256,
       "auto_tile_size": true,
-      "noise_aug_strength": 0,
+      "noise_aug_strength": "{{NOISE_AUG_STRENGTH}}",
       "latent_strength": 1,
       "latent_dist": "sample"
     }
@@ -198,23 +184,11 @@
     }
   },
 
-  "71": {
-    "class_type": "ImageConcatMulti",
-    "_comment": "Concatenate reference image with output for preview comparison",
-    "inputs": {
-      "image_1": ["5", 0],
-      "image_2": ["43", 0],
-      "inputcount": 2,
-      "direction": "left",
-      "match_image_size": false
-    }
-  },
-
   "34": {
     "class_type": "VHS_VideoCombine",
-    "_comment": "Final video output",
+    "_comment": "Final video output - takes directly from VAE decode (clean output)",
     "inputs": {
-      "images": ["71", 0],
+      "images": ["5", 0],
       "frame_rate": "{{FPS}}",
       "loop_count": 0,
       "filename_prefix": "{{OUTPUT_PREFIX}}",
@@ -243,6 +217,7 @@
     "CFG_SCALE": 7.5,
     "FLOW_SHIFT": 13.0,
     "DENOISE_STRENGTH": 1.0,
+    "NOISE_AUG_STRENGTH": 0,
     "FPS": 24,
     "SEED": -1,
     "NEGATIVE_PROMPT": "Aerial view, overexposed, low quality, deformation, bad composition, bad hands, bad teeth, bad eyes, bad limbs, distortion, blurring, text, subtitles, static, picture, black border.",
@@ -252,6 +227,7 @@
   "_placeholders": [
     "PROMPT",
     "NEGATIVE_PROMPT",
+    "INIT_IMAGE",
     "FACE_REF_IMAGE",
     "UNET_MODEL",
     "VAE_MODEL",
@@ -266,6 +242,7 @@
     "CFG_SCALE",
     "FLOW_SHIFT",
     "DENOISE_STRENGTH",
+    "NOISE_AUG_STRENGTH",
     "FPS",
     "SEED",
     "OUTPUT_PREFIX"

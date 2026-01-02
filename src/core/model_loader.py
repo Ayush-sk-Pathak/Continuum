@@ -361,3 +361,4 @@ def get_wan21_i2v_config(tier: Optional[ModelTier] = None) -> ModelConfig:
 def get_hunyuan_custom_i2v_config(tier: Optional[ModelTier] = None) -> ModelConfig:
     """Shorthand for HunyuanCustom Image-to-Video config."""
     return get_model_config("hunyuan_custom", "i2v", tier)
+
