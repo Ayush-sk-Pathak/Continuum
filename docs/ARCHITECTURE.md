@@ -149,34 +149,96 @@ RIFE for frame-rate and smoothness
 
 3A. The Hero Engine (Identity Lock)
 
-Goal: Pixel-stable character identity ("Alice is always Alice"). Technology: LoRA (Low-Rank Adaptation) and/or textual inversion. Tools: Kohya_ss, ComfyUI LoRA loaders, IP-Adapter for faces.
+Goal: Pixel-stable character identity ("Alice is always Alice"). Technology: LoRA (Low-Rank Adaptation) and/or textual inversion. Tools: Kohya_ss (musubi-tuner for Wan), ComfyUI LoRA loaders, IP-Adapter for faces, InstantID/PuLID for zero-shot.
 System Fit:
 Train or configure one LoRA per hero character.
 Inject LoRA into the base video model in all relevant shots.
 Store LoRA configs + reference images in Visual RAG with stable IDs.
-Progressive Identity Lock (Hybrid IP-Adapter + Auto-LoRA):
-The goal is zero-wait UX with progressive quality enhancement.
-Tier 1 -- Instant Start (IP-Adapter):
-User uploads 3-5 reference images of character
-System extracts CLIP embeddings immediately
-User can START CREATING within seconds
-Quality: ~80% identity consistency (good for drafts/previews)
-Tier 2 -- Background Enhancement (Auto-LoRA):
-System generates 15-20 augmented images using Gemini Imagen 3 (Nano Banana Pro)
-ArcFace filters generated images (keep only >0.7 similarity to originals)
-Auto-trains LoRA on combined dataset (original + augmented)
-Training time: 30-45 min on A100
-Training cost: ~$0.71 per character
-Quality: ~95% identity consistency
-UX Flow:
-Upload images -> IP-Adapter ready instantly -> "Draft Mode" available
-Background job: augment images -> train LoRA -> validate with ArcFace
-Notification: "Enhanced Mode Ready" -> user can re-render with LoRA
-Fallback: If LoRA training fails, IP-Adapter remains available
-Why this matters:
-No "training wall" blocking creators from starting
-Progressive enhancement feels like magic
-Always have a working fallback
+
+--------------------------------------------------------------------------------
+3A.1 PROGRESSIVE IDENTITY SYSTEM (Single-Image Onboarding)
+--------------------------------------------------------------------------------
+
+Users can start generating videos with just 1 image. Quality improves as they
+provide MORE REAL reference images. This enables instant gratification while
+incentivizing users to invest more for better results.
+
+THE CORE INSIGHT:
+  - Zero-shot methods (InstantID/PuLID) work instantly with 1 image (~85% match)
+  - LoRA quality depends on REAL image count, not training duration
+  - More real images = cleaner training signal = better identity lock
+
+IDENTITY TIERS (by Real Image Count):
+
+| Tier     | Images | Method              | Identity | Wait Time | Pricing   |
+|----------|--------|---------------------|----------|-----------|-----------|
+| Instant  | 1      | InstantID/PuLID     | ~85%     | 0 sec     | Free      |
+| Quick    | 1-4    | LoRA (epoch 10-15)  | ~88-90%  | 15 min    | $5/video  |
+| Standard | 5-10   | LoRA (epoch 30)     | ~92-94%  | 45 min    | $10/video |
+| Premium  | 15-20  | LoRA (epoch 50)     | ~95%+    | 90 min    | $20/video |
+
+CRITICAL: DO NOT AUGMENT SINGLE IMAGES
+
+Previous strategy suggested augmenting 1 image into 15-20 variations using
+image generation. This is WRONG because drift compounds:
+
+  WRONG APPROACH (causes drift):
+  1 Real Image → Augment to 20 "Fake" Images → LoRA Training
+       100%            ~95% each                 compounds to ~85%
+  
+  CORRECT APPROACH (clean signal):
+  4 Real Images → LoRA Training Directly
+       100% each            ~90% identity match
+
+Rule: Quality cannot be faked. More REAL images = better LoRA.
+
+USER EXPERIENCE FLOW:
+
+  User uploads 1 photo
+      │
+      ├─► INSTANT: InstantID generates preview in seconds
+      │   └─► User can start creating immediately (85% quality)
+      │
+      ├─► PROMPT: "Upload 3 more photos to unlock Standard quality"
+      │
+      ├─► User uploads 3 more → Queue Quick LoRA (background)
+      │
+      └─► NOTIFICATION: "Your avatar quality has improved!" (when ready)
+          └─► System auto-switches to better model
+
+BACKGROUND TRAINING QUEUE:
+
+When user uploads photos, system queues LoRA training in background:
+
+```python
+async def onboard_user(user_id: str, photos: List[Path]):
+    # Always available immediately via InstantID
+    await cache_instantid_embedding(user_id, photos[0])
+    
+    # Queue LoRA training based on image count
+    if len(photos) >= 4:
+        await training_queue.add(
+            user_id=user_id,
+            photos=photos,
+            epochs=15 if len(photos) < 10 else 30 if len(photos) < 15 else 50,
+            on_complete=lambda: upgrade_user_tier(user_id),
+        )
+```
+
+BUSINESS MODEL ALIGNMENT:
+
+Users self-select quality tier by effort invested:
+  - Casual user (1 photo): Free preview, may convert to paid
+  - Engaged user (4 photos): Willing to pay for better quality
+  - Power user (20 photos): Wants premium, willing to pay premium price
+
+This creates natural upsell path without aggressive sales tactics.
+
+IMPLEMENTATION STATUS:
+  - InstantID/PuLID integration: NOT YET IMPLEMENTED (Phase 2)
+  - LoRA training pipeline: VALIDATED (musubi-tuner on RunPod)
+  - Background queue system: NOT YET IMPLEMENTED
+  - Tier auto-switching: NOT YET IMPLEMENTED
 
 3A.3 THE REDUNDANT IDENTITY STACK (Defense in Depth)
 

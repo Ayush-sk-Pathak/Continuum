@@ -3123,4 +3123,129 @@ if actual_frames < min_frames_for_trim:  # 24 < 22 → NO, TRIM (correct!)
 
 ---
 
+### 87. Wan 2.1 LoRA Training - Complete Requirements
+
+| | |
+|---|---|
+| **Date** | 2026-01-03 |
+| **Error** | Multiple failed attempts: wrong tools, missing dependencies, OOM errors |
+| **Root Cause** | Not reading full documentation before starting; reacting to errors instead of planning |
+
+**CORRECT TOOL: musubi-tuner (by kohya-ss)**
+```bash
+git clone --recursive https://github.com/kohya-ss/musubi-tuner.git
+cd musubi-tuner
+pip install -e .
+```
+
+**WRONG TOOLS (Do NOT use for Wan):**
+- ❌ `kohya-ss/sd-scripts` - Built for SD/SDXL UNet, not DiT architecture
+- ❌ `tdrussell/diffusion-pipe` - Path conflicts with ComfyUI's `utils` module
+- ❌ `ostris/ai-toolkit` - bitsandbytes/triton version incompatibilities
+
+**I2V vs T2V Training Requirements:**
+
+| Requirement | T2V | I2V |
+|-------------|-----|-----|
+| VAE | ✅ | ✅ |
+| T5 (original .pth format) | ✅ | ✅ |
+| CLIP model | ❌ | ✅ **REQUIRED** |
+| `--i2v` flag in cache | ❌ | ✅ |
+| `--clip` flag in cache | ❌ | ✅ |
+
+**T5 Model Format Matters:**
+- ComfyUI uses: `umt5_xxl_fp8_e4m3fn_scaled.safetensors` (repackaged, different key names)
+- Musubi-tuner needs: `models_t5_umt5-xxl-enc-bf16.pth` (original format)
+
+Download correct format:
+```bash
+python3 -c "from huggingface_hub import hf_hub_download; hf_hub_download('Wan-AI/Wan2.1-I2V-14B-480P', 'models_t5_umt5-xxl-enc-bf16.pth', local_dir='./models')"
+```
+
+**CLIP Model (Required for I2V only):**
+```bash
+python3 -c "from huggingface_hub import hf_hub_download; hf_hub_download('Wan-AI/Wan2.1-I2V-14B-480P', 'models_clip_open-clip-xlm-roberta-large-vit-huge-14.pth', local_dir='./models')"
+```
+
+**Dataset Config Format (TOML):**
+```toml
+# CORRECT key name
+[general]
+resolution = [512, 512]
+caption_extension = ".txt"
+batch_size = 1
+enable_bucket = true
+
+[[datasets]]
+image_directory = "/path/to/images"  # NOT "image_dir"
+cache_directory = "/path/to/cache"
+```
+
+**Pre-caching is MANDATORY (Training fails without this):**
+```bash
+# Step 1: Cache latents (add --clip and --i2v for I2V models)
+python3 wan_cache_latents.py \
+  --dataset_config dataset.toml \
+  --vae /path/to/wan_2.1_vae.safetensors \
+  --clip /path/to/models_clip_open-clip-xlm-roberta-large-vit-huge-14.pth \
+  --i2v
+
+# Step 2: Cache text encoder outputs
+python3 wan_cache_text_encoder_outputs.py \
+  --dataset_config dataset.toml \
+  --t5 /path/to/models_t5_umt5-xxl-enc-bf16.pth \
+  --batch_size 4
+```
+
+**VRAM Requirements for 14B Model:**
+
+| VRAM | blocks_to_swap | Speed |
+|------|----------------|-------|
+| 48GB+ | 0 | Fast |
+| 24GB | 35 | ~6s/step |
+| 16GB | Not feasible | - |
+
+**Complete I2V Training Command:**
+```bash
+python3 wan_train_network.py \
+  --task i2v-14B \
+  --dit /path/to/wan2.1_i2v_480p_14B_fp16.safetensors \
+  --dataset_config dataset.toml \
+  --sdpa \
+  --mixed_precision fp16 \
+  --fp8_base \
+  --optimizer_type adamw \
+  --learning_rate 1e-4 \
+  --gradient_checkpointing \
+  --blocks_to_swap 35 \
+  --max_data_loader_n_workers 2 \
+  --network_module networks.lora_wan \
+  --network_dim 32 \
+  --network_alpha 16 \
+  --timestep_sampling shift \
+  --discrete_flow_shift 5.0 \
+  --max_train_epochs 50 \
+  --save_every_n_epochs 10 \
+  --seed 42 \
+  --output_dir /path/to/output \
+  --output_name my_lora
+```
+
+**Key Flags:**
+- `--network_module networks.lora_wan` - MUST use this for Wan (not default)
+- `--blocks_to_swap 35` - Required for 24GB VRAM with 14B model
+- `--fp8_base` - Reduces VRAM usage
+- `--discrete_flow_shift 5.0` - Recommended for I2V (3.0 for T2V)
+
+**Output Location:**
+LoRA saves to: `/path/to/output/my_lora.safetensors`
+Copy to ComfyUI: `/workspace/runpod-slim/ComfyUI/models/loras/`
+
+**Prevention:**
+1. ALWAYS read musubi-tuner docs BEFORE starting: https://github.com/kohya-ss/musubi-tuner/blob/main/docs/wan.md
+2. Search for community guides on Civitai before troubleshooting blind
+3. Don't guess at tool compatibility - Wan uses DiT architecture, not UNet
+4. Pre-caching is not optional - training will fail with "No training items found"
+
+---
 *Add new entries above this line as they're discovered.*

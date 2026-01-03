@@ -65,6 +65,73 @@ The Director Agent is the "intelligence" of the system. It runs as **cloud LLM A
 
 The architecture supports hot-swapping between lanes via `BaseRenderer` abstraction.
 
+### Progressive Identity System (Single-Image Onboarding)
+
+Users can start generating videos with just 1 image. Quality improves as they provide more reference images or as background LoRA training completes.
+
+#### Identity Tiers
+
+| Tier | Images Required | Method | Identity Match | Wait Time |
+|------|-----------------|--------|----------------|-----------|
+| **Instant** | 1 | InstantID/PuLID (zero-shot) | ~85% | 0 sec |
+| **Quick** | 1-4 | LoRA (epoch 10-15) | ~88-90% | 15 min |
+| **Standard** | 5-10 | LoRA (epoch 30) | ~92-94% | 45 min |
+| **Premium** | 15-20 | LoRA (epoch 50) | ~95%+ | 90 min |
+
+#### Why NOT Augment Single Images
+
+**DO NOT** augment 1 image into many for LoRA training. Drift compounds:
+```
+1 Real → Augment 20 "Fake" → LoRA = ~85% (drift on drift)
+4 Real → LoRA directly = ~90% (clean signal)
+```
+
+**Rule:** More REAL images = better LoRA. Quality cannot be faked.
+
+#### Implementation Pattern
+
+```python
+class IdentityTier(Enum):
+    INSTANT = "instant"      # InstantID/PuLID - always available
+    QUICK_LORA = "quick"     # 1-4 images, epoch 10-15
+    STANDARD_LORA = "standard"  # 5-10 images, epoch 30
+    PREMIUM_LORA = "premium"    # 15-20 images, epoch 50
+
+async def get_best_identity_source(user_id: str) -> IdentityTier:
+    """Return highest quality identity source available for user."""
+    if has_premium_lora(user_id):
+        return IdentityTier.PREMIUM_LORA
+    elif has_standard_lora(user_id):
+        return IdentityTier.STANDARD_LORA
+    elif has_quick_lora(user_id):
+        return IdentityTier.QUICK_LORA
+    else:
+        return IdentityTier.INSTANT  # Always available with 1 image
+```
+
+#### User Experience Flow
+
+```
+User uploads 1 photo
+    │
+    ├─► Instant: InstantID generates preview immediately
+    │
+    ├─► Background: If user uploads 3 more photos, queue Quick LoRA
+    │
+    └─► Notification: "Your avatar quality has improved!" (when LoRA ready)
+```
+
+#### Business Model Alignment
+
+| User Action | Identity Tier | Pricing |
+|-------------|---------------|---------|
+| Upload 1 photo | Instant | Free preview |
+| Upload 4 photos | Quick LoRA | $5/video |
+| Upload 10 photos | Standard LoRA | $10/video |
+| Upload 20 photos | Premium LoRA | $20/video |
+
+**Key insight:** Users self-select quality tier by effort invested. More photos = more committed user = willing to pay more.
+
 ### Model Selection Strategy (I2V-First Architecture)
 
 **Core Insight:** Our value proposition is **consistency from reference images**, not random generation. Users who want "AI surprise me" will be disappointed by inconsistency anyway.
@@ -775,8 +842,10 @@ Use the degradation ladder:
 | **Identity Threshold** | Relaxed to 0.50 | Tighten to 0.70+ once DWPreprocessor works | Accepts more identity drift |
 | **DWPreprocessor** | Missing on RunPod | Install comfyui_controlnet_aux properly | Bridge uses ipadapter_only fallback |
 | **Accept-on-Final-Attempt** | Pipeline fails completely | Accept best attempt with warning | Lost work after 3 rerolls |
+| **InstantID/PuLID** | Not implemented | Zero-shot identity for instant onboarding | Users must wait for LoRA training |
+| **Progressive Identity** | Not implemented | Auto-tier upgrade as images/LoRA ready | No instant gratification UX |
 
-**Priority for Production:** Shot 1 Pipeline > Bridge Frame > IP-Adapter in I2V > Face Enhancement > DWPreprocessor > Identity Threshold > Identity Audit > Director Agent > Sonic Engine
+**Priority for Production:** Shot 1 Pipeline > Bridge Frame > InstantID/PuLID > IP-Adapter in I2V > Face Enhancement > DWPreprocessor > Identity Threshold > Identity Audit > Director Agent > Sonic Engine
 
 ---
 
@@ -859,6 +928,10 @@ post:
 | **Face Enhancement** | Post-processing safety net (GFPGAN/CodeFormer) that corrects residual identity drift not caught by other layers. |
 | **IP-Adapter-WAN** | ComfyUI extension enabling IP-Adapter injection into Wan video UNet during I2V generation (not just hero/bridge frames). |
 | **HunyuanCustom** | Tencent's multi-modal video model with dedicated identity enhancement. Future upgrade path for Pro Lane. |
+| **InstantID** | Zero-shot identity preservation method using facial embeddings + ControlNet. Works with 1 image, ~85% identity match. No training required. Used for "Instant" tier. |
+| **PuLID** | "Pure and Lightning ID" - improved zero-shot identity method with better fidelity than InstantID (~88-92%). Used for instant onboarding. |
+| **Identity Tier** | Progressive quality levels based on real image count: Instant (1 img, zero-shot) → Quick (1-4 img, LoRA) → Standard (5-10 img) → Premium (15-20 img). |
+| **Progressive Identity** | UX pattern where users start instantly with zero-shot methods, quality improves as they upload more photos or LoRA training completes in background. |
 
 ---
 
@@ -866,6 +939,7 @@ post:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2026.01.1 | Jan 2026 | **Progressive Identity System:** Added tiered identity based on REAL image count (not augmentation). Instant tier uses InstantID/PuLID (1 image, zero-shot, ~85%). Quick/Standard/Premium tiers use LoRA with 1-4/5-10/15-20 images respectively. CRITICAL: Removed augmentation strategy - drift compounds when training on synthetic images. Added glossary terms: InstantID, PuLID, Identity Tier, Progressive Identity. Updated 3A.1 in ARCHITECTURE.md. |
 | 2025.12.7 | Dec 2025 | **Redundant Identity Stack (IP_LORA_Research integration):** Updated Identity Lock description to reference 5-layer defense system. Added 3 new MVP limitations: IP-Adapter in I2V, Face Enhancement, Stand-In for Wan. Added 5 new glossary terms. Priority order updated. Source: IP_LORA_Research.md deep research. See ARCHITECTURE.md v2025.10 Sections 3A.3-3A.5, 3N, 3O for full details. |
 | 2025.12.6 | Dec 2025 | **Model Selection Strategy (I2V-First):** Added comprehensive section covering I2V-first architecture rationale, keyframe generation for shot 1, model-agnostic design principle, testing vs production model configuration, and future quality tiers. Documents that I2V is preferred path (consistency from reference images), T2V preserved for exploration mode. Clarifies that Bridge Engine adds value even with premium APIs (Veo/Runway) which lack native consistency features. |
 | 2025.12.5 | Dec 2025 | **Bridge Frame comprehensive documentation:** Added detailed specification covering WHAT (technical definition, why SDXL), WHEN (decision table for all scenarios), WHY (drift problem with diagrams), WHY NEVER BYPASS (4 historical attempts documented), IMPLEMENTATION (5-step MVP), DEGRADATION LADDER (Tier 1-4), and FUTURE ENHANCEMENT (multi-frame sequence via RIFE). Bridge Engine is now fully documented as CRITICAL COMPONENT that must never be bypassed. |
