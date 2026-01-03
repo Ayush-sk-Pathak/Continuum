@@ -1,0 +1,27 @@
+{
+  "dict_id": "ayush_test",
+  "title": "Ayush LoRA Test Bible",
+  "characters": {
+    "ayush": {
+      "entity_id": "ayush",
+      "name": "Ayush",
+      "description": "ayush, a man with black hair and beard",
+      "face_refs": [
+        "/workspace/ayush/001.png",
+        "/workspace/ayush/002.png",
+        "/workspace/ayush/003.png"
+      ],
+      "lora_path": "ayush_wan21_i2v_v1.safetensors",
+      "lora_strength": 0.85
+    }
+  },
+  "locations": {
+    "neutral_bg": {
+      "entity_id": "neutral_bg",
+      "name": "Neutral Background",
+      "description": "Simple neutral background, soft lighting",
+      "ref_images": []
+    }
+  },
+  "props": {}
+}

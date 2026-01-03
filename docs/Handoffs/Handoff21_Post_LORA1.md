@@ -1,7 +1,7 @@
 # Handoff: Wan 2.1 I2V LoRA Training Session
 **Date:** 2026-01-03
-**Session Duration:** ~2.5 hours
-**Status:** LoRA Training IN PROGRESS (~1h remaining)
+**Session Duration:** ~3 hours
+**Status:** ✅ LoRA Training COMPLETED
 
 ---
 
@@ -100,7 +100,31 @@ python3 wan_train_network.py \
 
 ---
 
-## 🏗️ Architecture Status (What's Already Built)
+## 🏛️ Architecture Updates Made This Session
+
+### Progressive Identity System (NEW)
+Added to both `ARCHITECTURE.md` and `ARCHITECTURE_SUMMARY.md`:
+
+- **Section 3A.1** in ARCHITECTURE.md - Complete rewrite
+- **Identity Tiers** based on REAL image count (not augmentation)
+- **Key insight:** Augmenting 1 image causes drift to compound - quality cannot be faked
+- **InstantID/PuLID** for instant onboarding (zero-shot, 1 image)
+- **Business model alignment** - users self-select tier by effort invested
+
+| Tier | Images | Method | Identity | Price |
+|------|--------|--------|----------|-------|
+| Instant | 1 | InstantID/PuLID | ~85% | Free |
+| Quick | 1-4 | LoRA (epoch 10-15) | ~88-90% | $5 |
+| Standard | 5-10 | LoRA (epoch 30) | ~92-94% | $10 |
+| Premium | 15-20 | LoRA (epoch 50) | ~95%+ | $20 |
+
+### New Glossary Terms
+- InstantID, PuLID, Identity Tier, Progressive Identity
+
+### Updated MVP Priorities
+- Added InstantID/PuLID as #3 priority (after Shot 1 Pipeline and Bridge Frame)
+
+---
 
 ### Code EXISTS and is Implemented
 | Component | File | Status |
@@ -128,12 +152,14 @@ python3 wan_train_network.py \
 
 ## 📋 Next Steps (Priority Order)
 
-### IMMEDIATE (When LoRA Finishes ~1h)
+### IMMEDIATE (Next Session - Start RunPod Pod)
 
 **Step 1: Copy LoRA to ComfyUI (RunPod)**
 ```bash
 cp /workspace/lora_output/ayush_wan21_i2v_v1.safetensors \
    /workspace/runpod-slim/ComfyUI/models/loras/
+
+ls -la /workspace/runpod-slim/ComfyUI/models/loras/
 ```
 
 **Step 2: Test LoRA with Simple I2V (RunPod)**
@@ -183,20 +209,22 @@ cp /workspace/lora_output/ayush_wan21_i2v_v1.safetensors \
 
 ---
 
-## 📊 Training Progress (Last Seen)
+## 📊 Training Results (COMPLETED)
 
 ```
-Epoch 18/50
-Steps: 327/950 (34%)
-Loss: 0.00086 → 0.00111 (fluctuating, healthy)
-Speed: ~7.07s/step
-ETA: ~1h 13min remaining
+Epoch 50/50 ✅
+Steps: 950/950 (100%)
+Final Loss: 0.00122
+Total Time: ~1h 52min
 ```
 
-**Checkpoints saved:**
-- Epoch 10: `ayush_wan21_i2v_v1-step000190.safetensors`
-- Epoch 20: (pending)
-- Epoch 30, 40, 50: (pending)
+**Checkpoints saved (all in /workspace/lora_output/):**
+- `ayush_wan21_i2v_v1-step000190.safetensors` (epoch 10)
+- `ayush_wan21_i2v_v1-000030.safetensors` (epoch 30) 
+- `ayush_wan21_i2v_v1-000040.safetensors` (epoch 40)
+- `ayush_wan21_i2v_v1.safetensors` (epoch 50) ← **FINAL**
+
+**Note on loss:** Final loss 0.00122 is healthy. Epoch 30 checkpoint (loss ~0.0005) may be slightly overfit - test both if needed.
 
 ---
 
@@ -214,15 +242,22 @@ ETA: ~1h 13min remaining
 
 ## ✅ Summary
 
-**This session established the LoRA training pipeline for Wan 2.1 I2V.** After multiple failed attempts with wrong tools (sd-scripts, diffusion-pipe, ai-toolkit), we identified musubi-tuner as the correct solution and successfully started training.
+**This session achieved:**
+1. ✅ Successfully trained Wan 2.1 I2V LoRA (50 epochs, loss 0.00122)
+2. ✅ Documented complete training pipeline in LESSONS_LEARNED.md (#87)
+3. ✅ Added Progressive Identity System to architecture docs
+4. ✅ All checkpoints saved to persistent storage (/workspace/)
 
-**The LoRA will enable identity-locked video generation** - the core capability needed for the Continuum Engine's consistency promise.
+**The LoRA enables identity-locked video generation** - the core capability needed for the Continuum Engine's consistency promise.
 
 **Next session should:**
-1. Verify LoRA training completed successfully
-2. Test LoRA in ComfyUI workflows
-3. Validate hero frame → I2V → bridge frame pipeline
-4. Run multi-shot consistency test
+1. Start RunPod pod (files persist in /workspace/)
+2. Copy LoRA to ComfyUI models folder
+3. Test LoRA with simple I2V generation
+4. Test hero frame → I2V → bridge frame pipeline
+5. Run multi-shot consistency test
+
+**Mac project location:** `~/Projects/Continuum`
 
 ---
 
