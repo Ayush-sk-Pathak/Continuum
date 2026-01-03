@@ -123,7 +123,7 @@ class Stitcher:
         if errors:
             return StitchResult.failed(f"Validation failed: {'; '.join(errors)}")
         
-        logger.info(f"Starting stitch: {len(job.clips)} clips → {job.output_path}")
+        logger.info(f"Starting stitch: {len(job.clips)} clips â†’ {job.output_path}")
         
         try:
             # Step 2: Probe all clips
@@ -267,12 +267,22 @@ class Stitcher:
                 )
                 can_fast = False
             
-            # Codec check (warning only, not blocking)
+            # Codec check - MUST block fast path to prevent silent failures
+            # (VHS_VideoCombine h264 != FFmpeg libx264 h264 even with same codec name)
             if info.codec != first.codec:
                 warnings.append(
                     f"Codec mismatch: clip 0 is {first.codec}, "
-                    f"clip {i} is {info.codec}"
+                    f"clip {i} is {info.codec} - forcing re-encode"
                 )
+                can_fast = False
+            
+            # Pixel format check - different formats cause playback issues
+            if info.pixel_format != first.pixel_format:
+                warnings.append(
+                    f"Pixel format mismatch: clip 0 is {first.pixel_format}, "
+                    f"clip {i} is {info.pixel_format} - forcing re-encode"
+                )
+                can_fast = False
         
         # Check if target differs from source
         if target_resolution and target_resolution != first.resolution:

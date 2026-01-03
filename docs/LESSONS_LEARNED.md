@@ -2978,4 +2978,149 @@ curl -s -X POST "https://$HOST/prompt" -H "Content-Type: application/json" -d "{
 - Validating workflow templates before integration
 
 ---
+
+
+### 84. CRITICAL: Bridge Frames MUST Re-Anchor to Canonical Identity
+
+| | |
+|---|---|
+| **Date** | 2026-01-02 |
+| **Error** | Suggesting "skip bridge SDXL and use last_frame directly" to fix halo artifacts |
+| **Why This Is Wrong** | Using last_frame directly causes CUMULATIVE identity drift across shots |
+
+**THE CORE PRINCIPLE (DO NOT FORGET):**
+WITHOUT bridge re-anchoring (WRONG):
+Shot 1: hero → Wan → 98% identity
+Shot 2: 98% → Wan → 94% identity (drift compounds!)
+Shot 3: 94% → Wan → 88% identity
+Shot 4: 88% → Wan → 80% identity
+... identity degrades exponentially
+WITH bridge re-anchoring (CORRECT):
+Shot 1: hero → Wan → 98% identity
+Shot 2: BRIDGE(hero) → Wan → 98% identity (reset to canonical!)
+Shot 3: BRIDGE(hero) → Wan → 98% identity
+Shot 4: BRIDGE(hero) → Wan → 98% identity
+... identity stays locked
+
+**Why Bridge Frames Exist:**
+
+The ENTIRE PURPOSE of the bridge frame is to **re-anchor identity to the canonical hero frame** at each shot boundary. This prevents drift from accumulating across shots.
+
+**What the Bridge Does:**
+1. Takes canonical hero frame (or face_ref) as identity source
+2. Takes last_frame pose via ControlNet (for continuity)
+3. Regenerates a clean frame with locked identity
+4. This becomes the init_frame for the next shot's I2V
+
+**NEVER suggest:**
+- "Skip bridge SDXL and use last_frame directly"
+- "Just pass last_frame to next shot"
+- "Remove the bridge step to avoid artifacts"
+
+**If bridge has artifacts (halos, dots), the fix is:**
+- Lower denoise further
+- Adjust ControlNet/IP-Adapter strengths
+- Use different bridge workflow
+- Fix the SDXL bridge step itself
+
+**NOT** skipping the re-anchoring step entirely.
+
+**Prevention:**
+Before suggesting any change to bridge logic, ask: "Does this preserve re-anchoring to canonical identity?" If no, reject the approach.
+
+---
+
+### 85. Hero Frame Strategy: Separate Pose Source from Identity Source
+
+| | |
+|---|---|
+| **Date** | 2026-01-02 |
+| **Implementation** | Bridge frames should use hero_frame for img2img source, last_frame for pose extraction |
+
+**The Problem:**
+
+Bridge frames were using `last_frame` for BOTH:
+1. Pose extraction (ControlNet) - correct
+2. Img2img source (VAEEncode) - WRONG, causes background drift
+
+**The Solution:**
+
+Separate the two sources:
+```python
+BridgeSpec:
+  source_frame: Path          # Last frame - for pose extraction
+  identity_source_frame: Path # Hero frame - for img2img source (preserves background)
+```
+
+**In bridge_engine.generate():**
+```python
+# Pose extraction from last_frame (continuity)
+spec.pose_data = await self.extract_pose(spec.source_frame)
+
+# Img2img from hero_frame (identity/background preservation)
+img2img_source = spec.identity_source_frame or spec.source_frame
+```
+
+**Data Flow:**
+hero_frame (canonical) → VAEEncode → latent source (background/identity locked)
+last_frame (drifted)   → ControlNet → pose conditioning (continuity preserved)
+↓
+Bridge output (best of both)
+
+**Trade-off Accepted:**
+Expression may jump at cuts because ControlNet captures coarse pose, not micro-expressions. This is acceptable - real films have expression discontinuity at cuts.
+
+---
+### 86. Wan VAE Decoder "Overbaked First Frames" Fix ✅ CONFIRMED
+
+| | |
+|---|---|
+| **Date** | 2026-01-02 |
+| **Status** | Confirmed working |
+| **Implementation** | wan_renderer.py: Request +3 frames, trim first 3 after download |
+
+**The Problem:**
+
+Wan's VAE decoder produces artifacts ("overbaked" pixels, circular spots) in the first 2-3 frames of I2V videos. This is a known issue in the community, documented in Civitai workflows like "Motion Forge."
+
+Visual evidence:
+- Shot 1 frame 0: Minimal artifacts (no reference to compare)
+- Bridge frame: Clean (SDXL, not Wan VAE)
+- Shot 2 frame 0: Heavy spots/halos (VAE overbake)
+- Shot 2 frame 1-2: Fading artifacts
+- Shot 2 frame 3+: Clean
+
+**Root Cause:**
+
+The VAE decoder "overbakes" whatever frame is in position 0 of the latent batch. This is specific to I2V because the init_frame latent interacts with generated latents. Bridge-based shots have more "tension" (blending identity + pose), amplifying artifacts.
+
+**The Solution:**
+
+Request extra frames, then trim post-download:
+```python
+# In _build_generation_params:
+if job.has_init_frame:
+    frame_count += VAE_ARTIFACT_FRAMES  # Request 28 instead of 25
+
+# In generate(), after download:
+if job.has_init_frame:
+    output_path = await self._trim_vae_artifacts(output_path, job)
+```
+
+**Idempotency Logic (Important):**
+```python
+# Original (BROKEN): skipped if actual <= expected
+if actual_frames <= expected_frames:  # 24 <= 25 → SKIP (wrong!)
+
+# Fixed: skip only if too short to trim
+min_frames_for_trim = job.frame_count - frames_to_trim  # 25 - 3 = 22
+if actual_frames < min_frames_for_trim:  # 24 < 22 → NO, TRIM (correct!)
+```
+
+**Trade-off:** Videos ~0.25s shorter than requested. Acceptable given artifact removal.
+
+**Future Optimization:** Could skip trim for Shot 1 (minimal artifacts) to preserve full duration. Low priority.
+
+---
+
 *Add new entries above this line as they're discovered.*

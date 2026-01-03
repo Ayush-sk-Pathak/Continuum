@@ -4,12 +4,12 @@ Continuum Engine - Wan 2.x Renderer
 Concrete renderer implementation using Wan 2.1 (or compatible models like
 HunyuanVideo, Mochi) via ComfyUI on cloud GPUs.
 
-This is the "Standard Lane" renderer ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â OSS, cost-effective, full control.
+This is the "Standard Lane" renderer ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â OSS, cost-effective, full control.
 
 Design Principles:
 1. Translate JobSpec to ComfyUI workflow parameters
-2. Handle the full lifecycle: connect ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ upload ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ generate ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ download
-3. Support graceful degradation (LoRA ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ IP-Adapter ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ prompt-only)
+2. Handle the full lifecycle: connect ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ upload ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ generate ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ download
+3. Support graceful degradation (LoRA ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ IP-Adapter ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ prompt-only)
 4. Track costs and timing for budget management
 """
 
@@ -55,6 +55,7 @@ from ..core.error_recovery import (
     retry_async,
     RetryConfig,
 )
+from ..post.ffmpeg_wrapper import probe_video, run_ffmpeg
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +77,12 @@ TIME_PER_FRAME_DRAFT = 0.25  # Draft quality is faster
 TIME_PER_FRAME_HIGH = 1.0  # High quality takes longer
 TIME_OVERHEAD_CONNECTION = 5.0  # Connection setup
 TIME_OVERHEAD_UPLOAD = 2.0  # File uploads
+
+# VAE artifact mitigation
+# Wan's VAE decoder produces artifacts ("overbaked" pixels) in the first few frames
+# when processing I2V. We request extra frames and trim them post-download.
+# See: LESSONS_LEARNED.md, Civitai "Motion Forge" workflow documentation
+VAE_ARTIFACT_FRAMES = 3  # Number of frames to trim from start of I2V videos
 
 
 # =============================================================================
@@ -300,6 +307,12 @@ class WanRenderer(BaseRenderer):
             self._report_progress("downloading", 0.9, "Downloading output...", callback=progress_callback)
             
             output_path = await self._download_output(completed_job, job)
+            
+            # Stage 5.5: Trim VAE artifacts (I2V only)
+            # Wan's VAE produces artifacts in first few frames of I2V videos
+            if job.has_init_frame:
+                self._report_progress("trimming", 0.95, "Removing VAE artifacts...", callback=progress_callback)
+                output_path = await self._trim_vae_artifacts(output_path, job)
             
             # Stage 6: Build result
             self._report_progress("complete", 1.0, "Complete!", callback=progress_callback)
@@ -576,6 +589,17 @@ class WanRenderer(BaseRenderer):
     
     def _build_generation_params(self, job: JobSpec) -> Dict[str, Any]:
         """Build generation parameters from JobSpec."""
+        
+        # For I2V jobs, request extra frames to compensate for VAE artifact trimming
+        # The first few frames have "overbaked" artifacts from Wan's VAE decoder
+        frame_count = job.frame_count
+        if job.has_init_frame:
+            frame_count += VAE_ARTIFACT_FRAMES
+            logger.debug(
+                f"I2V job: requesting {frame_count} frames "
+                f"(+{VAE_ARTIFACT_FRAMES} for VAE artifact trimming)"
+            )
+        
         # Base generation params
         params = {
             "POSITIVE_PROMPT": job.prompt,
@@ -584,7 +608,7 @@ class WanRenderer(BaseRenderer):
             "WIDTH": job.width,
             "HEIGHT": job.height,
             "FPS": job.fps,
-            "FRAMES": job.frame_count,
+            "FRAMES": frame_count,
             "CFG_SCALE": job.cfg_scale,
             "STEPS": job.steps,
             "DENOISE": job.denoise,
@@ -698,6 +722,101 @@ class WanRenderer(BaseRenderer):
             raise RenderError(f"Download failed, file not found: {output_path}", spec)
         
         return output_path
+
+    async def _trim_vae_artifacts(
+        self, 
+        video_path: Path, 
+        job: JobSpec,
+        frames_to_trim: int = VAE_ARTIFACT_FRAMES
+    ) -> Path:
+        """
+        Trim first N frames from video to remove Wan VAE decoder artifacts.
+        
+        Wan's VAE produces "overbaked" artifacts in the first few frames when
+        decoding I2V latents. This is a known issue documented in the community.
+        
+        The fix: request extra frames during generation, then trim them here.
+        This preserves the requested duration while removing artifacts.
+        
+        Args:
+            video_path: Path to the downloaded video
+            job: Original job spec (to verify expected duration)
+            frames_to_trim: Number of frames to remove from start
+            
+        Returns:
+            Path to trimmed video (or original if no trim needed)
+        """
+        # Only trim I2V videos
+        if not job.has_init_frame:
+            logger.debug("T2V job, skipping VAE artifact trim")
+            return video_path
+        
+        try:
+            # Probe video to check current duration
+            info = await probe_video(video_path)
+            actual_frames = int(info.duration_sec * info.fps)
+            
+            # Safety check: don't trim if video is too short (likely already trimmed)
+            # A trimmed video should be at least (expected - buffer) frames
+            # If it's shorter than expected, it's probably already been processed
+            min_frames_for_trim = job.frame_count - frames_to_trim
+            if actual_frames < min_frames_for_trim:
+                logger.debug(
+                    f"Video too short to trim ({actual_frames} < {min_frames_for_trim}), "
+                    f"likely already processed - skipping"
+                )
+                return video_path
+            
+            # Calculate trim duration
+            trim_duration_sec = frames_to_trim / info.fps
+            
+            # Create trimmed output path
+            trimmed_path = video_path.with_stem(f"{video_path.stem}_trimmed")
+            
+            logger.info(
+                f"Trimming {frames_to_trim} frames ({trim_duration_sec:.3f}s) "
+                f"from start to remove VAE artifacts"
+            )
+            
+            # Use FFmpeg to trim
+            # -ss before -i for fast seek, -c:v copy for speed if possible
+            # But we re-encode to ensure clean cut at frame boundary
+            await run_ffmpeg([
+                "-ss", str(trim_duration_sec),
+                "-i", str(video_path),
+                "-c:v", "libx264",
+                "-crf", "19",
+                "-preset", "fast",
+                "-an",  # No audio in these clips
+                "-y",  # Overwrite if exists
+                str(trimmed_path)
+            ], output_path=trimmed_path)
+            
+            if not trimmed_path.exists():
+                logger.warning(f"VAE trim failed, using original: {video_path}")
+                return video_path
+            
+            # Verify trimmed video duration
+            trimmed_info = await probe_video(trimmed_path)
+            logger.info(
+                f"VAE artifact trim complete: {info.duration_sec:.2f}s → {trimmed_info.duration_sec:.2f}s"
+            )
+            
+            # Remove original to save space
+            try:
+                video_path.unlink()
+            except Exception as e:
+                logger.debug(f"Could not remove original video: {e}")
+            
+            # Rename trimmed to original name for cleaner paths
+            final_path = video_path
+            trimmed_path.rename(final_path)
+            
+            return final_path
+            
+        except Exception as e:
+            logger.warning(f"VAE artifact trim failed ({e}), using original video")
+            return video_path
 
 
 # =============================================================================

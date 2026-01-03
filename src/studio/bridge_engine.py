@@ -22,7 +22,7 @@ Architecture:
 
 Design Principles:
     1. Workflow-agnostic: Actual ComfyUI workflow is external JSON
-    2. Degradation-ready: ControlNet ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ IP-Adapter ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ prompt-only fallback
+    2. Degradation-ready: ControlNet ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ IP-Adapter ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ prompt-only fallback
     3. Async-first: All generation is async
     4. Testable: Mock implementation for local testing
 """
@@ -73,8 +73,8 @@ class BridgeMethod(str, Enum):
 class CameraTransition(str, Enum):
     """Types of camera angle changes between shots."""
     SAME = "same"                # Same angle (e.g., continuous action)
-    REVERSE = "reverse"          # 180Ãƒâ€šÃ‚Â° flip (e.g., conversation)
-    SIDE = "side"                # 90Ãƒâ€šÃ‚Â° move (e.g., profile to front)
+    REVERSE = "reverse"          # 180ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â° flip (e.g., conversation)
+    SIDE = "side"                # 90ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â° move (e.g., profile to front)
     AERIAL = "aerial"            # Ground to overhead
     GROUND = "ground"            # Overhead to ground
     CLOSEUP = "closeup"          # Wide to close
@@ -165,6 +165,11 @@ class BridgeSpec:
     width: int = 1280
     height: int = 720
     
+    # Hero frame strategy: use canonical frame for img2img source (preserves background/identity)
+    # If provided, this is used for SOURCE_IMAGE instead of source_frame
+    # source_frame is still used for pose/depth extraction
+    identity_source_frame: Optional[Path] = None
+    
     # Renderer-specific overrides
     config_overrides: Dict[str, Any] = field(default_factory=dict)
     
@@ -196,12 +201,22 @@ class BridgeSpec:
         shot_b_characters: List[CharacterRef],
         shot_b_type: str = "medium",
         shot_a_type: str = "medium",
+        identity_source_frame: Optional[Path] = None,
         **kwargs
     ) -> "BridgeSpec":
         """
         Factory method to create BridgeSpec from shot information.
         
         Automatically infers camera transition from shot types.
+        
+        Args:
+            shot_a_last_frame: Last frame of previous shot (for pose extraction)
+            shot_b_prompt: Prompt for next shot
+            shot_b_characters: Characters in next shot
+            shot_b_type: Camera framing for next shot
+            shot_a_type: Camera framing of previous shot
+            identity_source_frame: Hero frame for img2img source (preserves background/identity)
+                                   If None, shot_a_last_frame is used for both pose and img2img
         """
         # Infer camera transition from shot type changes
         transition = cls._infer_transition(shot_a_type, shot_b_type)
@@ -212,6 +227,7 @@ class BridgeSpec:
             characters=shot_b_characters,
             camera_transition=transition,
             target_shot_type=shot_b_type,
+            identity_source_frame=identity_source_frame,
             **kwargs
         )
     
@@ -226,10 +242,10 @@ class BridgeSpec:
         wide_types = {"wide", "aerial", "group"}
         medium_or_wider = {"wide", "aerial", "group", "medium", "two_shot"}
         
-        # Moving closer (wide/medium ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ close)
+        # Moving closer (wide/medium ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ close)
         if from_type in medium_or_wider and to_type in close_types:
             return CameraTransition.CLOSEUP
-        # Moving wider (close ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ wide/medium)  
+        # Moving wider (close ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ wide/medium)  
         if from_type in close_types and to_type in wide_types:
             return CameraTransition.WIDEOUT
         # Aerial transitions
@@ -695,8 +711,13 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
         
         self._report_progress("generating", 0.4, f"Generating frame ({method.value})")
         
-        # Upload source frame
-        remote_source = await self.client.upload_image(spec.source_frame)
+        # Upload source frame for img2img
+        # Hero Frame Strategy: Use identity_source_frame (canonical hero frame) if provided
+        # This preserves background/identity pixels while pose comes from source_frame
+        img2img_source = spec.identity_source_frame if spec.identity_source_frame else spec.source_frame
+        if spec.identity_source_frame:
+            logger.info(f"Using hero frame for img2img source: {spec.identity_source_frame}")
+        remote_source = await self.client.upload_image(img2img_source)
         
         # Upload pose/depth if available
         remote_pose = None
@@ -1112,7 +1133,7 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
             "SEED": spec.seed if spec.seed >= 0 else random.randint(0, 2**32 - 1),
             "STEPS": 20 if spec.quality == RenderQuality.STANDARD else 30,
             "CFG": 7.0,
-            "DENOISE": 0.65,  # Moderate denoise to preserve source
+            "DENOISE": 0.35,  # Low denoise to preserve background (ControlNet handles pose)
         }
         
         # Add pose/depth conditioning

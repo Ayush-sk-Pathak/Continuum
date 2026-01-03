@@ -166,6 +166,7 @@ class ChunkOutput:
     attempts: int = 1
     audit_result: Optional[Dict[str, Any]] = None
     bridge_frame_path: Optional[Path] = None
+    hero_frame_path: Optional[Path] = None  # Canonical identity frame (propagates through shots)
     render_time_sec: float = 0.0
     cost_estimate: float = 0.0
     error_message: str = ""
@@ -189,6 +190,7 @@ class ChunkOutput:
             "attempts": self.attempts,
             "audit_result": self.audit_result,
             "bridge_frame_path": str(self.bridge_frame_path) if self.bridge_frame_path else None,
+            "hero_frame_path": str(self.hero_frame_path) if self.hero_frame_path else None,
             "render_time_sec": self.render_time_sec,
             "cost_estimate": self.cost_estimate,
             "error_message": self.error_message,
@@ -431,11 +433,14 @@ class Pass1Generator:
             existing = self._check_existing_output(chunk_id)
             if existing:
                 logger.info(f"Chunk {chunk_id} already exists, skipping")
+                # Propagate hero_frame from previous if available (for resumed runs)
+                hero_frame = previous_chunk_output.hero_frame_path if previous_chunk_output else None
                 return ChunkOutput(
                     chunk_id=chunk_id,
                     result=ChunkResult.SUCCESS,
                     video_path=existing,
                     attempts=0,
+                    hero_frame_path=hero_frame,
                     metadata={"skipped": True},
                 )
         
@@ -563,6 +568,7 @@ class Pass1Generator:
                     attempts=attempt,
                     audit_result=audit_result,
                     bridge_frame_path=bridge_frame_path,
+                    hero_frame_path=self._get_hero_frame_for_output(previous_chunk_output, bridge_frame_path),
                     render_time_sec=elapsed,
                     cost_estimate=render_result.cost_estimate,
                     metadata={
@@ -616,6 +622,7 @@ class Pass1Generator:
                 attempts=attempt,
                 audit_result=best_audit_result,
                 bridge_frame_path=best_bridge_frame_path,
+                hero_frame_path=self._get_hero_frame_for_output(previous_chunk_output, best_bridge_frame_path),
                 render_time_sec=elapsed,
                 cost_estimate=best_render_result.cost_estimate,
                 warnings=warnings,
@@ -839,8 +846,8 @@ class Pass1Generator:
             - No previous_output? --> Check shot1_strategy:
                 - FACE_REF_DIRECT: Use Bible face_ref as init (native identity models)
                 - HERO_FRAME: 
-                    - If renderer has native_identity → auto-upgrade to FACE_REF_DIRECT
-                    - Otherwise → Generate via SDXL + IP-Adapter
+                    - If renderer has native_identity â†’ auto-upgrade to FACE_REF_DIRECT
+                    - Otherwise â†’ Generate via SDXL + IP-Adapter
                 - USER_KEYFRAME: Use user-provided image
                 - EXPLORATION: Return None (T2V fallback)
         
@@ -1247,12 +1254,20 @@ class Pass1Generator:
                 shot_type = shot.get('shot_type', 'medium')
             
             # Step 5: Build BridgeSpec
+            # Hero Frame Strategy: Use previous_output.hero_frame_path as identity source
+            # This preserves background/identity pixels while pose comes from last_frame
             prompt = self._get_chunk_prompt(chunk, shot)
+            identity_source = previous_output.hero_frame_path if previous_output else None
+            
+            if identity_source:
+                logger.info(f"Using hero frame strategy: identity_source={identity_source}")
+            
             spec = BridgeSpec.from_shots(
                 shot_a_last_frame=last_frame_path,
                 shot_b_prompt=prompt,
                 shot_b_characters=character_refs,
                 shot_b_type=shot_type,
+                identity_source_frame=identity_source,
                 seed=self.config.get_seed_for_attempt(chunk_id, 1),
             )
             
@@ -1675,6 +1690,34 @@ class Pass1Generator:
             return previous_output.bridge_frame_path
         
         return None
+    
+    def _get_hero_frame_for_output(
+        self,
+        previous_output: Optional["ChunkOutput"],
+        current_bridge_frame: Optional[Path],
+    ) -> Optional[Path]:
+        """
+        Determine hero_frame_path for ChunkOutput.
+        
+        Hero Frame Strategy:
+        - Shot 1 (no previous): hero_frame_path = bridge_frame_path (it IS the hero frame)
+        - Shot 2+ (has previous): hero_frame_path = previous.hero_frame_path (propagate)
+        
+        This ensures the canonical identity frame propagates through the entire scene,
+        allowing bridge frames to use it as img2img source for consistent background/identity.
+        
+        Args:
+            previous_output: ChunkOutput from previous chunk (None for Shot 1)
+            current_bridge_frame: Bridge frame generated for current chunk
+            
+        Returns:
+            Path to hero frame for this chunk's output
+        """
+        if previous_output and previous_output.hero_frame_path:
+            # Shot 2+: Propagate hero frame from chain
+            return previous_output.hero_frame_path
+        # Shot 1: The bridge_frame IS the hero_frame (or None if no bridge)
+        return current_bridge_frame
     
     def _check_existing_output(self, chunk_id: str) -> Optional[Path]:
         """Check if output already exists for chunk."""
