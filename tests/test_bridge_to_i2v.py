@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Bridge Frame → Shot 2 I2V Pipeline Test
+Bridge Frame â†’ Shot 2 I2V Pipeline Test
 
 Tests the Shot 2+ flow:
 1. Generate Bridge Frame (SDXL img2img + IP-Adapter) from Shot 1's last frame
-2. Feed Bridge Frame to Wan I2V + LoRA → Shot 2 video
+2. Feed Bridge Frame to Wan I2V + LoRA â†’ Shot 2 video
 
 This validates:
     "Bridge Frame re-anchors identity at every shot boundary"
@@ -282,11 +282,11 @@ def submit_and_wait(workflow: dict, stage_name: str, timeout_sec: int = 600) -> 
     response = requests.post(f"{COMFY_URL}/prompt", json={"prompt": workflow}, timeout=30)
     
     if response.status_code != 200:
-        print(f"❌ Failed to submit: {response.json()}")
+        print(f"âŒ Failed to submit: {response.json()}")
         return None
     
     prompt_id = response.json().get("prompt_id")
-    print(f"✅ Submitted! prompt_id: {prompt_id}")
+    print(f"âœ… Submitted! prompt_id: {prompt_id}")
     print(f"Waiting...")
     
     for i in range(timeout_sec // 5):
@@ -296,22 +296,22 @@ def submit_and_wait(workflow: dict, stage_name: str, timeout_sec: int = 600) -> 
             if prompt_id in history:
                 outputs = history[prompt_id].get("outputs", {})
                 if outputs:
-                    print(f"\n✅ {stage_name} COMPLETED!")
+                    print(f"\nâœ… {stage_name} COMPLETED!")
                     return {"prompt_id": prompt_id, "outputs": outputs}
                     
                 status = history[prompt_id].get("status", {})
                 if status.get("status_str") == "error":
-                    print(f"\n❌ {stage_name} FAILED!")
+                    print(f"\nâŒ {stage_name} FAILED!")
                     messages = status.get("messages", [])
                     for msg in messages:
                         if msg[0] == "execution_error":
                             print(f"Error: {msg[1].get('exception_message', 'Unknown')}")
                     return None
-        except:
-            pass
+        except Exception:
+            pass  # Network hiccup, keep polling
         print(f"  ... {(i+1)*5}s elapsed", end="\r")
     
-    print(f"\n⚠️ {stage_name} timeout")
+    print(f"\nâš ï¸ {stage_name} timeout")
     return None
 
 
@@ -320,7 +320,7 @@ def submit_and_wait(workflow: dict, stage_name: str, timeout_sec: int = 600) -> 
 # ============================================================================
 
 print("\n" + "="*60)
-print("BRIDGE FRAME → SHOT 2 I2V PIPELINE TEST")
+print("BRIDGE FRAME â†’ SHOT 2 I2V PIPELINE TEST")
 print("="*60)
 print("Stage 1: Generate Bridge Frame (SDXL img2img + IP-Adapter)")
 print("         Source: shot1_last_frame.png (preserves pose)")
@@ -332,7 +332,7 @@ print("="*60)
 result1 = submit_and_wait(bridge_frame_workflow, "BRIDGE FRAME GENERATION", timeout_sec=120)
 
 if not result1:
-    print("\n❌ Pipeline failed at Stage 1")
+    print("\nâŒ Pipeline failed at Stage 1")
     exit(1)
 
 # Extract bridge frame filename
@@ -340,17 +340,17 @@ try:
     for node_id, node_output in result1["outputs"].items():
         if "images" in node_output:
             bridge_filename = node_output["images"][0]["filename"]
-            print(f"\n🌉 Bridge Frame saved: {bridge_filename}")
+            print(f"\nðŸŒ‰ Bridge Frame saved: {bridge_filename}")
             break
     else:
-        print("❌ Could not find bridge frame")
+        print("âŒ Could not find bridge frame")
         exit(1)
 except Exception as e:
-    print(f"❌ Error: {e}")
+    print(f"âŒ Error: {e}")
     exit(1)
 
 # Copy bridge frame to input (via API would be better, but manual for now)
-print(f"\n⚠️  MANUAL STEP REQUIRED:")
+print(f"\nâš ï¸  MANUAL STEP REQUIRED:")
 print(f"    Run on RunPod:")
 print(f"    cp /workspace/runpod-slim/ComfyUI/output/{bridge_filename} /workspace/runpod-slim/ComfyUI/input/")
 print(f"\n    Then press Enter to continue...")
@@ -361,11 +361,11 @@ shot2_workflow = create_shot2_workflow(bridge_filename)
 result2 = submit_and_wait(shot2_workflow, "SHOT 2 I2V FROM BRIDGE", timeout_sec=300)
 
 if not result2:
-    print("\n❌ Pipeline failed at Stage 2")
+    print("\nâŒ Pipeline failed at Stage 2")
     exit(1)
 
 print("\n" + "="*60)
-print("✅ BRIDGE → SHOT 2 PIPELINE COMPLETED!")
+print("âœ… BRIDGE â†’ SHOT 2 PIPELINE COMPLETED!")
 print("="*60)
 print(f"Bridge Frame: {bridge_filename}")
 print(f"Shot 2 Video: {json.dumps(result2['outputs'], indent=2)}")

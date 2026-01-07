@@ -846,8 +846,8 @@ class Pass1Generator:
             - No previous_output? --> Check shot1_strategy:
                 - FACE_REF_DIRECT: Use Bible face_ref as init (native identity models)
                 - HERO_FRAME: 
-                    - If renderer has native_identity â†’ auto-upgrade to FACE_REF_DIRECT
-                    - Otherwise â†’ Generate via SDXL + IP-Adapter
+                    - If renderer has native_identity Ã¢â€ â€™ auto-upgrade to FACE_REF_DIRECT
+                    - Otherwise Ã¢â€ â€™ Generate via SDXL + IP-Adapter
                 - USER_KEYFRAME: Use user-provided image
                 - EXPLORATION: Return None (T2V fallback)
         
@@ -1004,7 +1004,9 @@ class Pass1Generator:
         
         face_ref_path = character_refs[0].face_refs[0]
         
-        if not face_ref_path.exists():
+        # Check if path exists locally or is a remote ComfyUI path
+        from ..studio.bridge_engine import _path_exists_or_remote
+        if not _path_exists_or_remote(face_ref_path):
             logger.error(f"Face ref file not found: {face_ref_path}")
             return None
         

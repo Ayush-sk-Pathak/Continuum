@@ -1,0 +1,232 @@
+{
+  "project_id": "matrix_zero",
+  "title": "Matrix Zero - Welcome to Continuum",
+  "description": "6-shot, 30-second demo showcasing identity preservation across scene changes and framing cuts",
+  "target_resolution": [832, 480],
+  "target_fps": 16,
+  "bible": {
+    "dict_id": "matrix_zero",
+    "title": "Matrix Zero Bible",
+    "characters": {
+      "ayush": {
+        "entity_id": "ayush",
+        "name": "Ayush",
+        "description": "Man with black hair and beard, confident mysterious presence",
+        "face_refs": [
+          "/workspace/runpod-slim/ComfyUI/input/ayush_ref.png"
+        ],
+        "lora_path": "/workspace/runpod-slim/ComfyUI/models/loras/ayush_wan21_i2v_v1.safetensors",
+        "lora_strength": 0.85
+      }
+    },
+    "locations": {
+      "office": {
+        "entity_id": "office",
+        "name": "Modern Office",
+        "description": "Modern minimalist office with soft window lighting"
+      },
+      "matrix_desert": {
+        "entity_id": "matrix_desert",
+        "name": "Matrix Desert",
+        "description": "Vast orange desert with geometric grid pattern on horizon, Matrix aesthetic"
+      },
+      "tropical_beach": {
+        "entity_id": "tropical_beach",
+        "name": "Tropical Beach",
+        "description": "Paradise beach with crystal blue water, golden sunset"
+      }
+    },
+    "props": {}
+  },
+  "scenes": [
+    {
+      "scene_id": "scene_office",
+      "index": 0,
+      "title": "The Invitation",
+      "description": "Office scene - mysterious invitation gesture",
+      "location": {
+        "entity_id": "office",
+        "entity_type": "location",
+        "display_name": "Modern Office"
+      },
+      "time_of_day": "day",
+      "characters": [
+        {
+          "entity_id": "ayush",
+          "entity_type": "character",
+          "display_name": "Ayush"
+        }
+      ],
+      "shots": [
+        {
+          "shot_id": "shot_01",
+          "scene_id": "scene_office",
+          "index": 0,
+          "duration_sec": 5.0,
+          "description": "Wide shot - standing in office, begins raising hand",
+          "prompt": "ayush, a man with black hair and beard, standing in modern minimalist office, full body wide shot, centered in frame, soft window lighting, looks directly at camera with mysterious expression, slowly begins raising right hand toward camera, weight shifts forward, cinematic wide angle, 4k, smooth motion",
+          "negative_prompt": "blurry, distorted, ugly, watermark, deformed face, bad anatomy, extra limbs, low quality, amateur, shaky camera",
+          "shot_type": "wide",
+          "characters": [
+            {
+              "entity_id": "ayush",
+              "entity_type": "character",
+              "display_name": "Ayush"
+            }
+          ],
+          "props": [],
+          "dialogue": []
+        },
+        {
+          "shot_id": "shot_02",
+          "scene_id": "scene_office",
+          "index": 1,
+          "duration_sec": 5.0,
+          "description": "Close-up - face and hand, hand rises toward camera",
+          "prompt": "ayush, a man with black hair and beard, close-up portrait in modern office, face and hand in frame, soft window lighting, intense mysterious gaze at camera, hand rises up toward camera lens, fingers spread open, offering gesture, shallow depth of field, cinematic close-up, 4k, smooth motion",
+          "negative_prompt": "blurry, distorted, ugly, watermark, deformed face, bad anatomy, extra limbs, low quality, amateur, shaky camera",
+          "shot_type": "close",
+          "characters": [
+            {
+              "entity_id": "ayush",
+              "entity_type": "character",
+              "display_name": "Ayush"
+            }
+          ],
+          "props": [],
+          "dialogue": []
+        }
+      ]
+    },
+    {
+      "scene_id": "scene_desert",
+      "index": 1,
+      "title": "The Desert",
+      "description": "Matrix desert - reality bending revealed",
+      "location": {
+        "entity_id": "matrix_desert",
+        "entity_type": "location",
+        "display_name": "Matrix Desert"
+      },
+      "time_of_day": "golden_hour",
+      "characters": [
+        {
+          "entity_id": "ayush",
+          "entity_type": "character",
+          "display_name": "Ayush"
+        }
+      ],
+      "shots": [
+        {
+          "shot_id": "shot_03",
+          "scene_id": "scene_desert",
+          "index": 2,
+          "duration_sec": 5.0,
+          "description": "Wide shot - standing in desert, walks forward beckoning",
+          "prompt": "ayush, a man with black hair and beard, standing in vast orange desert, full body wide shot, geometric grid on horizon, confident powerful stance, walks forward toward camera, extends arm in beckoning follow-me gesture, golden hour lighting, matrix aesthetic, epic cinematic wide, 4k, smooth motion",
+          "negative_prompt": "blurry, distorted, ugly, watermark, deformed face, bad anatomy, extra limbs, low quality, amateur, shaky camera",
+          "shot_type": "wide",
+          "characters": [
+            {
+              "entity_id": "ayush",
+              "entity_type": "character",
+              "display_name": "Ayush"
+            }
+          ],
+          "props": [],
+          "dialogue": []
+        },
+        {
+          "shot_id": "shot_04",
+          "scene_id": "scene_desert",
+          "index": 3,
+          "duration_sec": 5.0,
+          "description": "Close-up - reaches dramatically toward camera",
+          "prompt": "ayush, a man with black hair and beard, dramatic close-up in orange desert, face and arm in frame, blurred desert background, reaches hand dramatically toward camera lens, fingers spread wide grabbing at reality, intense focused expression, golden rim lighting, cinematic close-up, matrix style, 4k, smooth motion",
+          "negative_prompt": "blurry, distorted, ugly, watermark, deformed face, bad anatomy, extra limbs, low quality, amateur, shaky camera",
+          "shot_type": "close",
+          "characters": [
+            {
+              "entity_id": "ayush",
+              "entity_type": "character",
+              "display_name": "Ayush"
+            }
+          ],
+          "props": [],
+          "dialogue": []
+        }
+      ]
+    },
+    {
+      "scene_id": "scene_beach",
+      "index": 2,
+      "title": "The Reward",
+      "description": "Beach paradise - the payoff",
+      "location": {
+        "entity_id": "tropical_beach",
+        "entity_type": "location",
+        "display_name": "Tropical Beach"
+      },
+      "time_of_day": "sunset",
+      "characters": [
+        {
+          "entity_id": "ayush",
+          "entity_type": "character",
+          "display_name": "Ayush"
+        }
+      ],
+      "shots": [
+        {
+          "shot_id": "shot_05",
+          "scene_id": "scene_beach",
+          "index": 4,
+          "duration_sec": 5.0,
+          "description": "Medium shot - sitting in beach chair, sips cocktail",
+          "prompt": "ayush, a man with black hair and beard, medium shot in beach lounge chair, upper body visible, tropical paradise background, crystal blue water, reaches for colorful cocktail drink, picks it up, brings to lips, takes sip, relaxed satisfied expression, golden sunset lighting, cinematic, 4k, smooth motion",
+          "negative_prompt": "blurry, distorted, ugly, watermark, deformed face, bad anatomy, extra limbs, low quality, amateur, shaky camera",
+          "shot_type": "medium",
+          "characters": [
+            {
+              "entity_id": "ayush",
+              "entity_type": "character",
+              "display_name": "Ayush"
+            }
+          ],
+          "props": [
+            {
+              "entity_id": "cocktail",
+              "entity_type": "prop",
+              "display_name": "Cocktail"
+            }
+          ],
+          "dialogue": []
+        },
+        {
+          "shot_id": "shot_06",
+          "scene_id": "scene_beach",
+          "index": 5,
+          "duration_sec": 5.0,
+          "description": "Close-up - lowers drink, knowing nod to camera",
+          "prompt": "ayush, a man with black hair and beard, close-up portrait on tropical beach, face filling frame, warm sunset lighting, lowers cocktail glass from lips, looks directly at camera with knowing confident expression, slight approving nod, the look says welcome to my world, shallow depth of field, cinematic, 4k, smooth motion",
+          "negative_prompt": "blurry, distorted, ugly, watermark, deformed face, bad anatomy, extra limbs, low quality, amateur, shaky camera",
+          "shot_type": "close",
+          "characters": [
+            {
+              "entity_id": "ayush",
+              "entity_type": "character",
+              "display_name": "Ayush"
+            }
+          ],
+          "props": [
+            {
+              "entity_id": "cocktail",
+              "entity_type": "prop",
+              "display_name": "Cocktail"
+            }
+          ],
+          "dialogue": []
+        }
+      ]
+    }
+  ]
+}

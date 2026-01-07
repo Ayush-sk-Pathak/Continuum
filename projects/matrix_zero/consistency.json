@@ -1,0 +1,57 @@
+{
+  "characters": {
+    "ayush": {
+      "entity_id": "ayush",
+      "entity_type": "character",
+      "name": "Ayush",
+      "description": "ayush, a man with black hair and beard, confident mysterious presence",
+      "lora_path": "/workspace/runpod-slim/ComfyUI/models/loras/ayush_wan21_i2v_v1.safetensors",
+      "lora_strength": 0.85,
+      "face_refs": [
+        "/workspace/runpod-slim/ComfyUI/input/ayush_ref.png"
+      ],
+      "style_notes": "cinematic lighting, 4k quality",
+      "voice_id": null,
+      "tags": ["founder", "main_character"],
+      "metadata": {
+        "trigger_phrase": "ayush, a man with black hair and beard"
+      }
+    }
+  },
+  "locations": {
+    "office": {
+      "entity_id": "office",
+      "entity_type": "location",
+      "name": "Modern Office",
+      "description": "Modern minimalist office with soft window lighting, clean professional space",
+      "ref_images": [],
+      "style_notes": "soft natural lighting, shallow depth of field"
+    },
+    "matrix_desert": {
+      "entity_id": "matrix_desert",
+      "entity_type": "location",
+      "name": "Matrix Desert",
+      "description": "Vast orange desert with geometric grid pattern on horizon, Matrix aesthetic, golden hour lighting",
+      "ref_images": [],
+      "style_notes": "epic wide shots, golden rim lighting, surreal atmosphere"
+    },
+    "tropical_beach": {
+      "entity_id": "tropical_beach",
+      "entity_type": "location",
+      "name": "Tropical Beach",
+      "description": "Paradise beach with crystal blue water, white sand, golden sunset",
+      "ref_images": [],
+      "style_notes": "warm sunset lighting, relaxed atmosphere"
+    }
+  },
+  "props": {
+    "cocktail": {
+      "entity_id": "cocktail",
+      "entity_type": "prop",
+      "name": "Tropical Cocktail",
+      "description": "Colorful tropical cocktail in a fancy glass with umbrella",
+      "ref_images": []
+    }
+  },
+  "updated_at": "2026-01-03T20:00:00Z"
+}

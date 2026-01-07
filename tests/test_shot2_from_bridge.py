@@ -151,11 +151,11 @@ response = requests.post(f"{COMFY_URL}/prompt", json={"prompt": workflow}, timeo
 print(f"Response status: {response.status_code}")
 
 if response.status_code != 200:
-    print(f"❌ Failed: {json.dumps(response.json(), indent=2)}")
+    print(f"âŒ Failed: {json.dumps(response.json(), indent=2)}")
     exit(1)
 
 prompt_id = response.json().get("prompt_id")
-print(f"✅ Submitted! prompt_id: {prompt_id}")
+print(f"âœ… Submitted! prompt_id: {prompt_id}")
 print(f"Waiting for completion (3-5 minutes)...")
 
 for i in range(120):
@@ -165,7 +165,7 @@ for i in range(120):
         if prompt_id in history:
             outputs = history[prompt_id].get("outputs", {})
             if outputs:
-                print(f"\n✅ COMPLETED!")
+                print(f"\nâœ… COMPLETED!")
                 print(f"Output: shot2_from_bridge_00001.mp4")
                 print(f"\nCompare identity consistency:")
                 print(f"  Shot 1: hero_to_i2v_ayush_00001.mp4")
@@ -173,10 +173,10 @@ for i in range(120):
                 exit(0)
             status = history[prompt_id].get("status", {})
             if status.get("status_str") == "error":
-                print(f"\n❌ FAILED: {status}")
+                print(f"\nâŒ FAILED: {status}")
                 exit(1)
-    except:
-        pass
+    except Exception:
+        pass  # Network hiccup, keep polling
     print(f"  ... {(i+1)*5}s elapsed", end="\r")
 
-print("\n⚠️ Timeout")
+print("\nâš ï¸ Timeout")

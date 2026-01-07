@@ -82,7 +82,7 @@ TIME_OVERHEAD_UPLOAD = 2.0  # File uploads
 # Wan's VAE decoder produces artifacts ("overbaked" pixels) in the first few frames
 # when processing I2V. We request extra frames and trim them post-download.
 # See: LESSONS_LEARNED.md, Civitai "Motion Forge" workflow documentation
-VAE_ARTIFACT_FRAMES = 3  # Number of frames to trim from start of I2V videos
+VAE_ARTIFACT_FRAMES = 2  # Number of frames to trim from start of I2V videos
 
 
 # =============================================================================
@@ -486,14 +486,20 @@ class WanRenderer(BaseRenderer):
             has_ipadapter = char.has_face_refs()
         
         # Image-to-Video workflows (init frame present)
+        logger.debug(
+            f"Workflow selection: has_init_frame={job.has_init_frame}, "
+            f"init_frame={job.init_frame}, has_lora={has_lora}, has_ipadapter={has_ipadapter}"
+        )
         if job.has_init_frame:
             if has_lora:
+                logger.info(f"Selected I2V+LoRA workflow (init_frame={job.init_frame})")
                 return self.WORKFLOW_IMG2VID_LORA
             elif has_ipadapter:
                 # return self.WORKFLOW_IMG2VID_IPADAPTER
                 # return self.WORKFLOW_IMG2VID_FACEVIDEO
                 # return self.WORKFLOW_IMG2VID_FIRSTLAST
                 # Lesson #78: face_video/firstlast/phantom all have issues.
+                logger.info(f"Selected I2V workflow (init_frame={job.init_frame})")
                 return self.WORKFLOW_IMG2VID
         
         # Text-to-Video workflows (no init frame)
@@ -632,10 +638,13 @@ class WanRenderer(BaseRenderer):
         }
         
         # Add LoRA if available
+        # ComfyUI's LoraLoader expects filename only (relative to models/loras/)
         if char_ref.has_lora():
-            params["LORA_PATH"] = str(char_ref.lora_path)
-            params["CHARACTER_LORA"] = str(char_ref.lora_path)
+            lora_filename = char_ref.lora_path.name  # Extract just the filename
+            params["LORA_PATH"] = lora_filename
+            params["CHARACTER_LORA"] = lora_filename
             params["LORA_STRENGTH"] = char_ref.lora_strength
+            logger.debug(f"LoRA: {char_ref.lora_path} -> {lora_filename}")
         
         # Add face references
         for i, face_ref in enumerate(char_ref.face_refs[:3], 1):

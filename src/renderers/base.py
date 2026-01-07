@@ -21,6 +21,31 @@ from datetime import datetime
 
 
 # =============================================================================
+# REMOTE PATH HELPERS
+# =============================================================================
+
+def _is_remote_path(path: Optional[Path]) -> bool:
+    """
+    Check if a path exists on the remote ComfyUI server (not locally).
+    
+    Per Architecture: Mac orchestrates, RunPod renders. Paths starting with
+    /workspace/ exist on RunPod but not on Mac.
+    """
+    if path is None:
+        return False
+    path_str = str(path)
+    remote_prefixes = ("/workspace/", "/comfyui/", "/models/", "/root/")
+    return any(path_str.startswith(prefix) for prefix in remote_prefixes)
+
+
+def _path_exists_or_remote(path: Optional[Path]) -> bool:
+    """Check if path exists locally OR is a remote path (assumed to exist)."""
+    if path is None:
+        return False
+    return _is_remote_path(path) or path.exists()
+
+
+# =============================================================================
 # ENUMS
 # =============================================================================
 
@@ -67,12 +92,12 @@ class CharacterRef:
     lora_strength: float = 0.8
     
     def has_lora(self) -> bool:
-        """Check if LoRA is available."""
-        return self.lora_path is not None and self.lora_path.exists()
+        """Check if LoRA is available (locally or on remote ComfyUI)."""
+        return self.lora_path is not None and _path_exists_or_remote(self.lora_path)
     
     def has_face_refs(self) -> bool:
-        """Check if face references are available."""
-        return len(self.face_refs) > 0 and all(p.exists() for p in self.face_refs)
+        """Check if face references are available (locally or on remote ComfyUI)."""
+        return len(self.face_refs) > 0 and all(_path_exists_or_remote(p) for p in self.face_refs)
     
     def best_available_method(self) -> str:
         """Return the best identity method available."""
@@ -176,7 +201,7 @@ class JobSpec:
     
     # Model params
     cfg_scale: float = 7.0
-    steps: int = 20
+    steps: int = 12
     denoise: float = 1.0
     
     # Renderer-specific (passed through without interpretation)

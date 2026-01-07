@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Hero Frame → I2V Pipeline Test
+Hero Frame â†’ I2V Pipeline Test
 
 Tests the full Shot 1 flow:
 1. Generate Hero Frame (SDXL + IP-Adapter) - identity-locked init image
@@ -273,11 +273,11 @@ def submit_and_wait(workflow: dict, stage_name: str, timeout_sec: int = 600) -> 
     response = requests.post(f"{COMFY_URL}/prompt", json={"prompt": workflow}, timeout=30)
     
     if response.status_code != 200:
-        print(f"❌ Failed to submit: {response.json()}")
+        print(f"âŒ Failed to submit: {response.json()}")
         return None
     
     prompt_id = response.json().get("prompt_id")
-    print(f"✅ Submitted! prompt_id: {prompt_id}")
+    print(f"âœ… Submitted! prompt_id: {prompt_id}")
     print(f"Waiting for completion...")
     
     for i in range(timeout_sec // 5):
@@ -287,19 +287,19 @@ def submit_and_wait(workflow: dict, stage_name: str, timeout_sec: int = 600) -> 
             if prompt_id in history:
                 outputs = history[prompt_id].get("outputs", {})
                 if outputs:
-                    print(f"\n✅ {stage_name} COMPLETED!")
+                    print(f"\nâœ… {stage_name} COMPLETED!")
                     return {"prompt_id": prompt_id, "outputs": outputs}
                     
                 status = history[prompt_id].get("status", {})
                 if status.get("status_str") == "error":
-                    print(f"\n❌ {stage_name} FAILED!")
+                    print(f"\nâŒ {stage_name} FAILED!")
                     print(f"Error: {status}")
                     return None
-        except:
-            pass
+        except Exception:
+            pass  # Network hiccup, keep polling
         print(f"  ... {(i+1)*5}s elapsed", end="\r")
     
-    print(f"\n⚠️ {stage_name} timeout after {timeout_sec}s")
+    print(f"\nâš ï¸ {stage_name} timeout after {timeout_sec}s")
     return None
 
 
@@ -308,7 +308,7 @@ def submit_and_wait(workflow: dict, stage_name: str, timeout_sec: int = 600) -> 
 # ============================================================================
 
 print("\n" + "="*60)
-print("HERO FRAME → I2V PIPELINE TEST")
+print("HERO FRAME â†’ I2V PIPELINE TEST")
 print("="*60)
 print("Stage 1: Generate Hero Frame (SDXL + IP-Adapter)")
 print("Stage 2: Generate Video (Wan I2V + LoRA) from Hero Frame")
@@ -318,7 +318,7 @@ print("="*60)
 result1 = submit_and_wait(hero_frame_workflow, "HERO FRAME GENERATION", timeout_sec=120)
 
 if not result1:
-    print("\n❌ Pipeline failed at Stage 1")
+    print("\nâŒ Pipeline failed at Stage 1")
     exit(1)
 
 # Extract hero frame filename from outputs
@@ -330,13 +330,13 @@ try:
         if "images" in node_output:
             hero_filename = node_output["images"][0]["filename"]
             hero_subfolder = node_output["images"][0].get("subfolder", "")
-            print(f"\n📸 Hero Frame saved: {hero_filename}")
+            print(f"\nðŸ“¸ Hero Frame saved: {hero_filename}")
             break
     else:
-        print("❌ Could not find hero frame in outputs")
+        print("âŒ Could not find hero frame in outputs")
         exit(1)
 except Exception as e:
-    print(f"❌ Error parsing hero frame output: {e}")
+    print(f"âŒ Error parsing hero frame output: {e}")
     print(f"Raw outputs: {result1['outputs']}")
     exit(1)
 
@@ -349,17 +349,17 @@ if hero_subfolder:
 else:
     hero_path = hero_filename
 
-print(f"\n🎬 Using hero frame for I2V: {hero_path}")
+print(f"\nðŸŽ¬ Using hero frame for I2V: {hero_path}")
 
 i2v_workflow = create_i2v_workflow(hero_path)
 result2 = submit_and_wait(i2v_workflow, "I2V FROM HERO FRAME", timeout_sec=300)
 
 if not result2:
-    print("\n❌ Pipeline failed at Stage 2")
+    print("\nâŒ Pipeline failed at Stage 2")
     exit(1)
 
 print("\n" + "="*60)
-print("✅ FULL PIPELINE COMPLETED!")
+print("âœ… FULL PIPELINE COMPLETED!")
 print("="*60)
 print(f"Hero Frame: {hero_filename}")
 print(f"Video outputs: {json.dumps(result2['outputs'], indent=2)}")

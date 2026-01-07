@@ -22,7 +22,7 @@ Architecture:
 
 Design Principles:
     1. Workflow-agnostic: Actual ComfyUI workflow is external JSON
-    2. Degradation-ready: ControlNet ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ IP-Adapter ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ prompt-only fallback
+    2. Degradation-ready: ControlNet ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ IP-Adapter ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ prompt-only fallback
     3. Async-first: All generation is async
     4. Testable: Mock implementation for local testing
 """
@@ -59,6 +59,54 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
+# REMOTE PATH HELPERS
+# =============================================================================
+
+def _is_remote_path(path: Optional[Path]) -> bool:
+    """
+    Check if a path exists on the remote ComfyUI server (not locally).
+    
+    Per Architecture: Mac orchestrates, RunPod renders. Paths starting with
+    /workspace/ exist on RunPod but not on Mac. We skip local existence checks
+    for these paths since they'll be validated when ComfyUI tries to load them.
+    
+    Remote path prefixes (RunPod/cloud):
+        - /workspace/     (RunPod persistent storage)
+        - /comfyui/       (ComfyUI container paths)
+        - /models/        (Model storage)
+        
+    Args:
+        path: Path to check
+        
+    Returns:
+        True if path is a remote ComfyUI path
+    """
+    if path is None:
+        return False
+    
+    path_str = str(path)
+    remote_prefixes = ("/workspace/", "/comfyui/", "/models/", "/root/")
+    return any(path_str.startswith(prefix) for prefix in remote_prefixes)
+
+
+def _path_exists_or_remote(path: Optional[Path]) -> bool:
+    """
+    Check if path exists locally OR is a remote path (assumed to exist).
+    
+    Use this instead of path.exists() when the path might be on ComfyUI server.
+    
+    Args:
+        path: Path to check
+        
+    Returns:
+        True if path exists locally or is a remote path
+    """
+    if path is None:
+        return False
+    return _is_remote_path(path) or path.exists()
+
+
+# =============================================================================
 # ENUMS
 # =============================================================================
 
@@ -73,8 +121,8 @@ class BridgeMethod(str, Enum):
 class CameraTransition(str, Enum):
     """Types of camera angle changes between shots."""
     SAME = "same"                # Same angle (e.g., continuous action)
-    REVERSE = "reverse"          # 180ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â° flip (e.g., conversation)
-    SIDE = "side"                # 90ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â° move (e.g., profile to front)
+    REVERSE = "reverse"          # 180ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â° flip (e.g., conversation)
+    SIDE = "side"                # 90ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â° move (e.g., profile to front)
     AERIAL = "aerial"            # Ground to overhead
     GROUND = "ground"            # Overhead to ground
     CLOSEUP = "closeup"          # Wide to close
@@ -242,10 +290,10 @@ class BridgeSpec:
         wide_types = {"wide", "aerial", "group"}
         medium_or_wider = {"wide", "aerial", "group", "medium", "two_shot"}
         
-        # Moving closer (wide/medium ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ close)
+        # Moving closer (wide/medium ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ close)
         if from_type in medium_or_wider and to_type in close_types:
             return CameraTransition.CLOSEUP
-        # Moving wider (close ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ wide/medium)  
+        # Moving wider (close ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ wide/medium)  
         if from_type in close_types and to_type in wide_types:
             return CameraTransition.WIDEOUT
         # Aerial transitions
@@ -316,8 +364,8 @@ class HeroFrameSpec:
     
     @property
     def has_face_ref(self) -> bool:
-        """Check if face reference is available."""
-        return self.face_ref_path is not None and self.face_ref_path.exists()
+        """Check if face reference is available (locally or on remote ComfyUI)."""
+        return self.face_ref_path is not None and _path_exists_or_remote(self.face_ref_path)
     
     @property
     def has_characters(self) -> bool:
@@ -666,6 +714,28 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
             logger.error(f"Bridge engine health check failed: {e}")
             return False
     
+    async def _upload_or_use_remote(self, file_path: Path) -> str:
+        """
+        Upload a file or return filename if already on ComfyUI server.
+        
+        Per Architecture: Mac orchestrates, RunPod renders. When assets are
+        specified with RunPod paths (/workspace/...), they already exist on
+        the server and don't need uploading. We just extract the filename.
+        
+        Args:
+            file_path: Path to file (local or remote)
+            
+        Returns:
+            Remote filename for use in workflow
+        """
+        if _is_remote_path(file_path):
+            # File already on server - just use the filename
+            logger.debug(f"Using existing remote file: {file_path} -> {file_path.name}")
+            return file_path.name
+        else:
+            # Local file - upload to server
+            return await self.client.upload_image(file_path)
+    
     @retry_async(RetryConfig(max_attempts=3, base_delay_sec=1.0))
     async def generate(
         self,
@@ -717,23 +787,23 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
         img2img_source = spec.identity_source_frame if spec.identity_source_frame else spec.source_frame
         if spec.identity_source_frame:
             logger.info(f"Using hero frame for img2img source: {spec.identity_source_frame}")
-        remote_source = await self.client.upload_image(img2img_source)
+        remote_source = await self._upload_or_use_remote(img2img_source)
         
         # Upload pose/depth if available
         remote_pose = None
         remote_depth = None
         if spec.pose_data:
             if spec.pose_data.has_pose:
-                remote_pose = await self.client.upload_image(spec.pose_data.keypoints_path)
+                remote_pose = await self._upload_or_use_remote(spec.pose_data.keypoints_path)
             if spec.pose_data.has_depth:
-                remote_depth = await self.client.upload_image(spec.pose_data.depth_map_path)
+                remote_depth = await self._upload_or_use_remote(spec.pose_data.depth_map_path)
         
         # Upload character face refs if available
         remote_face_refs = []
         for char in spec.characters:
             if char.has_face_refs():
                 for ref_path in char.face_refs:
-                    remote_ref = await self.client.upload_image(ref_path)
+                    remote_ref = await self._upload_or_use_remote(ref_path)
                     remote_face_refs.append(remote_ref)
         
         # Build generation params
@@ -825,8 +895,8 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
         if not self._initialized:
             await self.initialize()
         
-        # Upload frame
-        remote_path = await self.client.upload_image(frame_path)
+        # Upload frame (or use existing if remote path)
+        remote_path = await self._upload_or_use_remote(frame_path)
         
         # Run pose extraction workflow
         try:
@@ -947,16 +1017,28 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
         # Upload face reference for IP-Adapter (if available)
         remote_face_ref = None
         if spec.has_face_ref:
-            self._report_progress("uploading", 0.2, "Uploading face reference")
-            remote_face_ref = await self.client.upload_image(spec.face_ref_path)
-            logger.info(f"Uploaded face ref: {spec.face_ref_path}")
+            # Check if file is already on ComfyUI server (remote path)
+            if _is_remote_path(spec.face_ref_path):
+                # File already on server - just use the filename
+                remote_face_ref = spec.face_ref_path.name
+                logger.info(f"Using existing remote face ref: {spec.face_ref_path} -> {remote_face_ref}")
+            else:
+                # Local file - upload to server
+                self._report_progress("uploading", 0.2, "Uploading face reference")
+                remote_face_ref = await self.client.upload_image(spec.face_ref_path)
+                logger.info(f"Uploaded face ref: {spec.face_ref_path}")
         elif spec.has_characters:
             # Try to get face ref from character refs
             for char in spec.characters:
                 if char.has_face_refs():
-                    self._report_progress("uploading", 0.2, "Uploading character face reference")
-                    remote_face_ref = await self.client.upload_image(char.face_refs[0])
-                    logger.info(f"Using character face ref: {char.face_refs[0]}")
+                    face_ref_path = char.face_refs[0]
+                    if _is_remote_path(face_ref_path):
+                        remote_face_ref = face_ref_path.name
+                        logger.info(f"Using existing remote character face ref: {face_ref_path} -> {remote_face_ref}")
+                    else:
+                        self._report_progress("uploading", 0.2, "Uploading character face reference")
+                        remote_face_ref = await self.client.upload_image(face_ref_path)
+                        logger.info(f"Using character face ref: {face_ref_path}")
                     break
         
         if not remote_face_ref:

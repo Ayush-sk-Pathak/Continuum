@@ -1864,10 +1864,522 @@ Primary: Virtual influencer agencies
 Secondary: Webtoon/IP publishers
 Tertiary: Ad agencies with strong brand IP.
 Value Prop: "Don't just generate random clips. Build a persistent world and cast your own."
+
 ================================================================================
 14. FINAL ONE-LINER
 ================================================================================
 "The first AI video engine that remembers. We build consistent characters and worlds so you can direct 5-minute stories, not just gamble on lucky prompts."
 ================================================================================
+
+================================================================================
+15. USER EXPERIENCE (UX) STRATEGY
+Our UX philosophy: "Collaborate with an AI Director, don't wrestle with prompts."
+Users should feel like they're working with a competent film crew, not debugging
+a machine learning pipeline. The complexity lives under the hood; the surface is
+simple: Write → Approve → Walk Away → Get Notified.
+
+15A. MVP FEATURES (Must-Have for Launch)
+15A.1 SCRIPT APPROVAL WORKFLOW ("The Director's Table")
+The core interaction model that differentiates Continuum from prompt-and-pray tools.
+User Flow:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  1. USER INPUT                                                               │
+│     - User writes story idea, script, or uploads existing screenplay        │
+│     - Can be as simple as "30-second ad for coffee shop, warm vibe"         │
+│     - Or as detailed as a full scene-by-scene breakdown                     │
+│                                                                              │
+│  2. DIRECTOR AGENT GENERATES SCENE GRAPH                                     │
+│     - Parses input into structured scenes, shots, characters                │
+│     - Proposes camera angles, pacing, shot durations                        │
+│     - Identifies characters and matches to Consistency Dictionary           │
+│     - Estimates render time and cost                                        │
+│                                                                              │
+│  3. USER REVIEW & APPROVAL ("The Director's Table")                         │
+│     - Web UI shows proposed scene breakdown in human-readable format:       │
+│       ┌──────────────────────────────────────────────────────────────────┐  │
+│       │ SCENE 1: Coffee Shop Interior (Morning)                          │  │
+│       │ ├─ Shot 1 (5s): Wide establishing shot, warm sunlight            │  │
+│       │ ├─ Shot 2 (3s): Close-up on barista (ALEX) preparing latte       │  │
+│       │ └─ Shot 3 (4s): Customer receives drink, smiles                  │  │
+│       │                                                                  │  │
+│       │ SCENE 2: ...                                                     │  │
+│       │ ──────────────────────────────────────────────────────────────── │  │
+│       │ Estimated: 30 seconds | ~$0.45 | ~15 min render time             │  │
+│       │ [Edit Scene] [Edit Shot] [Regenerate Suggestion] [APPROVE ✓]    │  │
+│       └──────────────────────────────────────────────────────────────────┘  │
+│     - User can:                                                             │
+│       • Edit prompts for any shot                                           │
+│       • Adjust durations                                                    │
+│       • Reorder shots                                                       │
+│       • Ask Director to regenerate specific scenes                          │
+│       • Add/remove shots                                                    │
+│                                                                              │
+│  4. ONE-BUTTON GENERATION                                                    │
+│     - User clicks "Generate" → job queued                                   │
+│     - User can close browser, walk away                                     │
+│     - Background workers handle:                                            │
+│       • Hero frame generation                                               │
+│       • Bridge frame generation                                             │
+│       • I2V rendering                                                       │
+│       • Audit checks (identity, physics)                                    │
+│       • Automatic rerolls if needed                                         │
+│       • Post-processing (color match, stitching)                            │
+│                                                                              │
+│  5. NOTIFICATION & DELIVERY                                                  │
+│     - Push notification / email: "Your video is ready!"                     │
+│     - User returns to see:                                                  │
+│       • Final stitched video                                                │
+│       • Per-shot breakdown (for future editing)                             │
+│       • Generation report (identity scores, rerolls, cost)                  │
+│       • Download options (MP4, per-shot clips)                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+Technical Implementation:
+
+Frontend: Simple React/Next.js web app (or desktop Electron app)
+Backend: FastAPI server on cloud (or local for dev)
+Job Queue: Redis + Celery (or similar) for async job management
+Notifications:
+• Email via SendGrid/Postmark
+• Push via Firebase Cloud Messaging
+• Webhook for integrations
+Storage: S3-compatible for rendered outputs
+
+Why This Matters:
+
+Differentiates from "type prompt, get random clip" competitors
+Matches real film workflow (script → shoot → review)
+User feels creative control without technical burden
+Async model = no staring at progress bars for 30+ minutes
+Enables batch processing (queue multiple projects overnight)
+
+15A.2 CHARACTER ONBOARDING ("The Casting Call")
+Simple flow to add a character to the user's "cast."
+User Flow:
+
+Upload 1-5 reference photos of character
+System generates:
+
+LoRA (background training, ~15-30 min)
+Face embedding (instant)
+Character profile (name, description, voice style)
+
+
+Character appears in user's "Cast" library
+When writing scripts, user can reference: "ALEX enters the room"
+
+System automatically links to character's LoRA and face refs
+
+
+
+15A.3 PROJECT DASHBOARD ("The Studio Lot")
+Central hub for all user's projects:
+
+Active renders (with progress)
+Completed projects (with quick preview)
+Character library ("The Cast")
+Location library ("The Backlot")
+Usage/credits remaining
+
+15A.4 SIMPLE EXPORT OPTIONS
+
+Download final video (MP4, various resolutions)
+Download per-shot clips (for external editing)
+Direct share to social platforms (stretch goal)
+
+
+15B. FUTURE FEATURES (Post-MVP Roadmap)
+15B.1 TEXT-BASED VIDEO EDITING ("The Editor's Suite")
+Allow users to modify rendered videos through natural language commands.
+Concept:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  User views completed video, wants changes:                                  │
+│                                                                              │
+│  USER: "Make the lighting warmer in shot 3"                                 │
+│  USER: "Have Alex wear sunglasses in the outdoor scenes"                    │
+│  USER: "Remove the chair from the background in shot 2"                     │
+│  USER: "Make shot 4 longer, he should walk slower"                          │
+│                                                                              │
+│  SYSTEM:                                                                     │
+│  1. Director Agent interprets the request                                   │
+│  2. Identifies affected shots/frames                                        │
+│  3. Generates new scene graph for affected portions                         │
+│  4. Shows user what will change:                                            │
+│     ┌────────────────────────────────────────────────────────────────────┐  │
+│     │ PROPOSED CHANGES:                                                  │  │
+│     │ • Shot 3: Re-render with "warm golden hour lighting" prompt        │  │
+│     │ • Shot 5: Re-render with "wearing black sunglasses" added          │  │
+│     │ • Shot 7: Re-render with "wearing black sunglasses" added          │  │
+│     │                                                                    │  │
+│     │ Affected: 3 shots | Est. time: 8 min | Est. cost: $0.15            │  │
+│     │ [Preview Change] [Approve & Re-render] [Cancel]                    │  │
+│     └────────────────────────────────────────────────────────────────────┘  │
+│  5. User approves → System re-renders only affected shots                   │
+│  6. Bridge Healer ensures transitions remain smooth                         │
+│  7. Final video assembled with old + new shots                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+Technical Challenges:
+
+Temporal coherence: New shots must match adjacent shots' start/end frames
+Cascading changes: Edits may require re-generating bridge frames
+Semantic understanding: "Make him more confident" → which frames? what changes?
+Surgical rendering: Re-render 5 seconds without touching rest of 30-second video
+Version control: Track edit history, allow undo/redo
+
+Implementation Phases:
+Phase 1: Shot-level regeneration ("Regenerate shot 3 with new prompt")
+- Already architecturally supported
+- Just needs UI exposure
+Phase 2: Trim/extend operations ("Make shot 2 longer")
+- FFmpeg operations, no re-rendering needed
+- Or re-render with more frames
+Phase 3: Style transfer ("Make everything more cinematic")
+- Vid2Vid pass on final output
+- Color grading presets
+Phase 4: Selective re-rendering with Bridge Healing
+- Smart detection of affected shots
+- Automatic bridge frame regeneration for transitions
+- Seamless splice back into original
+Phase 5: Full semantic editing (Future - requires foundation model advances)
+- "Add a dog in the background"
+- "Change the coffee cup to a wine glass"
+- Likely requires video editing models (Sora-level inpainting)
+15B.2 REAL-TIME COLLABORATION ("The Writers' Room")
+Multiple users can:
+
+Edit the same script simultaneously
+Leave comments on specific shots
+Approve/reject shots in review workflow
+Assign roles (Writer, Director, Producer)
+
+15B.3 VOICE DIRECTION ("The Director's Chair")
+Voice commands during render preview:
+
+"Make her smile more in this shot"
+"Zoom in on the product"
+"Add more dramatic lighting"
+System queues changes for next render pass.
+
+15B.4 A/B TESTING MODE ("The Focus Group")
+Generate 2-3 variants of key shots automatically.
+User picks preferred versions.
+System learns preferences for future generations.
+15B.5 TEMPLATE LIBRARY ("The Playbook")
+Pre-built templates for common formats:
+
+30-second product ad
+60-second explainer
+Instagram Reel format
+YouTube Shorts format
+Cinematic trailer
+User selects template → fills in specifics → generates.
+
+
+15C. UX PRINCIPLES (Design Guidelines)
+
+SHOW, DON'T TELL
+
+Preview everything before generation
+Visual scene breakdown, not JSON
+Thumbnail storyboards, not text lists
+
+
+PROGRESSIVE DISCLOSURE
+
+Simple by default, advanced on demand
+New users see: Write → Generate → Download
+Power users can access: Shot-by-shot control, custom workflows
+
+
+FAIL GRACEFULLY
+
+If a shot fails audit, auto-reroll (don't make user debug)
+If generation fails, clear error message + "Try Again" button
+Never show stack traces to users
+
+
+TRANSPARENT COST
+
+Always show estimated cost before generation
+Show actual cost after completion
+No surprise bills
+
+
+RESPECT TIME
+
+Async everything (never make user wait at screen)
+Accurate time estimates
+Proactive notifications
+
+
+CREATIVE CONTROL
+
+User approves before spending money/time
+User can edit any parameter if they want
+But defaults should be good enough for 80% of cases
+
+
+
+================================================================================
+16. MULTI-FORMAT OUTPUT STRATEGY
+Core insight: The Director Agent + Consistency Dictionary is format-agnostic.
+The same "story brain" can output video, manga pages, or visual novel frames.
+Video is the hardest output format. We lead with easier formats where our
+consistency engine delivers immediate value, then expand to video as models mature.
+
+16A. OUTPUT FORMAT SPECTRUM
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        CONTINUUM OUTPUT FORMATS                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  VISUAL NOVEL          MANGA/WEBTOON           ANIMATED VIDEO               │
+│  (Easiest)             (Medium)                (Hardest)                    │
+│                                                                              │
+│  Static frames         Static panels           Full motion                  │
+│  + dialogue            + layout                + temporal consistency       │
+│  + choices             + speech bubbles        + physics                    │
+│                                                                              │
+│  ~30 sec/scene         ~2 min/page             ~15 min/30 sec               │
+│  Image API OK          Image API OK            Video models required        │
+│  (Nano Banana Pro)     (Nano Banana Pro)       (Wan/Hunyuan/Veo)            │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+Key Insight: Manga and Visual Novels don't need video generation at all.
+They need CONSISTENT IMAGE generation — which is a solved problem.
+
+16B. SHARED ARCHITECTURE (What Stays the Same)
+All output formats share the same core:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  DIRECTOR AGENT (Shared)                                                     │
+│  ├── Script parsing                                                         │
+│  ├── Scene/shot breakdown                                                   │
+│  ├── Character assignment                                                   │
+│  ├── Pose/expression direction                                              │
+│  └── Pacing decisions                                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  CONSISTENCY DICTIONARY (Shared)                                             │
+│  ├── Character definitions (LoRAs, embeddings, descriptions)                │
+│  ├── Location definitions (style refs, descriptions)                        │
+│  └── Prop definitions                                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  WORLD STATE TRACKER (Shared)                                                │
+│  ├── Who is in scene                                                        │
+│  ├── What they're wearing                                                   │
+│  ├── Object positions                                                       │
+│  └── Continuity tracking                                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+│
+┌───────────────┼───────────────┐
+▼               ▼               ▼
+┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+│ VN Renderer │ │Manga Renderer│ │Video Renderer│
+│  (Images)   │ │  (Panels)   │ │  (Video)    │
+└─────────────┘ └─────────────┘ └─────────────┘
+
+16C. VISUAL NOVEL PIPELINE
+Simplest output format. Static character sprites over backgrounds with dialogue.
+Input:  Script with dialogue and scene descriptions
+Output: Sequence of frames (PNG) + dialogue JSON (for VN engines)
+Pipeline:
+
+Director Agent parses script into scenes
+For each scene:
+
+Generate background (or retrieve from library)
+Generate character sprite(s) with expression/pose
+Character consistency via Nano Banana Pro's subject consistency
+Or LoRA if using open source (SDXL/Flux)
+
+
+Output: Frame image + dialogue text + speaker ID
+Export format: Ren'Py compatible, or custom JSON
+
+Technical Stack:
+
+Image Gen: Nano Banana Pro (recommended), Flux, SDXL, or DALL-E 3
+Character Consistency:
+• Nano Banana Pro: Native subject consistency (best)
+• Open source: LoRA + IP-Adapter
+Pose Control: ControlNet (open source) or prompt-based (API)
+No video models needed
+
+Time: ~30 seconds per frame
+Cost: ~$0.04-0.13 per frame (Nano Banana Pro pricing)
+
+16D. MANGA/WEBTOON PIPELINE
+Medium complexity. Multiple panels per page, speech bubbles, layout.
+Input:  Script with panel descriptions
+Output: Complete manga pages (PNG/PDF) or webtoon strips (vertical scroll)
+Pipeline:
+
+Director Agent breaks script into panels
+Director assigns:
+
+Panel composition (close-up, wide, etc.)
+Character poses and expressions
+Camera angle
+Speech bubble content
+
+
+For each panel:
+
+Generate image via Nano Banana Pro (recommended)
+Subject consistency maintains character across all panels
+Excellent text rendering for sound effects (SFX)
+
+
+Layout Engine:
+
+Arrange panels on page (manga) or vertical strip (webtoon)
+Add speech bubbles
+Insert text with appropriate fonts
+Add effects (speed lines, impact frames)
+
+
+Export: PNG per page, or full PDF/EPUB
+
+Technical Stack:
+
+Image Gen: Nano Banana Pro (SOTA), Flux, SDXL, or DALL-E 3
+Character Consistency:
+• Nano Banana Pro: Native multi-image subject consistency
+• Open source: LoRA or strong prompt engineering
+Layout: Python + Pillow/Cairo, or HTML/CSS rendering
+Text: Nano Banana Pro renders text natively (huge advantage)
+Speech Bubbles: Template library + dynamic sizing
+
+Time: ~2-3 minutes per page (10 panels)
+Cost: ~$0.40-1.30 per page (Nano Banana Pro @ 10 panels)
+Why Nano Banana Pro for Manga:
+
+Text rendering is critical (SFX, signs, labels)
+Character must stay consistent across 10+ panels
+Multi-image fusion helps with reference sheets
+4K output ideal for print-quality manga
+
+Webtoon-Specific:
+
+Vertical scroll format (single column)
+Optimized for mobile reading
+Fewer panels per "page" but more total panels
+Color standard (vs manga B&W option)
+
+
+16E. ANIMATED VIDEO PIPELINE (Current Implementation)
+Most complex. Full motion, temporal consistency, physics.
+This is what Continuum Engine currently implements.
+(See Sections 3-6 for detailed video pipeline architecture)
+Summary:
+
+Hero Frame generation (identity lock)
+Bridge Frame generation (shot transitions)
+I2V rendering with LoRA (Wan 2.1)
+Audit system (identity + physics checks)
+Post-production (color match, stitching)
+
+Time: ~15 minutes per 30-second video
+Cost: ~$0.50-2.00 per 30-second video (GPU rental)
+
+16F. API STRATEGY BY FORMAT
+Different formats allow different API choices:
+┌─────────────┬──────────────────┬─────────────────────────────────────────────┐
+│ Format      │ Open Source      │ Closed API                                  │
+├─────────────┼──────────────────┼─────────────────────────────────────────────┤
+│ Visual Novel│ SDXL, Flux       │ Nano Banana Pro ★ (SOTA), DALL-E 3, Imagen  │
+│ Manga       │ SDXL, Flux       │ Nano Banana Pro ★ (SOTA), DALL-E 3, Imagen  │
+│ Anime Video │ Wan 2.1 ✓        │ Veo (limited control)                       │
+│ Real Video  │ Wan (weak)       │ Veo, Sora (best quality, less control)      │
+└─────────────┴──────────────────┴─────────────────────────────────────────────┘
+RECOMMENDED IMAGE API: Nano Banana Pro (Gemini 3 Pro Image)
+Google DeepMind's state-of-the-art image generation model (Nov 2025).
+Why Nano Banana Pro for Manga/VN:
+
+Best-in-class character consistency across multiple generations
+Excellent text rendering (speech bubbles, signs, UI elements)
+Multi-image fusion (combine references seamlessly)
+Strong prompt adherence for complex scene descriptions
+Real-world knowledge grounding (accurate details)
+4K resolution support
+~$0.04/image (1K) to ~$0.13/image (4K) — cost effective
+
+API Access:
+
+Model: gemini-3-pro-image-preview
+Via: Google AI Studio, Vertex AI, Gemini API
+Free tier available (with watermark + limits)
+Pro tier: No visible watermark, higher quotas
+
+Key Capability for Continuum:
+"Subject consistency allows the same person or item to be recognized
+across revisions" — exactly what our Consistency Dictionary needs.
+Fallback Options:
+
+Nano Banana (Gemini 2.5 Flash Image): Faster, cheaper, slightly lower quality
+Flux 1.1 Pro: Best open-weight alternative
+DALL-E 3: Good quality, different aesthetic
+Imagen 3: Google's diffusion model (different from Nano Banana)
+
+Key Insight:
+
+For images (VN, Manga): Nano Banana Pro is the clear winner
+For video: Open source still preferred for LoRA/ControlNet injection
+Hybrid possible: Nano Banana Pro for manga, Wan for anime video
+
+
+16G. PRODUCT ROLLOUT STRATEGY
+Phase 1A - NOW: Anime Video (Current)
+
+Proving the consistency engine works
+Complex but differentiated
+Matrix Zero demo validates pipeline
+
+Phase 1B - QUICK WIN: Manga/Visual Novel (2-3 weeks)
+
+Reuse Director Agent + Consistency Dictionary
+Much faster generation (minutes not hours)
+Can use Nano Banana Pro API (SOTA quality)
+Faster user feedback loop
+Lower barrier to first value
+
+Phase 2: Webtoon Platform Integration
+
+Partner with webtoon platforms
+"Animate your webtoon" upsell to video
+Static → Motion pipeline
+
+Phase 3: Realistic Video
+
+When open source catches up
+Or Hybrid Lane with Veo + consistency post-processing
+Premium tier offering
+
+
+16H. UNIFIED PRODUCT POSITIONING
+Brand: "Continuum Studio"
+Tagline: "Consistent AI Storytelling"
+NOT "anime generator" or "manga maker" — those box us in.
+The value prop is CONSISTENCY across any format.
+User Flow (Unified):
+git 
+Write your story (or upload script)
+Director Agent creates scene breakdown
+User reviews and approves
+Choose output format:
+├── Visual Novel → frames in 2 min
+├── Manga/Webtoon → pages in 5 min
+└── Animated Video → video in 30 min
+Get notified when ready
+
+Same story, same characters, multiple outputs.
+A webtoon creator could generate:
+
+Static webtoon (for publishing)
+Animated trailer (for marketing)
+Visual novel (for game adaptation)
+
+All with the SAME character consistency.
+================================================================================
+17. FINAL ONE-LINER (Updated)
+"The first AI storytelling engine that remembers. Consistent characters across
+manga, visual novels, and animated video — same story, any format."
 END OF DOCUMENT
 ================================================================================

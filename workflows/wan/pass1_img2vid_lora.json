@@ -84,6 +84,7 @@
   "wan_i2v": {
     "class_type": "WanImageToVideo",
     "inputs": {
+      "batch_size": 1,   
       "width": "{{WIDTH}}",
       "height": "{{HEIGHT}}",
       "length": "{{FRAMES}}",
@@ -91,7 +92,7 @@
       "negative": ["negative_prompt", 0],
       "vae": ["vae_loader", 0],
       "clip_vision_output": ["clip_vision_encode", 0],
-      "image": ["load_image", 0]
+      "start_image": ["load_image", 0]
     }
   },
 
