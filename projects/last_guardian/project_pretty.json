@@ -1,0 +1,437 @@
+{
+  "project_id": "last_guardian",
+  "title": "The Last Guardian",
+  "description": "A short anime film about a warrior seeking the Heart of Eternity",
+  "style": "anime",
+  "target_resolution": [
+    832,
+    480
+  ],
+  "target_fps": 16,
+  "bible": {
+    "dict_id": "last_guardian_bible",
+    "title": "The Last Guardian Bible",
+    "characters": {
+      "aria": {
+        "entity_id": "aria",
+        "name": "Aria",
+        "description": "A young woman in her 20s with silver hair, wearing ornate armor adorned with glowing blue patterns. She carries a crystalline sword that pulses with inner light.",
+        "face_refs": [],
+        "lora_path": null,
+        "lora_strength": 0.0,
+        "voice_config": {
+          "voice_id": "adam",
+          "provider": "elevenlabs",
+          "speaking_rate": 1.0,
+          "pitch": 0.0
+        }
+      },
+      "kai": {
+        "entity_id": "kai",
+        "name": "Kai",
+        "description": "An ageless, ethereal being with a translucent form, dressed in flowing robes made of light. Their presence is serene and otherworldly.",
+        "face_refs": [],
+        "lora_path": null,
+        "lora_strength": 0.0,
+        "voice_config": {
+          "voice_id": "adam",
+          "provider": "elevenlabs",
+          "speaking_rate": 1.0,
+          "pitch": 0.0
+        }
+      }
+    },
+    "locations": {
+      "ancient_temple": {
+        "entity_id": "ancient_temple",
+        "name": "Ancient Temple",
+        "description": "A vast temple interior illuminated by floating blue crystals. Stone pillars stretch toward a vaulted ceiling lost in darkness, with ancient runes glowing faintly on the walls."
+      },
+      "crystal_garden": {
+        "entity_id": "crystal_garden",
+        "name": "Crystal Garden",
+        "description": "An impossibly beautiful garden filled with crystal flowers blooming in every color. A gentle mist floats between towering crystal trees, creating a magical atmosphere."
+      }
+    },
+    "props": {
+      "crystalline_sword": {
+        "entity_id": "crystalline_sword",
+        "name": "Crystalline Sword",
+        "description": "A sword made of crystal that pulses with inner light, carried by Aria."
+      },
+      "heart_of_eternity": {
+        "entity_id": "heart_of_eternity",
+        "name": "Heart of Eternity",
+        "description": "A pulsing orb of pure energy resting on a pedestal in the Crystal Garden, radiating golden light."
+      }
+    }
+  },
+  "scenes": [
+    {
+      "scene_id": "scene_ancient_temple",
+      "index": 0,
+      "title": "The Final Seal",
+      "description": "Aria stands before a massive stone door in the Ancient Temple, preparing to open the final seal while conversing with Kai about the consequences of her actions.",
+      "location": {
+        "entity_id": "ancient_temple",
+        "entity_type": "location",
+        "display_name": "Ancient Temple"
+      },
+      "time_of_day": "night",
+      "characters": [
+        {
+          "entity_id": "aria",
+          "entity_type": "character",
+          "display_name": "Aria"
+        },
+        {
+          "entity_id": "kai",
+          "entity_type": "character",
+          "display_name": "Kai"
+        }
+      ],
+      "shots": [
+        {
+          "shot_id": "shot_01",
+          "scene_id": "scene_ancient_temple",
+          "index": 0,
+          "duration_sec": 6.0,
+          "description": "Wide shot of the vast temple interior, illuminated by floating blue crystals.",
+          "prompt": "A wide shot of the Crystal Garden, showcasing vibrant crystal flowers blooming in every color, surrounded by towering crystal trees. A gentle mist floats between the trees, creating a magical atmosphere. The sunlight filters through the leaves, casting colorful reflections on the ground. The scene is serene and enchanting, inviting viewers into this otherworldly space. anime style, high quality anime art, 4k",
+          "negative_prompt": "blurry, deformed, bad anatomy, extra limbs, watermark, text, low quality",
+          "shot_type": "wide",
+          "characters": [],
+          "props": [],
+          "dialogue": []
+        },
+        {
+          "shot_id": "shot_02",
+          "scene_id": "scene_ancient_temple",
+          "index": 1,
+          "duration_sec": 5.0,
+          "description": "Medium shot of Aria standing before the massive stone door, crystalline sword in hand.",
+          "prompt": "A medium shot of Aria, a young woman in her 20s with silver hair, stepping into the Crystal Garden. She wears ornate armor adorned with glowing blue patterns and holds her crystalline sword lowered at her side. Her large expressive eyes reflect wonder as she takes in the beauty around her. The vibrant colors of the garden contrast with her armor, creating a striking visual. Soft, warm sunlight illuminates the scene, enhancing the magical atmosphere. anime style, high quality anime art, 4k",
+          "negative_prompt": "blurry, deformed, bad anatomy, extra limbs, watermark, text, low quality",
+          "shot_type": "medium",
+          "characters": [
+            {
+              "entity_id": "aria",
+              "entity_type": "character",
+              "display_name": "Aria"
+            }
+          ],
+          "props": [
+            {
+              "entity_id": "crystalline_sword",
+              "entity_type": "prop",
+              "display_name": "Crystalline Sword"
+            }
+          ],
+          "dialogue": [
+            {
+              "line_id": "line_shot_02_0",
+              "character_id": "aria",
+              "text": "This is it. The final seal.",
+              "start_time_sec": 7.0,
+              "estimated_duration_sec": 2.4,
+              "emotion": "determined"
+            }
+          ]
+        },
+        {
+          "shot_id": "shot_03",
+          "scene_id": "scene_ancient_temple",
+          "index": 2,
+          "duration_sec": 4.0,
+          "description": "Close-up of Aria's hand touching the door, runes pulsing brighter.",
+          "prompt": "A close-up of Kai, an ageless ethereal being with a translucent form, hovering gracefully above the pedestal in the Crystal Garden. The Heart of Eternity, a pulsing orb of pure energy, glows brightly beside them, radiating golden light. Kai's flowing robes made of light shimmer softly, and their serene expression conveys wisdom and gentleness. The background is filled with colorful crystal flowers, enhancing the ethereal quality of the scene. anime style, high quality anime art, 4k",
+          "negative_prompt": "blurry, deformed, bad anatomy, extra limbs, watermark, text, low quality",
+          "shot_type": "close",
+          "characters": [
+            {
+              "entity_id": "aria",
+              "entity_type": "character",
+              "display_name": "Aria"
+            }
+          ],
+          "props": [],
+          "dialogue": []
+        },
+        {
+          "shot_id": "shot_04",
+          "scene_id": "scene_ancient_temple",
+          "index": 3,
+          "duration_sec": 5.0,
+          "description": "Over-the-shoulder shot of Aria, revealing the glowing runes on the door.",
+          "prompt": "A two-shot of Aria and Kai in the Crystal Garden. Aria approaches slowly, her crystalline sword lowered, her expression a mix of determination and curiosity. Kai extends a gentle hand towards her, their translucent form glowing softly. The vibrant colors of the garden surround them, and the Heart of Eternity can be seen glowing in the background. The lighting is warm and inviting, creating a sense of connection between the characters. anime style, high quality anime art, 4k",
+          "negative_prompt": "blurry, deformed, bad anatomy, extra limbs, watermark, text, low quality",
+          "shot_type": "over_shoulder",
+          "characters": [
+            {
+              "entity_id": "aria",
+              "entity_type": "character",
+              "display_name": "Aria"
+            }
+          ],
+          "props": [],
+          "dialogue": [
+            {
+              "line_id": "line_shot_04_0",
+              "character_id": "kai",
+              "text": "Aria... are you certain? Once opened, there's no going back.",
+              "start_time_sec": 16.0,
+              "estimated_duration_sec": 4.0,
+              "emotion": "ethereal"
+            }
+          ]
+        },
+        {
+          "shot_id": "shot_05",
+          "scene_id": "scene_ancient_temple",
+          "index": 4,
+          "duration_sec": 5.0,
+          "description": "Medium shot of Aria, resolute expression as she responds.",
+          "prompt": "A close-up of the Heart of Eternity, floating gracefully toward Aria in the Crystal Garden. The orb bathes her in golden light, illuminating her features and creating a magical aura around her. Aria's silver hair glimmers in the light, and her eyes reflect a sense of awe and wonder. The background is filled with colorful crystal flowers and mist, enhancing the enchanting atmosphere of the scene. anime style, high quality anime art, 4k",
+          "negative_prompt": "blurry, deformed, bad anatomy, extra limbs, watermark, text, low quality",
+          "shot_type": "medium",
+          "characters": [
+            {
+              "entity_id": "aria",
+              "entity_type": "character",
+              "display_name": "Aria"
+            }
+          ],
+          "props": [],
+          "dialogue": [
+            {
+              "line_id": "line_shot_05_0",
+              "character_id": "aria",
+              "text": "I've come too far to turn back now.",
+              "start_time_sec": 21.0,
+              "estimated_duration_sec": 3.2,
+              "emotion": "resolute"
+            }
+          ]
+        },
+        {
+          "shot_id": "shot_06",
+          "scene_id": "scene_ancient_temple",
+          "index": 5,
+          "duration_sec": 6.0,
+          "description": "Wide shot of the door rumbling and slowly opening, revealing blinding white light.",
+          "prompt": "A wide shot of the massive stone door rumbling and slowly opening, revealing a blinding white light emanating from within. Aria stands in the foreground, her crystalline sword raised, ready to confront the unknown. The scene is filled with dynamic energy, as the ancient magic of the temple awakens. anime style, high quality anime art, 4k",
+          "negative_prompt": "blurry, deformed, bad anatomy, extra limbs, watermark, text, low quality",
+          "shot_type": "wide",
+          "characters": [
+            {
+              "entity_id": "aria",
+              "entity_type": "character",
+              "display_name": "Aria"
+            }
+          ],
+          "props": [],
+          "dialogue": []
+        }
+      ]
+    },
+    {
+      "scene_id": "scene_crystal_garden",
+      "index": 1,
+      "title": "The Heart of Eternity",
+      "description": "Aria steps into the Crystal Garden, where she encounters the Heart of Eternity and shares a moment of understanding with Kai.",
+      "location": {
+        "entity_id": "crystal_garden",
+        "entity_type": "location",
+        "display_name": "Crystal Garden"
+      },
+      "time_of_day": "day",
+      "characters": [
+        {
+          "entity_id": "aria",
+          "entity_type": "character",
+          "display_name": "Aria"
+        },
+        {
+          "entity_id": "kai",
+          "entity_type": "character",
+          "display_name": "Kai"
+        }
+      ],
+      "shots": [
+        {
+          "shot_id": "shot_01",
+          "scene_id": "scene_crystal_garden",
+          "index": 6,
+          "duration_sec": 5.0,
+          "description": "Wide shot of the Crystal Garden, showcasing the vibrant crystal flowers and mist among towering crystal trees.",
+          "prompt": "A wide shot of the Crystal Garden, showcasing vibrant crystal flowers blooming in every color, surrounded by towering crystal trees. A gentle mist floats between the trees, creating a magical atmosphere. The sunlight filters through the leaves, casting colorful reflections on the ground. The scene is serene and enchanting, inviting viewers into this otherworldly space. anime style, high quality anime art, 4k",
+          "negative_prompt": "blurry, deformed, bad anatomy, extra limbs, watermark, text, low quality",
+          "shot_type": "wide",
+          "characters": [],
+          "props": [],
+          "dialogue": []
+        },
+        {
+          "shot_id": "shot_02",
+          "scene_id": "scene_crystal_garden",
+          "index": 7,
+          "duration_sec": 4.0,
+          "description": "Medium shot of Aria stepping into the garden, her crystalline sword lowered, taking in the beauty around her.",
+          "prompt": "A medium shot of Aria, a young woman in her 20s with silver hair, stepping into the Crystal Garden. She wears ornate armor adorned with glowing blue patterns and holds her crystalline sword lowered at her side. Her large expressive eyes reflect wonder as she takes in the beauty around her. The vibrant colors of the garden contrast with her armor, creating a striking visual. Soft, warm sunlight illuminates the scene, enhancing the magical atmosphere. anime style, high quality anime art, 4k",
+          "negative_prompt": "blurry, deformed, bad anatomy, extra limbs, watermark, text, low quality",
+          "shot_type": "medium",
+          "characters": [
+            {
+              "entity_id": "aria",
+              "entity_type": "character",
+              "display_name": "Aria"
+            }
+          ],
+          "props": [
+            {
+              "entity_id": "crystalline_sword",
+              "entity_type": "prop",
+              "display_name": "Crystalline Sword"
+            }
+          ],
+          "dialogue": [
+            {
+              "line_id": "line_shot_02_0",
+              "character_id": "aria",
+              "text": "You're... beautiful.",
+              "start_time_sec": 37.0,
+              "estimated_duration_sec": 0.8,
+              "emotion": "awe"
+            }
+          ]
+        },
+        {
+          "shot_id": "shot_03",
+          "scene_id": "scene_crystal_garden",
+          "index": 8,
+          "duration_sec": 5.0,
+          "description": "Close-up of Kai hovering above the pedestal, the Heart of Eternity glowing brightly beside them.",
+          "prompt": "A close-up of Kai, an ageless ethereal being with a translucent form, hovering gracefully above the pedestal in the Crystal Garden. The Heart of Eternity, a pulsing orb of pure energy, glows brightly beside them, radiating golden light. Kai's flowing robes made of light shimmer softly, and their serene expression conveys wisdom and gentleness. The background is filled with colorful crystal flowers, enhancing the ethereal quality of the scene. anime style, high quality anime art, 4k",
+          "negative_prompt": "blurry, deformed, bad anatomy, extra limbs, watermark, text, low quality",
+          "shot_type": "close",
+          "characters": [
+            {
+              "entity_id": "kai",
+              "entity_type": "character",
+              "display_name": "Kai"
+            }
+          ],
+          "props": [
+            {
+              "entity_id": "heart_of_eternity",
+              "entity_type": "prop",
+              "display_name": "Heart of Eternity"
+            }
+          ],
+          "dialogue": [
+            {
+              "line_id": "line_shot_03_0",
+              "character_id": "kai",
+              "text": "And you're brave. Few mortals have made it this far.",
+              "start_time_sec": 41.0,
+              "estimated_duration_sec": 4.0,
+              "emotion": "sad smile"
+            }
+          ]
+        },
+        {
+          "shot_id": "shot_04",
+          "scene_id": "scene_crystal_garden",
+          "index": 9,
+          "duration_sec": 6.0,
+          "description": "Two-shot of Aria and Kai, with Aria approaching slowly, her sword lowered, as Kai extends a hand.",
+          "prompt": "A two-shot of Aria and Kai in the Crystal Garden. Aria approaches slowly, her crystalline sword lowered, her expression a mix of determination and curiosity. Kai extends a gentle hand towards her, their translucent form glowing softly. The vibrant colors of the garden surround them, and the Heart of Eternity can be seen glowing in the background. The lighting is warm and inviting, creating a sense of connection between the characters. anime style, high quality anime art, 4k",
+          "negative_prompt": "blurry, deformed, bad anatomy, extra limbs, watermark, text, low quality",
+          "shot_type": "two_shot",
+          "characters": [
+            {
+              "entity_id": "aria",
+              "entity_type": "character",
+              "display_name": "Aria"
+            },
+            {
+              "entity_id": "kai",
+              "entity_type": "character",
+              "display_name": "Kai"
+            }
+          ],
+          "props": [
+            {
+              "entity_id": "crystalline_sword",
+              "entity_type": "prop",
+              "display_name": "Crystalline Sword"
+            },
+            {
+              "entity_id": "heart_of_eternity",
+              "entity_type": "prop",
+              "display_name": "Heart of Eternity"
+            }
+          ],
+          "dialogue": [
+            {
+              "line_id": "line_shot_04_0",
+              "character_id": "aria",
+              "text": "I didn't come to fight. I came to understand.",
+              "start_time_sec": 46.0,
+              "estimated_duration_sec": 3.6,
+              "emotion": "determined"
+            },
+            {
+              "line_id": "line_shot_04_1",
+              "character_id": "kai",
+              "text": "Then perhaps... there is hope after all.",
+              "start_time_sec": 50.1,
+              "estimated_duration_sec": 2.8,
+              "emotion": "gentle"
+            }
+          ]
+        },
+        {
+          "shot_id": "shot_05",
+          "scene_id": "scene_crystal_garden",
+          "index": 10,
+          "duration_sec": 5.0,
+          "description": "Close-up of the Heart of Eternity floating toward Aria, bathing her in golden light.",
+          "prompt": "A close-up of the Heart of Eternity, floating gracefully toward Aria in the Crystal Garden. The orb bathes her in golden light, illuminating her features and creating a magical aura around her. Aria's silver hair glimmers in the light, and her eyes reflect a sense of awe and wonder. The background is filled with colorful crystal flowers and mist, enhancing the enchanting atmosphere of the scene. anime style, high quality anime art, 4k",
+          "negative_prompt": "blurry, deformed, bad anatomy, extra limbs, watermark, text, low quality",
+          "shot_type": "close",
+          "characters": [
+            {
+              "entity_id": "aria",
+              "entity_type": "character",
+              "display_name": "Aria"
+            }
+          ],
+          "props": [
+            {
+              "entity_id": "heart_of_eternity",
+              "entity_type": "prop",
+              "display_name": "Heart of Eternity"
+            }
+          ],
+          "dialogue": []
+        }
+      ]
+    }
+  ],
+  "audio": {
+    "global_ambience": {
+      "ambience_id": "ambient_main",
+      "type": "cinematic",
+      "prompt": "cinematic ambient atmosphere, emotional background",
+      "volume_db": -15
+    },
+    "music_track": null
+  },
+  "_meta": {
+    "created": "2026-01-19",
+    "version": "2.0.0",
+    "generator": "DirectorAgent",
+    "notes": "Auto-generated from screenplay"
+  }
+}

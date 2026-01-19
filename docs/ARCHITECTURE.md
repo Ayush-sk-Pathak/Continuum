@@ -86,6 +86,12 @@ We separate the Brain from the Body to leverage the MacBook Air M4 for orchestra
 
 2A. The Brain (MacBook Air M4 -> Cloud API)
 
+**STATUS (2026-01-19): ✅ IMPLEMENTED** - See `src/director/script_parser.py`
+- DirectorAgent class parses screenplays into project.json
+- Supports Claude and GPT-4 via API
+- Multi-stage: entities → scenes → shots → prompts
+- Test: `python tests/test_director_agent.py`
+
 Model: GPT-4o-mini or Claude 3.5 Haiku (via API) Role: The Director Agent. Runs: API calls dispatched from local MacBook M4 orchestrator. Cost: ~$0.02 per 5-minute film (negligible vs. video generation costs). Offline Fallback: Ollama + Llama 3.1 8B for privacy-sensitive or offline use cases.
 Development Note: The MacBook M4 handles all orchestration code, job dispatch, and UI -- but model inference (both LLM and video) runs on cloud resources.
 Responsibilities:
@@ -752,6 +758,20 @@ Stores them with stable IDs for each shot/chunk.
 Lip Sync (Mouth Animation): Technologies:
 Musetalk, Wav2Lip, or equivalent audio-driven lip-sync.
 Prefer ComfyUI nodes if available, otherwise run as a separate Python tool.
+
+**IMPORTANT - Anime/Cartoon Limitation (Discovered 2026-01-19):**
+Both Wav2Lip and LatentSync (ByteDance) rely on **face detection** internally, which fails on anime/2D art styles.
+- Wav2Lip: "list index out of range" (no face detected)
+- LatentSync: "Lipsync generation failed" (face detection/alignment fails)
+
+For **anime content**, alternative approaches needed:
+1. **DomoAI** - Commercial API specifically trained for anime characters
+2. **Rhubarb Lip Sync** - Audio→viseme timing + programmatic mouth sprite swapping
+3. **Talking Head Anime 4** - Generate animation from single image (different pipeline)
+4. **Simple amplitude-based mouth animation** - Open/close based on audio levels
+
+For **live-action/realistic content**, Wav2Lip/LatentSync work as expected.
+
 Pipeline Placement: Run after Pass 2 (Refinement) and before RIFE:
 Structural video (Pass 1)
 Refinement (Pass 2)
@@ -789,10 +809,10 @@ MacBook Brain: Generates the Audio Manifest JSON (listing timestamps, prompts, a
 Cloud Muscle: Renders the audio tracks in parallel with the video pixels, adding negligible time to the job since audio inference is computationally cheap compared to video diffusion.
 Phased Sonic Engine Rollout:
 MVP (Phase 1) -- Essential for VC Demo:
-TTS Dialogue: [YES] ElevenLabs / OpenAI TTS API
-Lip Sync: [YES] Wav2Lip or Musetalk
-Basic Ambience: [YES] One looping bed track per scene (AudioLDM-2)
-Audio Ducking: [YES] Simple -12dB attenuation during dialogue
+TTS Dialogue: [YES] ElevenLabs / OpenAI TTS API ✅ DONE
+Lip Sync: [PARTIAL] Wav2Lip/LatentSync work for live-action only; anime requires alternative (DomoAI/Rhubarb)
+Basic Ambience: [YES] One looping bed track per scene (AudioLDM-2) ✅ DONE
+Audio Ducking: [YES] Simple -12dB attenuation during dialogue ✅ DONE
 Music: Manual (user uploads or selects from stock library)
 Phase 2 -- Enhanced Audio:
 Per-shot ambience generation with location-locked seeds
@@ -1537,7 +1557,9 @@ Note: T2V path preserved for exploration/legacy use cases but not promoted as de
 8. EXECUTION ROADMAP & BUDGET (90-DAY PLAN)
 ================================================================================
 
-PHASE 1 (Days 1-30) -- The "Director + Bible" MVP
+PHASE 1 (Days 1-30) -- The "Director + Bible" MVP ✅ COMPLETE
+
+**STATUS (2026-01-19):** Phase 1 deliverables achieved.
 
 Goal: Prove the Director + Bible + manual ComfyUI workflow can produce consistent short clips. Focus: Logic & layout before heavy automation.
 Tech Stack:
@@ -1546,7 +1568,7 @@ Assets: Flux / SDXL / Gemini Imagen 3 for character/location images.
 Memory: Pinecone (Visual RAG) + basic S3 bucket.
 ComfyUI: Cloud GPU (RunPod/Lambda) -- Mac handles orchestration only.
 Deliverables:
-Scene Graph Generator (Director MVP):
+Scene Graph Generator (Director MVP): ✅ DONE - `src/director/script_parser.py`
 Script in -> JSON with scenes, shots, characters, locations.
 Bible Folder:
 Alice.safetensors / Alice_refs/

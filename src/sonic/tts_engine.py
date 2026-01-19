@@ -341,18 +341,26 @@ class ElevenLabsTTSEngine(BaseTTSEngine):
                 voice_settings["stability"] = 0.3
                 voice_settings["style"] = 0.8
             
-            # Generate audio
+            # Generate audio using new SDK API
             logger.info(f"Synthesizing line {line.line_id}: '{line.text[:50]}...'")
-            
-            audio = await client.generate(
+
+            # New ElevenLabs SDK uses text_to_speech.convert() which returns async generator
+            from elevenlabs import VoiceSettings
+
+            audio_generator = client.text_to_speech.convert(
                 text=line.text,
-                voice=voice_config.voice_id,
-                model=self.model_id,
-                voice_settings=voice_settings,
+                voice_id=voice_config.voice_id,
+                model_id=self.model_id,
+                voice_settings=VoiceSettings(
+                    stability=voice_settings["stability"],
+                    similarity_boost=voice_settings["similarity_boost"],
+                    style=voice_settings["style"],
+                    use_speaker_boost=voice_settings["use_speaker_boost"],
+                ),
             )
-            
-            # Save to file
-            audio_bytes = b"".join([chunk async for chunk in audio])
+
+            # Collect audio bytes from async generator
+            audio_bytes = b"".join([chunk async for chunk in audio_generator])
             output_path.parent.mkdir(parents=True, exist_ok=True)
             
             with open(output_path, "wb") as f:

@@ -14,7 +14,15 @@
       "Bash(tee:*)",
       "Bash(source venv/bin/activate)",
       "Bash(export CONTINUUM_COMFYUI__HOST=\"wss://wc1wxkowv7sxk2-8188.proxy.runpod.net\")",
-      "Bash(CONTINUUM_COMFYUI__HOST=\"wss://wc1wxkowv7sxk2-8188.proxy.runpod.net\" python:*)"
+      "Bash(CONTINUUM_COMFYUI__HOST=\"wss://wc1wxkowv7sxk2-8188.proxy.runpod.net\" python:*)",
+      "WebSearch",
+      "Bash(pip show:*)",
+      "Bash(pip install:*)",
+      "Bash(ffprobe:*)",
+      "Bash(xxd:*)",
+      "Bash(open:*)",
+      "WebFetch(domain:replicate.com)",
+      "Bash(find /Users/ayushpathak/Projects/Continuum -name \"*.mp4\" -exec sh -c 'dur=$\\(ffprobe -v error -show_entries format=duration -of csv=p=0 \"\"$1\"\" 2>/dev/null\\); if [ -n \"\"$dur\"\" ] && [ $\\(echo \"\"$dur > 8\"\" | bc -l 2>/dev/null\\) -eq 1 ]; then echo \"\"$dur s - $1\"\"; fi' _ {} ;)"
     ]
   }
 }

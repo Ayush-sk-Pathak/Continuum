@@ -240,8 +240,8 @@ class ReplicateAmbienceEngine(BaseAmbienceEngine):
     
     provider = AmbienceProvider.REPLICATE
     
-    # Replicate model identifier
-    MODEL_ID = "cjwbw/audioldm2-large:d7dec8be5c7dd257f3562ff7fcc1ee8339ff34e01f8e4af5fd574e0c65e4ba5e"
+    # Replicate model identifier - using haoheliu/audio-ldm (working model)
+    MODEL_ID = "haoheliu/audio-ldm:b61392adecdd660326fc9cfc5398182437dbe5e97b5decfb36e1a36de68b5b95"
     
     def __init__(
         self,
@@ -294,32 +294,71 @@ class ReplicateAmbienceEngine(BaseAmbienceEngine):
             # Run the model
             # Note: Replicate's run() is synchronous, so we run in executor
             loop = asyncio.get_event_loop()
-            output = await loop.run_in_executor(
-                None,
-                lambda: client.run(
-                    self.MODEL_ID,
+
+            # haoheliu/audio-ldm supports: 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 17.5, 20.0
+            valid_durations = [2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 17.5, 20.0]
+            target_duration = min(spec.duration_sec, 20.0)
+            # Find nearest valid duration
+            duration = min(valid_durations, key=lambda x: abs(x - target_duration))
+
+            def run_audioldm():
+                """Run AudioLDM using predictions API for reliable output."""
+                # Use predictions API with version parameter only
+                prediction = client.predictions.create(
+                    version=self.MODEL_ID.split(':')[1],  # version hash only
                     input={
-                        "prompt": prompt,
-                        "duration": min(spec.duration_sec, 30.0),  # Max 30s per call
-                        "guidance_scale": 3.5,
-                        "num_inference_steps": 50,
-                        "num_waveforms": 1,
+                        "text": prompt,
+                        "duration": str(duration),
+                        "guidance_scale": 2.5,
+                        "n_candidates": 1,
                     }
                 )
-            )
-            
-            # Download the generated audio
-            if output and len(output) > 0:
-                audio_url = output[0] if isinstance(output, list) else output
-                
-                # Fetch the audio file
-                import urllib.request
+                # Wait for prediction to complete
+                prediction.wait()
+                logger.debug(f"Prediction completed: status={prediction.status}, output={prediction.output}")
+
+                if prediction.status == "succeeded" and prediction.output:
+                    # Output is usually a URL or list of URLs
+                    return prediction.output
+                elif prediction.status == "failed":
+                    raise Exception(f"Prediction failed: {prediction.error}")
+                else:
+                    return None
+
+            output = await loop.run_in_executor(None, run_audioldm)
+
+            # Save the generated audio
+            if output:
                 output_path.parent.mkdir(parents=True, exist_ok=True)
-                
-                await loop.run_in_executor(
-                    None,
-                    lambda: urllib.request.urlretrieve(audio_url, output_path)
-                )
+                import urllib.request
+
+                # Handle different output formats from predictions API
+                audio_url = None
+                if isinstance(output, list) and len(output) > 0:
+                    # List of URLs - take the first one
+                    audio_url = output[0]
+                elif isinstance(output, str) and output.startswith(('http://', 'https://')):
+                    # Direct URL string
+                    audio_url = output
+                elif hasattr(output, 'url'):
+                    # FileOutput object
+                    audio_url = output.url
+
+                if audio_url:
+                    logger.debug(f"Downloading audio from: {audio_url[:100]}")
+                    await loop.run_in_executor(
+                        None,
+                        lambda: urllib.request.urlretrieve(audio_url, output_path)
+                    )
+                else:
+                    logger.error(f"Unknown output format: {type(output)}, value: {str(output)[:200]}")
+                    return SynthesizedAmbience(
+                        ambience_id=spec.ambience_id,
+                        audio_path=None,
+                        actual_duration_sec=0,
+                        status=AudioGenerationStatus.FAILED,
+                        error=f"Unknown output format from AudioLDM: {type(output)}",
+                    )
                 
                 generation_time = time.time() - start_time
                 logger.info(
@@ -355,7 +394,7 @@ class ReplicateAmbienceEngine(BaseAmbienceEngine):
             loop = asyncio.get_event_loop()
             model = await loop.run_in_executor(
                 None,
-                lambda: client.models.get("cjwbw/audioldm2-large")
+                lambda: client.models.get("haoheliu/audio-ldm")
             )
             return model is not None
         except Exception as e:

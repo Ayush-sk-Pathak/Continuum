@@ -29,7 +29,7 @@ import logging
 import tempfile
 import time
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from . import (
     VideoClip,
@@ -568,18 +568,18 @@ async def stitch_with_dissolves(
 ) -> StitchResult:
     """
     Convenience function to stitch clips with cross-dissolves between them.
-    
+
     Args:
         clips: List of video paths in order
         output_path: Where to write output
         dissolve_duration: Duration of each dissolve in seconds
-        
+
     Returns:
         StitchResult
     """
     # Probe clips
     infos = await probe_multiple(clips)
-    
+
     video_clips = [
         VideoClip(
             path=info.path,
@@ -591,21 +591,146 @@ async def stitch_with_dissolves(
         )
         for i, info in enumerate(infos)
     ]
-    
+
     # Create dissolve transitions
     transitions = [
         TransitionSpec.dissolve(dissolve_duration)
         for _ in range(len(clips) - 1)
     ]
-    
+
     job = StitchJob(
         clips=video_clips,
         output_path=output_path,
         transitions=transitions,
     )
-    
+
     stitcher = Stitcher()
     return await stitcher.stitch(job)
+
+
+async def stitch_with_audio(
+    video_clips: List[Path],
+    audio_tracks: Dict[str, Path],
+    output_path: Path,
+    shot_ids: Optional[List[str]] = None,
+) -> StitchResult:
+    """
+    Stitch video clips with corresponding audio tracks.
+
+    This function:
+    1. Muxes each video clip with its corresponding audio
+    2. Concatenates all muxed clips into final output
+
+    Args:
+        video_clips: List of video file paths in order
+        audio_tracks: Mapping of shot_id to audio file path
+        output_path: Where to write final output
+        shot_ids: Optional list of shot IDs matching video_clips order.
+                  If not provided, uses "shot_01", "shot_02", etc.
+
+    Returns:
+        StitchResult with success status and output path
+    """
+    import tempfile
+    import shutil
+
+    start_time = time.monotonic()
+    temp_dir = Path(tempfile.mkdtemp(prefix="stitch_audio_"))
+
+    try:
+        # Generate shot_ids if not provided
+        if shot_ids is None:
+            shot_ids = [f"shot_{i+1:02d}" for i in range(len(video_clips))]
+
+        if len(shot_ids) != len(video_clips):
+            return StitchResult.failed(
+                f"shot_ids length ({len(shot_ids)}) doesn't match video_clips ({len(video_clips)})"
+            )
+
+        # Step 1: Mux each video with its audio
+        muxed_clips = []
+
+        for i, (video_path, shot_id) in enumerate(zip(video_clips, shot_ids)):
+            audio_path = audio_tracks.get(shot_id)
+            muxed_path = temp_dir / f"muxed_{i:03d}.mp4"
+
+            if audio_path and audio_path.exists():
+                # Mux video + audio
+                logger.info(f"Muxing {shot_id}: {video_path.name} + {audio_path.name}")
+
+                args = [
+                    "-i", str(video_path),
+                    "-i", str(audio_path),
+                    "-c:v", "copy",  # Copy video stream
+                    "-c:a", DEFAULT_AUDIO_CODEC,
+                    "-shortest",  # End when shortest stream ends
+                    str(muxed_path),
+                ]
+
+                await run_ffmpeg(args, output_path=muxed_path)
+            else:
+                # No audio for this shot - add silent audio track
+                logger.info(f"No audio for {shot_id}, adding silence")
+
+                # Get video duration
+                video_info = await probe_video(video_path)
+
+                args = [
+                    "-i", str(video_path),
+                    "-f", "lavfi",
+                    "-i", f"anullsrc=r=44100:cl=stereo:d={video_info.duration_sec}",
+                    "-c:v", "copy",
+                    "-c:a", DEFAULT_AUDIO_CODEC,
+                    "-shortest",
+                    str(muxed_path),
+                ]
+
+                await run_ffmpeg(args, output_path=muxed_path)
+
+            muxed_clips.append(muxed_path)
+
+        # Step 2: Concatenate all muxed clips
+        logger.info(f"Concatenating {len(muxed_clips)} muxed clips")
+
+        # Create concat file
+        concat_file = temp_dir / "concat_list.txt"
+        lines = [f"file '{clip.absolute()}'" for clip in muxed_clips]
+        concat_file.write_text("\n".join(lines))
+
+        # Run concat
+        args = [
+            "-f", "concat",
+            "-safe", "0",
+            "-i", str(concat_file),
+            "-c", "copy",
+            str(output_path),
+        ]
+
+        await run_ffmpeg(args, output_path=output_path)
+
+        # Probe output
+        output_info = await probe_video(output_path)
+
+        return StitchResult(
+            success=True,
+            output_path=output_path,
+            duration_sec=output_info.duration_sec,
+            resolution=output_info.resolution,
+            fps=output_info.fps,
+            processing_time_sec=time.monotonic() - start_time,
+        )
+
+    except FFmpegExecutionError as e:
+        logger.error(f"FFmpeg failed during audio stitch: {e}")
+        return StitchResult.failed(f"FFmpeg error: {e}")
+
+    except Exception as e:
+        logger.exception(f"Audio stitch failed: {e}")
+        return StitchResult.failed(str(e))
+
+    finally:
+        # Cleanup temp directory
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 # =============================================================================
@@ -616,4 +741,5 @@ __all__ = [
     "Stitcher",
     "stitch_clips",
     "stitch_with_dissolves",
+    "stitch_with_audio",
 ]

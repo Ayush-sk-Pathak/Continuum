@@ -71,6 +71,7 @@ class LipSyncProvider(str, Enum):
     MUSETALK_COMFY = "musetalk_comfy"    # Best: Musetalk via ComfyUI
     WAV2LIP_COMFY = "wav2lip_comfy"      # Good: Wav2Lip via ComfyUI
     WAV2LIP_REPLICATE = "wav2lip_replicate"  # Fallback: Wav2Lip via Replicate API
+    LATENTSYNC_REPLICATE = "latentsync_replicate"  # ByteDance LatentSync - works with anime
     PASSTHROUGH = "passthrough"          # None: No lip sync (non-speaking)
 
 
@@ -593,7 +594,7 @@ class Wav2LipReplicateEngine(BaseLipSyncEngine):
     ) -> LipSyncResult:
         """Apply lip sync using Wav2Lip via Replicate."""
         start_time = time.time()
-        
+
         def report_progress(stage: str, progress: float, message: str = ""):
             if progress_callback:
                 progress_callback(LipSyncProgress(
@@ -603,61 +604,112 @@ class Wav2LipReplicateEngine(BaseLipSyncEngine):
                     message=message,
                     elapsed_sec=time.time() - start_time,
                 ))
-        
+
         try:
+            logger.debug(f"Wav2Lip sync starting: video={spec.input_video}")
+
             if not spec.has_dialogue:
                 return await self._passthrough(spec, "No dialogue segments")
-            
+
             if not spec.input_video.exists():
                 return LipSyncResult.failed(f"Input video not found: {spec.input_video}")
-            
+
             report_progress("syncing", 0.1, "Connecting to Replicate...")
-            
+
             client = await self._get_client()
-            
+            logger.debug("Got Replicate client")
+
             # Wav2Lip typically processes the entire video with one audio
             # For multiple segments, we'd need to concatenate audio or
             # process segments separately
-            
+
             # For simplicity, we'll process with the first/main dialogue
             # More sophisticated handling would merge audio tracks
             main_segment = spec.dialogue_segments[0]
-            
+
             if not main_segment.audio_path.exists():
                 return LipSyncResult.failed(f"Audio not found: {main_segment.audio_path}")
             
             report_progress("syncing", 0.2, "Uploading to Replicate...")
-            
+
             # Run Wav2Lip on Replicate
             loop = asyncio.get_event_loop()
-            
-            with open(spec.input_video, "rb") as video_file:
-                with open(main_segment.audio_path, "rb") as audio_file:
-                    output = await loop.run_in_executor(
-                        None,
-                        lambda: client.run(
-                            self.MODEL_ID,
-                            input={
-                                "face": video_file,
-                                "audio": audio_file,
-                                "pads": "0 10 0 0",  # Padding for face crop
-                                "smooth": True,
-                                "fps": 25,  # Match typical video fps
-                            }
-                        )
-                    )
-            
+
+            # Read files into memory to avoid lambda closure issues
+            video_path = str(spec.input_video)
+            audio_path = str(main_segment.audio_path)
+
+            def run_wav2lip():
+                """Run Wav2Lip with proper file handling."""
+                import traceback
+                logger.debug(f"Opening video: {video_path}")
+                logger.debug(f"Opening audio: {audio_path}")
+                with open(video_path, "rb") as vf:
+                    with open(audio_path, "rb") as af:
+                        logger.debug(f"Calling client.run with model: {self.MODEL_ID}")
+                        try:
+                            # client.run() returns an iterator in replicate 1.x
+                            # We need to iterate over it to get the actual output
+                            result_iter = client.run(
+                                self.MODEL_ID,
+                                input={
+                                    "face": vf,
+                                    "audio": af,
+                                    "pads": "0 10 0 0",  # Padding for face crop
+                                    "smooth": True,
+                                    "fps": 25,  # Match typical video fps
+                                }
+                            )
+                            # Collect all outputs from the iterator
+                            outputs = list(result_iter)
+                            logger.debug(f"client.run returned {len(outputs)} outputs: {outputs}")
+                            return outputs[-1] if outputs else None
+                        except Exception as inner_e:
+                            logger.error(f"Inner exception: {inner_e}")
+                            logger.error(f"Traceback: {traceback.format_exc()}")
+                            raise
+
+            logger.debug("Starting executor for Wav2Lip")
+            output = await loop.run_in_executor(None, run_wav2lip)
+            logger.debug(f"Executor completed, output: {output}")
+
             report_progress("compositing", 0.8, "Downloading result...")
-            
-            # Download output
+
+            # Debug output format
+            logger.debug(f"Wav2Lip output type: {type(output)}, value: {output}")
+
+            # Download output - handle different output formats
             if output:
                 spec.output_video.parent.mkdir(parents=True, exist_ok=True)
-                
+
                 import urllib.request
-                output_url = str(output)
+
+                # Handle output that might be a list, FileOutput, or string
+                output_url = None
+                if isinstance(output, str):
+                    output_url = output
+                elif isinstance(output, list):
+                    output_url = str(output[0]) if output else None
+                elif hasattr(output, 'url'):
+                    # FileOutput object
+                    output_url = output.url
+                elif hasattr(output, '__iter__'):
+                    # Iterator/generator - get first item
+                    try:
+                        first_item = next(iter(output))
+                        output_url = str(first_item.url) if hasattr(first_item, 'url') else str(first_item)
+                    except StopIteration:
+                        output_url = None
+                else:
+                    output_url = str(output)
+
+                if not output_url:
+                    return LipSyncResult.failed(f"Empty output from Wav2Lip: {type(output)}")
+
+                download_path = str(spec.output_video)
                 await loop.run_in_executor(
                     None,
-                    lambda: urllib.request.urlretrieve(output_url, spec.output_video)
+                    lambda: urllib.request.urlretrieve(output_url, download_path)
                 )
                 
                 report_progress("completed", 1.0, "Lip sync complete")
@@ -692,6 +744,233 @@ class Wav2LipReplicateEngine(BaseLipSyncEngine):
         except Exception as e:
             logger.error(f"Replicate health check failed: {e}")
             return False
+
+
+# =============================================================================
+# REPLICATE LATENTSYNC IMPLEMENTATION (ANIME-FRIENDLY)
+# =============================================================================
+
+class LatentSyncReplicateEngine(BaseLipSyncEngine):
+    """
+    Lip sync engine using ByteDance's LatentSync via Replicate API.
+
+    LatentSync uses audio-conditioned latent diffusion models for end-to-end
+    lip sync without intermediate motion representation. Works better with
+    stylized/anime characters than face-detection-based models like Wav2Lip.
+
+    Key advantages:
+        - Works with animated/anime characters (doesn't rely on face detection)
+        - Uses Stable Diffusion backbone
+        - Better temporal consistency with TREPA alignment
+
+    Pricing: ~$0.08 per video (~80s processing time)
+    """
+
+    provider = LipSyncProvider.LATENTSYNC_REPLICATE
+
+    # Replicate model ID for LatentSync
+    MODEL_ID = "bytedance/latentsync:637ce1919f807ca20da3a448ddc2743535d2853649574cd52a933120e9b9e293"
+
+    def __init__(
+        self,
+        api_token: Optional[str] = None,
+        output_dir: Path = Path("./workspace/video/lipsync"),
+        temp_dir: Optional[Path] = None,
+        guidance_scale: float = 1.0,
+    ):
+        """
+        Initialize the LatentSync Replicate engine.
+
+        Args:
+            api_token: Replicate API token (or use REPLICATE_API_TOKEN env)
+            output_dir: Where to save lip-synced videos
+            temp_dir: Temporary file directory
+            guidance_scale: How strongly audio conditions the generation (0-10)
+        """
+        super().__init__(output_dir, temp_dir)
+
+        import os
+        self.api_token = api_token or os.environ.get("REPLICATE_API_TOKEN")
+        if not self.api_token:
+            raise ValueError("Replicate API token not provided")
+
+        self.guidance_scale = guidance_scale
+        self._client = None
+
+    async def _get_client(self):
+        """Lazy-initialize Replicate client."""
+        if self._client is None:
+            try:
+                import replicate
+                import os
+                os.environ["REPLICATE_API_TOKEN"] = self.api_token
+                self._client = replicate
+            except ImportError:
+                raise RuntimeError(
+                    "replicate package not installed. "
+                    "Run: pip install replicate"
+                )
+        return self._client
+
+    async def sync(
+        self,
+        spec: LipSyncSpec,
+        progress_callback: Optional[Callable[[LipSyncProgress], None]] = None,
+    ) -> LipSyncResult:
+        """Apply lip sync using LatentSync via Replicate."""
+        start_time = time.time()
+
+        def report_progress(stage: str, progress: float, message: str = ""):
+            if progress_callback:
+                progress_callback(LipSyncProgress(
+                    stage=stage,
+                    progress=progress,
+                    total_segments=len(spec.dialogue_segments),
+                    message=message,
+                    elapsed_sec=time.time() - start_time,
+                ))
+
+        try:
+            logger.debug(f"LatentSync sync starting: video={spec.input_video}")
+
+            if not spec.has_dialogue:
+                return await self._passthrough(spec, "No dialogue segments")
+
+            if not spec.input_video.exists():
+                return LipSyncResult.failed(f"Input video not found: {spec.input_video}")
+
+            report_progress("syncing", 0.1, "Connecting to Replicate...")
+
+            client = await self._get_client()
+            logger.debug("Got Replicate client")
+
+            # LatentSync processes entire video with audio
+            # For multiple segments, we use the first/main dialogue
+            main_segment = spec.dialogue_segments[0]
+
+            if not main_segment.audio_path.exists():
+                return LipSyncResult.failed(f"Audio not found: {main_segment.audio_path}")
+
+            report_progress("syncing", 0.2, "Uploading to Replicate (LatentSync)...")
+
+            # Run LatentSync on Replicate
+            loop = asyncio.get_event_loop()
+
+            video_path = str(spec.input_video)
+            audio_path = str(main_segment.audio_path)
+
+            def run_latentsync():
+                """Run LatentSync with proper file handling."""
+                import traceback
+                logger.debug(f"LatentSync - Opening video: {video_path}")
+                logger.debug(f"LatentSync - Opening audio: {audio_path}")
+
+                with open(video_path, "rb") as vf:
+                    with open(audio_path, "rb") as af:
+                        logger.debug(f"Calling client.run with model: {self.MODEL_ID}")
+                        try:
+                            # Use predictions API for better control
+                            prediction = client.predictions.create(
+                                version=self.MODEL_ID.split(':')[1],
+                                input={
+                                    "video": vf,
+                                    "audio": af,
+                                    "guidance_scale": self.guidance_scale,
+                                    "seed": 0,  # Non-deterministic
+                                }
+                            )
+
+                            logger.debug(f"LatentSync prediction created: {prediction.id}")
+
+                            # Wait for completion
+                            prediction.wait()
+
+                            logger.debug(f"LatentSync prediction status: {prediction.status}")
+                            logger.debug(f"LatentSync prediction output: {prediction.output}")
+
+                            if prediction.status == "succeeded":
+                                return prediction.output
+                            else:
+                                logger.error(f"LatentSync failed: {prediction.error}")
+                                return None
+
+                        except Exception as inner_e:
+                            logger.error(f"LatentSync inner exception: {inner_e}")
+                            logger.error(f"Traceback: {traceback.format_exc()}")
+                            raise
+
+            logger.debug("Starting executor for LatentSync")
+            output = await loop.run_in_executor(None, run_latentsync)
+            logger.debug(f"LatentSync executor completed, output: {output}")
+
+            report_progress("compositing", 0.8, "Downloading result...")
+
+            # Download output
+            if output:
+                spec.output_video.parent.mkdir(parents=True, exist_ok=True)
+
+                import urllib.request
+
+                # Handle output - LatentSync returns a URL string
+                output_url = None
+                if isinstance(output, str):
+                    output_url = output
+                elif isinstance(output, list):
+                    output_url = str(output[0]) if output else None
+                elif hasattr(output, 'url'):
+                    output_url = output.url
+                else:
+                    output_url = str(output)
+
+                if not output_url:
+                    return LipSyncResult.failed(f"Empty output from LatentSync: {type(output)}")
+
+                download_path = str(spec.output_video)
+                logger.debug(f"Downloading from {output_url} to {download_path}")
+
+                await loop.run_in_executor(
+                    None,
+                    lambda: urllib.request.urlretrieve(output_url, download_path)
+                )
+
+                report_progress("completed", 1.0, "Lip sync complete")
+
+                return LipSyncResult(
+                    success=True,
+                    output_path=spec.output_video,
+                    provider_used=self.provider,
+                    status=LipSyncStatus.COMPLETED,
+                    segments_processed=len(spec.dialogue_segments),
+                    processing_time_sec=time.time() - start_time,
+                    warnings=["Used LatentSync (anime-friendly)"],
+                )
+            else:
+                return LipSyncResult.failed("No output from LatentSync")
+
+        except Exception as e:
+            logger.error(f"LatentSync Replicate failed: {e}")
+            return LipSyncResult.failed(str(e), self.provider)
+
+    async def _passthrough(self, spec: LipSyncSpec, reason: str) -> LipSyncResult:
+        """Just copy video when no lip sync needed."""
+        spec.output_video.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(spec.input_video, spec.output_video)
+        return LipSyncResult.skipped(spec.output_video, reason)
+
+    async def health_check(self) -> bool:
+        """Check if Replicate is accessible."""
+        try:
+            await self._get_client()
+            return True
+        except Exception as e:
+            logger.error(f"Replicate health check failed: {e}")
+            return False
+
+    def estimate_cost(self, spec: LipSyncSpec) -> float:
+        """Estimate cost in USD - LatentSync is ~$0.08 per run."""
+        if not spec.has_dialogue:
+            return 0.0
+        return 0.08 * len(spec.dialogue_segments)
 
 
 # =============================================================================
@@ -818,15 +1097,16 @@ class LipSyncFactory:
         all_providers = [
             LipSyncProvider.MUSETALK_COMFY,
             LipSyncProvider.WAV2LIP_COMFY,
+            LipSyncProvider.LATENTSYNC_REPLICATE,  # Anime-friendly, before Wav2Lip
             LipSyncProvider.WAV2LIP_REPLICATE,
             LipSyncProvider.PASSTHROUGH,
         ]
-        
+
         if preferred and preferred != LipSyncProvider.PASSTHROUGH:
             providers = [preferred]
             providers.extend(p for p in all_providers if p != preferred)
             return providers
-        
+
         return all_providers
     
     async def _try_get_engine(self, provider: LipSyncProvider) -> Optional[BaseLipSyncEngine]:
@@ -868,7 +1148,23 @@ class LipSyncFactory:
             except Exception as e:
                 logger.debug(f"Failed to create Wav2Lip Replicate engine: {e}")
                 return None
-        
+
+        if provider == LipSyncProvider.LATENTSYNC_REPLICATE:
+            import os
+            token = self.replicate_token or os.environ.get("REPLICATE_API_TOKEN")
+            if not token:
+                return None
+            try:
+                engine = LatentSyncReplicateEngine(
+                    api_token=token,
+                    output_dir=self.output_dir,
+                )
+                self._engine_cache[provider] = engine
+                return engine
+            except Exception as e:
+                logger.debug(f"Failed to create LatentSync Replicate engine: {e}")
+                return None
+
         return None
     
     async def list_available_providers(self) -> List[LipSyncProvider]:

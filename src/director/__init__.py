@@ -39,6 +39,18 @@ from .consistency_dict import (
     create_prop,
 )
 
+from .script_parser import (
+    # Main class
+    DirectorAgent,
+    DirectorConfig,
+    # Enums
+    LLMProvider,
+    # Convenience functions
+    parse_script,
+    save_project,
+    load_project,
+)
+
 __all__ = [
     # scene_graph
     "SceneGraph",
@@ -62,4 +74,11 @@ __all__ = [
     "create_character",
     "create_location",
     "create_prop",
+    # script_parser (Director Agent)
+    "DirectorAgent",
+    "DirectorConfig",
+    "LLMProvider",
+    "parse_script",
+    "save_project",
+    "load_project",
 ]
