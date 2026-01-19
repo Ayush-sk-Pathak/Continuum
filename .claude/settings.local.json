@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(python -c:*)",
+      "Bash(python:*)",
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+      "Bash(export CONTINUUM_COMFYUI__HOST=\"wss://nr0shpwj09o0r7-8188.proxy.runpod.net\")",
+      "Bash(kill:*)",
+      "Bash(xargs:*)",
+      "Bash(# Kill local process pkill -f \"\"main.py.*matrix_zero\"\" && echo \"\"Killed local process\"\" # Clear ComfyUI queue \\(interrupt all jobs\\) curl -s -X POST \"\"https://nr0shpwj09o0r7-8188.proxy.runpod.net/interrupt\"\" && echo \"\"Interrupted ComfyUI jobs\"\" # Clear pending queue curl -s -X POST \"\"https://nr0shpwj09o0r7-8188.proxy.runpod.net/queue\"\" -H \"\"Content-Type: application/json\"\" -d ''{\"\"clear\"\": true}'' && echo \"\"Cleared queue\"\" sleep 2 curl -s \"\"https://nr0shpwj09o0r7-8188.proxy.runpod.net/queue\"\")",
+      "Bash(source .venv/bin/activate)",
+      "Bash(tee:*)",
+      "Bash(source venv/bin/activate)",
+      "Bash(export CONTINUUM_COMFYUI__HOST=\"wss://wc1wxkowv7sxk2-8188.proxy.runpod.net\")",
+      "Bash(CONTINUUM_COMFYUI__HOST=\"wss://wc1wxkowv7sxk2-8188.proxy.runpod.net\" python:*)"
+    ]
+  }
+}

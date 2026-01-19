@@ -3402,4 +3402,82 @@ async def _upload_or_use_remote(self, file_path: Path) -> str:
 ```
 
 ---
+
+### 90. Anime Pivot & Test Demo Audio Gap
+
+| | |
+|---|---|
+| **Date** | 2026-01-19 |
+| **Severity** | Medium |
+| **Category** | Architecture, Testing |
+
+**The Problem:**
+
+The `test_demo_matrix_zero.py` script generated a 6-shot Goku anime video successfully, but the output had no audio. User expected audio based on the project.json dialogue definitions.
+
+**Root Cause:**
+
+The test script is a **simplified video-only pipeline** that tests:
+1. Hero Frame generation (SDXL + IP-Adapter)
+2. Bridge Frame generation (SDXL img2img + IP-Adapter)
+3. I2V video generation (Wan 2.1)
+4. FFmpeg stitching
+
+It does NOT implement the Sonic Engine (Section 3I of ARCHITECTURE.md):
+- No TTS dialogue generation
+- No ambience generation (AudioLDM-2)
+- No lip-sync (Wav2Lip/Musetalk)
+- No audio mixing
+
+**Anime Pivot Summary (Jan 2026):**
+
+The project pivoted from realistic human characters to anime characters:
+- **Old**: Ayush (realistic) with custom LoRA + ArcFace identity checking
+- **New**: Anime style with IP-Adapter + CLIP identity checking (0.85 threshold)
+- **Why**: Anime characters have more consistent identity (simpler features) and broader appeal for VC demo
+
+**Testing vs Production Identity Strategy:**
+
+| Scenario | Characters | LoRA Required? | Identity Method |
+|----------|-----------|----------------|-----------------|
+| **Testing (current)** | Goku, Naruto (well-known) | No | IP-Adapter + CLIP (base model recognizes them) |
+| **Production (future)** | Original/custom characters | **YES** | Custom LoRA + IP-Adapter + CLIP |
+
+- Well-known anime characters (Goku, Naruto, etc.) work without LoRA because the base model already knows them
+- Original characters, brand mascots, and custom IP **WILL require LoRA training**
+- The Wan 2.1 LoRA training workflow (see Lesson #87) applies to anime style too
+- Reference Images for testing: Goku0.png, Goku1.png, Goku2.png on RunPod input folder
+
+**Key Changes Made:**
+
+1. `test_demo_matrix_zero.py`:
+   - Updated prompts for Goku in cosmic void, training grounds, sunset cliff
+   - Set LORA_NAME = None (no LoRA needed for anime)
+   - Updated FACE_REF = "Goku0.png"
+   - Updated negative prompt to include "realistic, 3d render, photo"
+
+2. `projects/matrix_zero/project.json`:
+   - Style set to "anime"
+   - Characters: Goku and Naruto with voice configs
+   - CLIP identity threshold: 0.85
+
+3. `src/core/config.py`:
+   - StyleType enum: REALISTIC, ANIME, WEBTOON
+   - CLIP threshold: 0.85 for anime/webtoon styles
+   - ArcFace threshold: 0.50 for realistic style
+
+**To Add Audio (Future Work):**
+
+1. Implement Sonic Engine integration in test script or use full orchestrator
+2. Wire up TTS (ElevenLabs/OpenAI) from project.json dialogue definitions
+3. Add lip-sync pass after video generation
+4. Mix audio tracks with proper ducking
+
+**Prevention:**
+
+1. Test scripts should clearly document what they DO and DON'T test
+2. Consider adding `--with-audio` flag to test scripts that can optionally enable Sonic Engine
+3. Update test script banner to show "VIDEO ONLY - No Audio" warning
+
+---
 *Add new entries above this line as they're discovered.*

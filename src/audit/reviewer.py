@@ -16,7 +16,7 @@ Decision Logic:
     1. Run all enabled checks in parallel (for speed)
     2. Aggregate flags from each checker
     3. Apply severity weighting
-    4. Make final call: PASS â†’ continue, FAIL â†’ reroll, WARN â†’ flag for review
+    4. Make final call: PASS Ã¢â€ â€™ continue, FAIL Ã¢â€ â€™ reroll, WARN Ã¢â€ â€™ flag for review
 
 Use Cases:
     1. Within-shot audit: Check identity + physics within a single chunk
@@ -24,10 +24,10 @@ Use Cases:
     3. Full-shot audit: Both within-shot and cross-shot combined
 
 Architecture Position:
-    PASS 1 â†’ [REVIEWER] â†’ Pass 2 (if approved)
-                â†“
+    PASS 1 Ã¢â€ â€™ [REVIEWER] Ã¢â€ â€™ Pass 2 (if approved)
+                Ã¢â€ â€œ
            REROLL (if failed, attempt < max)
-                â†“
+                Ã¢â€ â€œ
            HUMAN REVIEW (if max attempts exceeded)
 
 Design Principles:
@@ -56,6 +56,7 @@ from .identity_checker import (
     IdentityComparison,
     IdentityCheckResult,
     get_identity_checker,
+    STYLE_CHECKERS,
 )
 from .physics_checker import (
     BasePhysicsChecker,
@@ -70,11 +71,11 @@ from .physics_checker import (
 # For now, we also support absolute imports for testing
 try:
     from ..core.job_state import AuditResult, AuditFlag, AuditStatus, AuditCheckType
-    from ..core.config import AuditConfig, get_config
+    from ..core.config import AuditConfig, get_config, StyleType
 except ImportError:
     # Fallback for standalone testing
     from core.job_state import AuditResult, AuditFlag, AuditStatus, AuditCheckType
-    from core.config import AuditConfig, get_config
+    from core.config import AuditConfig, get_config, StyleType
 
 
 logger = logging.getLogger(__name__)
@@ -198,7 +199,7 @@ class ReviewResult:
         return (
             f"[{status}] Shot {self.shot_id}: "
             f"{flag_count} flags from checks [{checks}] "
-            f"â†’ {self.audit_result.recommendation}"
+            f"Ã¢â€ â€™ {self.audit_result.recommendation}"
         )
 
 
@@ -257,6 +258,7 @@ class Reviewer:
         identity_checker: Optional[BaseIdentityChecker] = None,
         physics_checker: Optional[BasePhysicsChecker] = None,
         config: Optional[AuditConfig] = None,
+        style: Optional[StyleType] = None,
         identity_weight: float = DEFAULT_IDENTITY_WEIGHT,
         physics_weight: float = DEFAULT_PHYSICS_WEIGHT,
         fail_threshold: float = DEFAULT_FAIL_THRESHOLD,
@@ -271,6 +273,7 @@ class Reviewer:
             identity_checker: Custom identity checker (or None to auto-create)
             physics_checker: Custom physics checker (or None to auto-create)
             config: Audit configuration (or None to use global config)
+            style: Visual style for identity checking (or None to use config default)
             identity_weight: Weight for identity check severity (0-1)
             physics_weight: Weight for physics check severity (0-1)
             fail_threshold: Weighted severity above this = FAIL
@@ -280,12 +283,26 @@ class Reviewer:
         """
         self.config = config or get_config().audit
         
-        # Initialize checkers with config thresholds
+        # Determine effective style (parameter > config > default)
+        self.style = style or self.config.style
+        
+        # Get style-appropriate threshold
+        effective_threshold = self.config.get_identity_threshold_for_style(self.style)
+        
+        # Initialize checkers with style-aware configuration
+        # If custom checker provided, use it; otherwise create style-appropriate one
         self.identity_checker = identity_checker or get_identity_checker(
-            threshold=self.config.identity_threshold,
+            threshold=effective_threshold,
+            style=self.style,
         )
         self.physics_checker = physics_checker or get_physics_checker(
             missing_frames_threshold=self.config.physics_missing_frames,
+        )
+        
+        logger.debug(
+            f"Reviewer initialized: style={self.style.value}, "
+            f"identity_threshold={effective_threshold}, "
+            f"checker={self.identity_checker.__class__.__name__}"
         )
         
         # Weights for severity aggregation
@@ -724,7 +741,7 @@ class Reviewer:
         
         logger.debug(
             f"Aggregated {len(check_results)} checks: "
-            f"weighted_severity={weighted_severity:.3f} â†’ {status.value}"
+            f"weighted_severity={weighted_severity:.3f} Ã¢â€ â€™ {status.value}"
         )
         
         return AuditResult(
@@ -776,18 +793,29 @@ class Reviewer:
 def get_reviewer(
     use_mock: bool = False,
     config: Optional[AuditConfig] = None,
+    style: Optional[StyleType] = None,
     **kwargs,
 ) -> Reviewer:
     """
     Factory function to create a Reviewer.
     
+    Style-aware: Creates reviewer with appropriate identity checker for the style.
+    
     Args:
         use_mock: If True, use mock checkers (for testing)
         config: Audit configuration
+        style: Visual style (anime, realistic, etc.) - determines identity checker
         **kwargs: Passed to Reviewer constructor
         
     Returns:
         Configured Reviewer instance
+        
+    Usage:
+        # Backward compatible - uses config default (realistic)
+        reviewer = get_reviewer()
+        
+        # Explicit anime style
+        reviewer = get_reviewer(style=StyleType.ANIME)
     """
     if use_mock:
         from .identity_checker import MockIdentityChecker
@@ -797,10 +825,11 @@ def get_reviewer(
             identity_checker=MockIdentityChecker(),
             physics_checker=MockPhysicsChecker(),
             config=config,
+            style=style,
             **kwargs,
         )
     
-    return Reviewer(config=config, **kwargs)
+    return Reviewer(config=config, style=style, **kwargs)
 
 
 # =============================================================================

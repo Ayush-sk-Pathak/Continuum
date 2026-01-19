@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -337,11 +337,91 @@ def get_current_tier() -> ModelTier:
 def clear_cache() -> None:
     """
     Clear the cached models.json.
-    
+
     Useful for testing or after modifying models.json at runtime.
     """
     _load_models_json.cache_clear()
     logger.debug("Cleared model loader cache")
+
+
+def get_style_config(
+    style: "StyleType",
+    models_path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """
+    Get style-specific configuration from models.json.
+
+    Per ARCHITECTURE.md Section 16G (Multi-Format Output Strategy):
+    Each style (anime/realistic/webtoon) uses different:
+    - Identity checkers (CLIP vs ArcFace)
+    - Model checkpoints (animagine-xl-3.1 vs sd_xl_base)
+    - Identity thresholds (0.85 vs 0.50)
+
+    This function provides the central lookup for style-aware model selection,
+    ensuring all components use consistent checkpoints for each style.
+
+    Args:
+        style: StyleType enum (ANIME, REALISTIC, WEBTOON)
+        models_path: Override path to models.json
+
+    Returns:
+        Dict with style configuration including:
+        - identity_checker: "clip" or "arcface"
+        - identity_threshold: float threshold value
+        - hero_checkpoint: SDXL checkpoint for hero/bridge frames
+        - recommended_video_model: video generation model family
+        - clip_model: CLIP model name (if applicable)
+
+    Raises:
+        ValueError: If style not found in models.json
+        FileNotFoundError: If models.json doesn't exist
+
+    Example:
+        from src.core.config import StyleType
+        from src.core.model_loader import get_style_config
+
+        # Get anime style config
+        anime_config = get_style_config(StyleType.ANIME)
+        print(anime_config["hero_checkpoint"])  # "animagine-xl-3.1.safetensors"
+        print(anime_config["identity_checker"])  # "clip"
+
+        # Get realistic style config
+        realistic_config = get_style_config(StyleType.REALISTIC)
+        print(realistic_config["hero_checkpoint"])  # "sd_xl_base_1.0.safetensors"
+    """
+    # Import here to avoid circular dependency (config imports nothing from model_loader)
+    from src.core.config import StyleType
+
+    # Load models.json
+    models_data = _load_models_json(models_path)
+
+    # Validate styles section exists
+    if "styles" not in models_data:
+        raise ValueError(
+            "models.json missing 'styles' section. "
+            "See ARCHITECTURE.md Section 16 for required structure."
+        )
+
+    # Get style string value
+    style_str = style.value if isinstance(style, StyleType) else str(style)
+
+    # Validate style exists
+    if style_str not in models_data["styles"]:
+        available_styles = list(models_data["styles"].keys())
+        raise ValueError(
+            f"Style '{style_str}' not found in models.json. "
+            f"Available styles: {available_styles}"
+        )
+
+    style_config = models_data["styles"][style_str]
+
+    logger.debug(
+        f"Loaded style config for '{style_str}': "
+        f"checkpoint={style_config.get('hero_checkpoint')}, "
+        f"identity_checker={style_config.get('identity_checker')}"
+    )
+
+    return style_config
 
 
 # =============================================================================

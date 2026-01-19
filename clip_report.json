@@ -1,0 +1,110 @@
+{
+  "summary": {
+    "threshold": 0.85,
+    "total_tests": 7,
+    "accuracy": 100.0,
+    "correct": 7,
+    "false_positives": 0,
+    "false_negatives": 0
+  },
+  "statistics": {
+    "same_character_avg": 0.9716,
+    "different_character_avg": 0.7545,
+    "separation_margin": 0.2171,
+    "same_character_min": 0.9397,
+    "same_character_max": 0.9925,
+    "different_character_min": 0.7545,
+    "different_character_max": 0.7545
+  },
+  "recommendations": [
+    "\u2705 Perfect! Threshold 0.85 achieves 100% accuracy on this dataset",
+    "\ud83d\udca1 Optimal threshold estimate: 0.85 (midpoint between max different and min same)",
+    "\u2705 Good separation: 0.217 gap between same/different averages"
+  ],
+  "test_results": [
+    {
+      "name": "Goku_pose1_vs_pose2",
+      "category": "same_pose_variation",
+      "source": "anime_test/Goku/Goku0.png",
+      "target": "anime_test/Goku/Goku1.png",
+      "expected": "same_character",
+      "similarity": 0.9846,
+      "passed": true,
+      "threshold": 0.85,
+      "correct": true,
+      "message": "\u2713 Correct: Same character detected (0.9846)"
+    },
+    {
+      "name": "Goku_pose1_vs_pose3",
+      "category": "same_pose_variation",
+      "source": "anime_test/Goku/Goku0.png",
+      "target": "anime_test/Goku/Goku2.png",
+      "expected": "same_character",
+      "similarity": 0.9762,
+      "passed": true,
+      "threshold": 0.85,
+      "correct": true,
+      "message": "\u2713 Correct: Same character detected (0.9762)"
+    },
+    {
+      "name": "Goku_pose2_vs_pose3",
+      "category": "same_pose_variation",
+      "source": "anime_test/Goku/Goku1.png",
+      "target": "anime_test/Goku/Goku2.png",
+      "expected": "same_character",
+      "similarity": 0.9925,
+      "passed": true,
+      "threshold": 0.85,
+      "correct": true,
+      "message": "\u2713 Correct: Same character detected (0.9925)"
+    },
+    {
+      "name": "Naruto_pose1_vs_pose2",
+      "category": "same_pose_variation",
+      "source": "anime_test/Naruto/Naruto0.png",
+      "target": "anime_test/Naruto/Naruto1.png",
+      "expected": "same_character",
+      "similarity": 0.9642,
+      "passed": true,
+      "threshold": 0.85,
+      "correct": true,
+      "message": "\u2713 Correct: Same character detected (0.9642)"
+    },
+    {
+      "name": "Naruto_pose1_vs_pose3",
+      "category": "same_pose_variation",
+      "source": "anime_test/Naruto/Naruto0.png",
+      "target": "anime_test/Naruto/Naruto2.png",
+      "expected": "same_character",
+      "similarity": 0.9397,
+      "passed": true,
+      "threshold": 0.85,
+      "correct": true,
+      "message": "\u2713 Correct: Same character detected (0.9397)"
+    },
+    {
+      "name": "Naruto_pose2_vs_pose3",
+      "category": "same_pose_variation",
+      "source": "anime_test/Naruto/Naruto1.png",
+      "target": "anime_test/Naruto/Naruto2.png",
+      "expected": "same_character",
+      "similarity": 0.9723,
+      "passed": true,
+      "threshold": 0.85,
+      "correct": true,
+      "message": "\u2713 Correct: Same character detected (0.9723)"
+    },
+    {
+      "name": "Goku_vs_Naruto",
+      "category": "different_character",
+      "source": "anime_test/Goku/Goku0.png",
+      "target": "anime_test/Naruto/Naruto0.png",
+      "expected": "different_character",
+      "similarity": 0.7545,
+      "passed": false,
+      "threshold": 0.85,
+      "correct": true,
+      "message": "\u2713 Correct: Different characters detected (0.7545)"
+    }
+  ]
+}

@@ -1,38 +1,37 @@
 #!/usr/bin/env python3
 """
 ===============================================================================
-TEST DEMO: MATRIX ZERO - "Welcome to Continuum"
+TEST DEMO: MATRIX ZERO - ANIME EDITION (Goku)
 ===============================================================================
 
-6-shot, 30-second demo showcasing identity preservation across shots.
-Each shot: 5 seconds (81 frames @ 16fps)
+VIDEO ONLY - NO AUDIO (Sonic Engine not implemented in test script)
+See LESSONS_LEARNED.md #90 for details on adding audio.
+
+6-shot anime demo showcasing identity preservation across shots.
+Character: Goku (no LoRA needed - well-known anime character)
+Identity: IP-Adapter + CLIP similarity checking
 
 STRUCTURE: 3 Locations, 5 Transitions
-    
-    OFFICE (Shots 1-2):
-        Shot 1: Wide - Standing, begins raising hand
-        Shot 2: Close-up - Hand rises toward camera
+
+    COSMIC VOID (Shots 1-2):
+        Shot 1: Wide - Goku floating, arms crossed
+        Shot 2: Close-up - Confident smile, beckoning gesture
         [Transition: SAME SCENE - wide to close-up]
-    
-    DESERT (Shots 3-4):
-        Shot 3: Wide - Standing in desert, walks forward
-        Shot 4: Close-up - Reaches toward camera
-        [Transition 2→3: SCENE CHANGE - hand rises → desert]
+
+    TRAINING GROUNDS (Shots 3-4):
+        Shot 3: Wide - Battle stance, powering up
+        Shot 4: Close-up - Intense focus, energy crackling
+        [Transition 2→3: SCENE CHANGE - cosmic → training]
         [Transition 3→4: SAME SCENE - wide to close-up]
-    
-    BEACH (Shots 5-6):
-        Shot 5: Medium - Sitting, sips cocktail
-        Shot 6: Close-up - Lowers drink, knowing nod
-        [Transition 4→5: SCENE CHANGE - hand grabs → beach]
+
+    SUNSET CLIFF (Shots 5-6):
+        Shot 5: Medium - Victory pose, triumphant
+        Shot 6: Close-up - Thumbs up, classic Goku
+        [Transition 4→5: SCENE CHANGE - training → cliff]
         [Transition 5→6: SAME SCENE - medium to close-up]
 
-FILM CUTS FRAMEWORK:
-    - Same-scene cuts use framing changes (wide/medium/close-up)
-    - Scene changes use action continuity (hand motion → new world)
-    - Tests identity preservation HARD (same background exposes drift)
-
 Pipeline:
-    Shot 1: Hero Frame → I2V
+    Shot 1: Hero Frame (SDXL + IP-Adapter) → I2V (Wan 2.1)
     Shots 2-6: Extract last frame → Bridge Frame → I2V
     Final: FFmpeg stitch all 6 clips
 
@@ -41,7 +40,7 @@ Usage:
     python tests/test_demo_matrix_zero.py
 
 Author: Continuum Studios
-Date: 2026-01-03
+Date: 2026-01-19 (Anime Pivot)
 ===============================================================================
 """
 
@@ -68,16 +67,16 @@ if not COMFY_HOST:
 COMFY_URL = COMFY_HOST.rstrip("/")
 
 # Video settings
-FRAME_COUNT = 81        # ~5 seconds at 16fps
+FRAME_COUNT = 33        # ~2 seconds at 16fps (quick test)
 FRAME_RATE = 16         # Standard for Wan 2.1
-WIDTH = 832
-HEIGHT = 480
+WIDTH = 512
+HEIGHT = 288
 
-# Identity settings
-LORA_NAME = "ayush_wan21_i2v_v1.safetensors"
-LORA_STRENGTH = 0.85
-FACE_REF = "ayush_ref.png"
-TRIGGER = "ayush, a man with black hair and beard"
+# Identity settings - ANIME/GOKU
+LORA_NAME = None  # No LoRA needed for well-known anime characters
+LORA_STRENGTH = 0.0
+FACE_REF = "Goku0.png"
+TRIGGER = "goku, anime style, spiky black hair, orange gi martial arts uniform"
 
 # Output prefix
 OUTPUT_PREFIX = "matrix_zero"
@@ -98,127 +97,121 @@ class Shot:
     
 SHOTS = [
     # =========================================================================
-    # LOCATION 1: OFFICE (Shots 1-2) - Establish mystery, zoom in on invitation
-    # Transition 1→2: SAME SCENE - Wide to Close-up
+    # LOCATION 1: COSMIC VOID (Shots 1-2) - Goku's invitation
     # =========================================================================
     Shot(
         id=1,
-        name="office_wide",
-        location="office",
+        name="cosmic_wide",
+        location="cosmic_void",
         hero_prompt=(
-            "a man with black hair and beard, standing in modern minimalist office, "
-            "full body wide shot, centered in frame, soft window lighting, "
-            "hands at sides, looking at camera with mysterious expression, "
-            "cinematic wide angle, 4k, clean background"
+            "goku, anime style, spiky black hair, orange gi, floating in deep space cosmic void, "
+            "swirling blue and purple energy around him, stars and galaxies background, "
+            "full body wide shot, arms crossed confidently, powerful aura glowing, "
+            "epic anime scene, high quality anime art, dramatic lighting, 4k"
         ),
         i2v_prompt=(
-            f"{TRIGGER}, standing in modern minimalist office, full body wide shot, "
-            "soft window lighting, looks directly at camera with mysterious expression, "
-            "slowly begins raising right hand toward camera, weight shifts forward, "
-            "cinematic wide angle, 4k, smooth motion"
+            f"{TRIGGER}, floating in deep space cosmic void, full body wide shot, "
+            "swirling blue and purple energy, stars and galaxies background, "
+            "uncrosses arms and powers up, aura intensifies, energy crackling, "
+            "epic anime scene, high quality anime art, 4k, smooth motion"
         ),
     ),
     Shot(
         id=2,
-        name="office_closeup",
-        location="office",
+        name="cosmic_closeup",
+        location="cosmic_void",
         hero_prompt=(
-            "a man with black hair and beard, close-up portrait in modern office, "
-            "face and raised hand visible in frame, soft window lighting from side, "
-            "mysterious intense expression, shallow depth of field, "
-            "cinematic close-up, 4k"
+            "goku, anime style, spiky black hair, close-up portrait, "
+            "cosmic void background blurred, confident smile, "
+            "reaching hand toward camera, inviting gesture, glowing aura, "
+            "dynamic anime expression, high quality anime art, dramatic rim lighting, 4k"
         ),
         i2v_prompt=(
-            f"{TRIGGER}, close-up portrait in modern office, face and hand in frame, "
-            "soft window lighting, intense mysterious gaze at camera, "
-            "hand rises up toward camera lens, fingers spread open, offering gesture, "
-            "shallow depth of field, cinematic close-up, 4k, smooth motion"
+            f"{TRIGGER}, close-up portrait, cosmic void background blurred, "
+            "confident excited smile, reaches hand toward camera, beckoning gesture, "
+            "aura pulses with energy, eyes bright with anticipation, "
+            "high quality anime art, dramatic rim lighting, 4k, smooth motion"
         ),
     ),
     # =========================================================================
-    # LOCATION 2: DESERT (Shots 3-4) - New reality revealed
-    # Transition 2→3: SCENE CHANGE - Hand rises → Cut to desert wide
-    # Transition 3→4: SAME SCENE - Wide to Close-up
+    # LOCATION 2: TRAINING GROUNDS (Shots 3-4) - Power demonstration
     # =========================================================================
     Shot(
         id=3,
-        name="desert_wide",
-        location="matrix_desert",
+        name="training_wide",
+        location="training_grounds",
         hero_prompt=(
-            "a man with black hair and beard, standing in vast orange desert, "
-            "full body wide shot, geometric grid pattern on horizon, "
-            "confident stance, golden hour lighting, "
-            "epic cinematic wide shot, matrix aesthetic, 4k"
+            "goku, anime style, spiky black hair, orange gi, standing in rocky mountain training grounds, "
+            "dramatic cliffs and boulders around him, dust and debris floating, "
+            "full body wide shot, battle stance, powerful energy aura, "
+            "epic anime scene, high quality anime art, golden hour lighting, 4k"
         ),
         i2v_prompt=(
-            f"{TRIGGER}, standing in vast orange desert, full body wide shot, "
-            "geometric grid on horizon, confident powerful stance, "
-            "walks forward toward camera, extends arm in beckoning follow-me gesture, "
-            "golden hour lighting, matrix aesthetic, epic cinematic wide, 4k, smooth motion"
+            f"{TRIGGER}, standing in rocky mountain training grounds, full body wide shot, "
+            "dramatic cliffs background, begins powering up, energy explodes outward, "
+            "rocks float and crumble around him, battle stance intensifies, "
+            "epic anime scene, high quality anime art, 4k, smooth motion"
         ),
     ),
     Shot(
         id=4,
-        name="desert_closeup",
-        location="matrix_desert",
+        name="training_closeup",
+        location="training_grounds",
         hero_prompt=(
-            "a man with black hair and beard, dramatic close-up in desert, "
-            "face and extended arm filling frame, orange desert background blurred, "
-            "intense focused expression, golden rim lighting, "
-            "cinematic close-up, matrix style, 4k"
+            "goku, anime style, spiky black hair, dramatic close-up, "
+            "rocky training grounds background blurred, intense focused expression, "
+            "energy crackling around face, determined battle-ready look, "
+            "high quality anime art, golden rim lighting, 4k"
         ),
         i2v_prompt=(
-            f"{TRIGGER}, dramatic close-up in orange desert, face and arm in frame, "
-            "blurred desert background, reaches hand dramatically toward camera lens, "
-            "fingers spread wide grabbing at reality, intense focused expression, "
-            "golden rim lighting, cinematic close-up, matrix style, 4k, smooth motion"
+            f"{TRIGGER}, dramatic close-up, rocky background blurred, "
+            "intense focused expression, powers up with fierce determination, "
+            "hair flows with energy, aura blazing, eyes sharp and ready, "
+            "high quality anime art, golden rim lighting, 4k, smooth motion"
         ),
     ),
     # =========================================================================
-    # LOCATION 3: BEACH (Shots 5-6) - Paradise payoff
-    # Transition 4→5: SCENE CHANGE - Hand grabs camera → Cut to beach medium
-    # Transition 5→6: SAME SCENE - Medium to Close-up
+    # LOCATION 3: VICTORY CELEBRATION (Shots 5-6) - Triumphant ending
     # =========================================================================
     Shot(
         id=5,
-        name="beach_medium",
-        location="tropical_beach",
+        name="victory_medium",
+        location="sunset_cliff",
         hero_prompt=(
-            "a man with black hair and beard, medium shot sitting in beach lounge chair, "
-            "upper body and chair visible, tropical paradise background, "
-            "crystal blue water, colorful cocktail on side table, "
-            "relaxed confident posture, golden sunset lighting, cinematic, 4k"
+            "goku, anime style, spiky black hair, orange gi, medium shot standing on cliff edge, "
+            "epic orange sunset sky behind him, wind blowing gi, "
+            "relaxed victorious pose, arms at sides, peaceful expression, "
+            "beautiful anime scene, high quality anime art, warm sunset lighting, 4k"
         ),
         i2v_prompt=(
-            f"{TRIGGER}, medium shot in beach lounge chair, upper body visible, "
-            "tropical paradise background, crystal blue water, "
-            "reaches for colorful cocktail drink, picks it up, brings to lips, takes sip, "
-            "relaxed satisfied expression, golden sunset lighting, cinematic, 4k, smooth motion"
+            f"{TRIGGER}, medium shot on cliff edge, epic sunset behind, "
+            "wind blows through hair and gi, relaxed victorious stance, "
+            "takes deep breath, raises fist in triumph, peaceful smile, "
+            "beautiful anime scene, high quality anime art, 4k, smooth motion"
         ),
     ),
     Shot(
         id=6,
-        name="beach_closeup",
-        location="tropical_beach",
+        name="victory_closeup",
+        location="sunset_cliff",
         hero_prompt=(
-            "a man with black hair and beard, close-up portrait on tropical beach, "
-            "face filling frame, holding cocktail glass near chin, "
-            "knowing confident smile, warm golden sunset lighting on face, "
-            "blurred ocean background, shallow depth of field, cinematic, 4k"
+            "goku, anime style, spiky black hair, close-up portrait, "
+            "epic sunset sky background blurred, warm golden light on face, "
+            "confident knowing smile, looking at camera, triumphant expression, "
+            "high quality anime art, beautiful sunset lighting, 4k"
         ),
         i2v_prompt=(
-            f"{TRIGGER}, close-up portrait on tropical beach, face filling frame, "
-            "warm sunset lighting, lowers cocktail glass from lips, "
-            "looks directly at camera with knowing confident expression, "
-            "slight approving nod, the look says welcome to my world, "
-            "shallow depth of field, cinematic, 4k, smooth motion"
+            f"{TRIGGER}, close-up portrait, sunset background blurred, "
+            "warm golden light, confident smile grows wider, "
+            "gives thumbs up to camera, winks, classic Goku pose, "
+            "high quality anime art, beautiful sunset lighting, 4k, smooth motion"
         ),
     ),
 ]
 
 NEGATIVE_PROMPT = (
-    "blurry, distorted, ugly, watermark, deformed face, bad anatomy, extra limbs, "
-    "low quality, amateur, shaky camera, text, subtitles"
+    "realistic, 3d render, photo, blurry, deformed, bad anatomy, extra limbs, "
+    "watermark, text, low quality, amateur, wrong hair color, wrong outfit"
 )
 
 
@@ -401,8 +394,8 @@ def build_bridge_frame_workflow(shot: Shot, source_image: str) -> dict:
 
 
 def build_i2v_workflow(shot: Shot, init_image: str) -> dict:
-    """Build Wan I2V + LoRA workflow."""
-    return {
+    """Build Wan I2V workflow (with optional LoRA)."""
+    workflow = {
         "clip_loader": {
             "class_type": "CLIPLoader",
             "inputs": {
@@ -426,20 +419,6 @@ def build_i2v_workflow(shot: Shot, init_image: str) -> dict:
             "class_type": "CLIPVisionLoader",
             "inputs": {"clip_name": "clip_vision_h.safetensors"}
         },
-        "lora_loader": {
-            "class_type": "LoraLoader",
-            "inputs": {
-                "lora_name": LORA_NAME,
-                "strength_model": LORA_STRENGTH,
-                "strength_clip": 0.0,
-                "model": ["unet_loader", 0],
-                "clip": ["clip_loader", 0]
-            }
-        },
-        "model_sampling": {
-            "class_type": "ModelSamplingSD3",
-            "inputs": {"shift": 8, "model": ["lora_loader", 0]}
-        },
         "load_image": {
             "class_type": "LoadImage",
             "inputs": {"image": init_image}
@@ -452,61 +431,86 @@ def build_i2v_workflow(shot: Shot, init_image: str) -> dict:
                 "image": ["load_image", 0]
             }
         },
-        "positive_prompt": {
-            "class_type": "CLIPTextEncode",
-            "inputs": {"text": shot.i2v_prompt, "clip": ["lora_loader", 1]}
-        },
-        "negative_prompt": {
-            "class_type": "CLIPTextEncode",
-            "inputs": {"text": NEGATIVE_PROMPT, "clip": ["lora_loader", 1]}
-        },
-        "wan_i2v": {
-            "class_type": "WanImageToVideo",
+    }
+
+    # Conditionally add LoRA or connect directly
+    if LORA_NAME:
+        workflow["lora_loader"] = {
+            "class_type": "LoraLoader",
             "inputs": {
-                "width": WIDTH,
-                "height": HEIGHT,
-                "length": FRAME_COUNT,
-                "batch_size": 1,
-                "positive": ["positive_prompt", 0],
-                "negative": ["negative_prompt", 0],
-                "vae": ["vae_loader", 0],
-                "clip_vision_output": ["clip_vision_encode", 0],
-                "start_image": ["load_image", 0]
-            }
-        },
-        "sampler": {
-            "class_type": "KSampler",
-            "inputs": {
-                "seed": 100000 + shot.id * 1000,
-                "control_after_generate": "fixed",
-                "steps": 20,
-                "cfg": 6.0,
-                "sampler_name": "uni_pc",
-                "scheduler": "simple",
-                "denoise": 1,
-                "model": ["model_sampling", 0],
-                "positive": ["wan_i2v", 0],
-                "negative": ["wan_i2v", 1],
-                "latent_image": ["wan_i2v", 2]
-            }
-        },
-        "vae_decode": {
-            "class_type": "VAEDecode",
-            "inputs": {"samples": ["sampler", 0], "vae": ["vae_loader", 0]}
-        },
-        "save_video": {
-            "class_type": "VHS_VideoCombine",
-            "inputs": {
-                "frame_rate": FRAME_RATE,
-                "loop_count": 0,
-                "filename_prefix": f"{OUTPUT_PREFIX}_shot{shot.id:02d}",
-                "format": "video/h264-mp4",
-                "pingpong": False,
-                "save_output": True,
-                "images": ["vae_decode", 0]
+                "lora_name": LORA_NAME,
+                "strength_model": LORA_STRENGTH,
+                "strength_clip": 0.0,
+                "model": ["unet_loader", 0],
+                "clip": ["clip_loader", 0]
             }
         }
+        model_source = ["lora_loader", 0]
+        clip_source = ["lora_loader", 1]
+    else:
+        # No LoRA - connect directly to unet and clip
+        model_source = ["unet_loader", 0]
+        clip_source = ["clip_loader", 0]
+
+    workflow["model_sampling"] = {
+        "class_type": "ModelSamplingSD3",
+        "inputs": {"shift": 8, "model": model_source}
     }
+    workflow["positive_prompt"] = {
+        "class_type": "CLIPTextEncode",
+        "inputs": {"text": shot.i2v_prompt, "clip": clip_source}
+    }
+    workflow["negative_prompt"] = {
+        "class_type": "CLIPTextEncode",
+        "inputs": {"text": NEGATIVE_PROMPT, "clip": clip_source}
+    }
+    workflow["wan_i2v"] = {
+        "class_type": "WanImageToVideo",
+        "inputs": {
+            "width": WIDTH,
+            "height": HEIGHT,
+            "length": FRAME_COUNT,
+            "batch_size": 1,
+            "positive": ["positive_prompt", 0],
+            "negative": ["negative_prompt", 0],
+            "vae": ["vae_loader", 0],
+            "clip_vision_output": ["clip_vision_encode", 0],
+            "start_image": ["load_image", 0]
+        }
+    }
+    workflow["sampler"] = {
+        "class_type": "KSampler",
+        "inputs": {
+            "seed": 100000 + shot.id * 1000,
+            "control_after_generate": "fixed",
+            "steps": 20,
+            "cfg": 6.0,
+            "sampler_name": "uni_pc",
+            "scheduler": "simple",
+            "denoise": 1,
+            "model": ["model_sampling", 0],
+            "positive": ["wan_i2v", 0],
+            "negative": ["wan_i2v", 1],
+            "latent_image": ["wan_i2v", 2]
+        }
+    }
+    workflow["vae_decode"] = {
+        "class_type": "VAEDecode",
+        "inputs": {"samples": ["sampler", 0], "vae": ["vae_loader", 0]}
+    }
+    workflow["save_video"] = {
+        "class_type": "VHS_VideoCombine",
+        "inputs": {
+            "frame_rate": FRAME_RATE,
+            "loop_count": 0,
+            "filename_prefix": f"{OUTPUT_PREFIX}_shot{shot.id:02d}",
+            "format": "video/h264-mp4",
+            "pingpong": False,
+            "save_output": True,
+            "images": ["vae_decode", 0]
+        }
+    }
+    return workflow
 
 
 # =============================================================================
@@ -531,17 +535,14 @@ def submit_and_wait(workflow: dict, stage_name: str, timeout_sec: int = 600) -> 
     for i in range(timeout_sec // 5):
         time.sleep(5)
         elapsed = (i + 1) * 5
-        
+
         try:
             history = requests.get(f"{COMFY_URL}/history/{prompt_id}", timeout=10).json()
-            
+
             if prompt_id in history:
                 outputs = history[prompt_id].get("outputs", {})
-                if outputs:
-                    print(f"\n✅ {stage_name} COMPLETED! ({elapsed}s)")
-                    return {"prompt_id": prompt_id, "outputs": outputs}
-                    
                 status = history[prompt_id].get("status", {})
+
                 if status.get("status_str") == "error":
                     print(f"\n❌ {stage_name} FAILED!")
                     messages = status.get("messages", [])
@@ -549,10 +550,20 @@ def submit_and_wait(workflow: dict, stage_name: str, timeout_sec: int = 600) -> 
                         if msg[0] == "execution_error":
                             print(f"Error: {msg[1].get('exception_message', 'Unknown')}")
                     return None
-                    
+
+                # Check for success (handles both normal and cached results)
+                if status.get("status_str") == "success":
+                    if outputs:
+                        print(f"\n✅ {stage_name} COMPLETED! ({elapsed}s)")
+                        return {"prompt_id": prompt_id, "outputs": outputs}
+                    else:
+                        # Cached result - outputs empty, need to infer filename
+                        print(f"\n✅ {stage_name} COMPLETED (cached)! ({elapsed}s)")
+                        return {"prompt_id": prompt_id, "outputs": {}, "cached": True}
+
         except Exception:
             pass  # Network hiccup, keep polling
-            
+
         print(f"  ... {elapsed}s elapsed", end="\r")
     
     print(f"\n⚠️ {stage_name} timeout after {timeout_sec}s")
@@ -561,11 +572,33 @@ def submit_and_wait(workflow: dict, stage_name: str, timeout_sec: int = 600) -> 
 
 def extract_output_filename(outputs: dict, file_type: str = "images") -> Optional[str]:
     """Extract filename from ComfyUI outputs."""
-    for node_id, node_output in outputs.items():
+    for _, node_output in outputs.items():
         if file_type in node_output:
             return node_output[file_type][0]["filename"]
         if "gifs" in node_output:  # VHS_VideoCombine uses "gifs"
             return node_output["gifs"][0]["filename"]
+    return None
+
+
+def find_latest_file(prefix: str, extension: str = "png") -> Optional[str]:
+    """Find latest file matching prefix from ComfyUI output via API."""
+    try:
+        resp = requests.get(f"{COMFY_URL}/view?filename={prefix}&type=output", timeout=10)
+        if resp.status_code == 200:
+            return f"{prefix}"
+    except Exception:
+        pass
+
+    # Fallback: list files and find matching pattern
+    # ComfyUI adds _00001_, _00002_ etc. suffixes
+    for i in range(10, 0, -1):
+        candidate = f"{prefix}_{i:05d}_.{extension}"
+        try:
+            resp = requests.head(f"{COMFY_URL}/view?filename={candidate}&type=output", timeout=5)
+            if resp.status_code == 200:
+                return candidate
+        except Exception:
+            continue
     return None
 
 
@@ -602,20 +635,21 @@ def main():
     print("""
 ╔═══════════════════════════════════════════════════════════════════╗
 ║                                                                   ║
-║       MATRIX ZERO - "Welcome to Continuum" Demo                   ║
+║       MATRIX ZERO - ANIME EDITION (Goku)                          ║
+║       VIDEO ONLY - No Audio (Sonic Engine not in test script)     ║
 ║                                                                   ║
-║       6 Shots × 5 Seconds = 30 Second Demo                        ║
+║       6 Shots × ~2 Seconds = ~12 Second Demo (quick test)         ║
 ║                                                                   ║
 ║       STRUCTURE:                                                  ║
-║         Office:  Shot 1 (wide) → Shot 2 (close-up)               ║
-║         Desert:  Shot 3 (wide) → Shot 4 (close-up)               ║
-║         Beach:   Shot 5 (medium) → Shot 6 (close-up)             ║
+║         Cosmic Void:      Shot 1 (wide) → Shot 2 (close-up)      ║
+║         Training Grounds: Shot 3 (wide) → Shot 4 (close-up)      ║
+║         Sunset Cliff:     Shot 5 (medium) → Shot 6 (close-up)    ║
 ║                                                                   ║
 ║       TRANSITIONS:                                                ║
 ║         1→2: Same scene (zoom in)                                 ║
-║         2→3: SCENE CHANGE (office → desert)                       ║
+║         2→3: SCENE CHANGE (cosmic → training)                     ║
 ║         3→4: Same scene (angle change)                            ║
-║         4→5: SCENE CHANGE (desert → beach)                        ║
+║         4→5: SCENE CHANGE (training → cliff)                      ║
 ║         5→6: Same scene (tighter frame)                           ║
 ║                                                                   ║
 ╚═══════════════════════════════════════════════════════════════════╝
@@ -647,6 +681,9 @@ def main():
         sys.exit(1)
     
     hero_filename = extract_output_filename(result["outputs"], "images")
+    if not hero_filename and result.get("cached"):
+        # Cached result - find the file by expected prefix
+        hero_filename = find_latest_file(f"{OUTPUT_PREFIX}_shot{shot.id:02d}_hero", "png")
     print(f"📸 Hero frame: {hero_filename}")
     
     # Copy hero frame to input
@@ -663,9 +700,11 @@ def main():
         sys.exit(1)
     
     video_filename = extract_output_filename(result["outputs"], "gifs")
+    if not video_filename and result.get("cached"):
+        video_filename = find_latest_file(f"{OUTPUT_PREFIX}_shot{shot.id:02d}", "mp4")
     print(f"🎬 Video: {video_filename}")
     video_files.append(video_filename)
-    
+
     # =========================================================================
     # SHOTS 2-6: Extract Last Frame → Bridge Frame → I2V
     # =========================================================================
@@ -690,6 +729,8 @@ def main():
             sys.exit(1)
         
         bridge_filename = extract_output_filename(result["outputs"], "images")
+        if not bridge_filename and result.get("cached"):
+            bridge_filename = find_latest_file(f"{OUTPUT_PREFIX}_shot{shot.id:02d}_bridge", "png")
         print(f"🌉 Bridge frame: {bridge_filename}")
         
         # Copy bridge frame to input
@@ -706,9 +747,11 @@ def main():
             sys.exit(1)
         
         video_filename = extract_output_filename(result["outputs"], "gifs")
+        if not video_filename and result.get("cached"):
+            video_filename = find_latest_file(f"{OUTPUT_PREFIX}_shot{shot.id:02d}", "mp4")
         print(f"🎬 Video: {video_filename}")
         video_files.append(video_filename)
-    
+
     # =========================================================================
     # STITCH ALL VIDEOS
     # =========================================================================

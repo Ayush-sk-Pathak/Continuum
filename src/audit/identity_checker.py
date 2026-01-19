@@ -2,7 +2,7 @@
 Continuum Engine - Identity Checker (ArcFace Verification)
 
 Verifies that character identity is preserved across frames and shots.
-This is the PROOF that Bridge Engine works â€” without it, we're just hoping.
+This is the PROOF that Bridge Engine works Ã¢â‚¬â€ without it, we're just hoping.
 
 The Problem:
     Video models drift. Alice in frame 1 might not look like Alice in frame 100.
@@ -11,7 +11,7 @@ The Problem:
 The Solution:
     Extract face embeddings using ArcFace (industry standard for face recognition).
     Compare embeddings between frames using cosine similarity.
-    Threshold at 0.70 â€” below that, identity has drifted unacceptably.
+    Threshold at 0.70 Ã¢â‚¬â€ below that, identity has drifted unacceptably.
 
 Use Cases:
     1. Within-shot check: Compare first vs last frame of a chunk
@@ -24,7 +24,7 @@ Architecture:
     - MockIdentityChecker: Testing without GPU/models
 
 Design Principles:
-    1. Fail gracefully: No face detected â†’ WARN, not crash
+    1. Fail gracefully: No face detected Ã¢â€ â€™ WARN, not crash
     2. Multi-face aware: Handle scenes with multiple characters
     3. Async-ready: Face extraction can be batched
     4. Audit-compatible: Returns AuditResult-compatible data
@@ -36,8 +36,15 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 import numpy as np
+
+# Import StyleType for style-aware checker dispatch
+# Using try/except for standalone testing compatibility
+try:
+    from ..core.config import StyleType
+except ImportError:
+    from core.config import StyleType
 
 logger = logging.getLogger(__name__)
 
@@ -676,7 +683,7 @@ class ArcFaceIdentityChecker(BaseIdentityChecker):
             # Debug: Log the key diagnostic info
             pass_fail = "PASS" if result == IdentityCheckResult.MATCH else "FAIL"
             logger.info(
-                f"  Identity: {similarity:.4f} vs threshold {self.threshold:.2f} → {pass_fail}"
+                f"  Identity: {similarity:.4f} vs threshold {self.threshold:.2f} â†’ {pass_fail}"
             )
             
             return IdentityComparison(
@@ -718,7 +725,7 @@ class ArcFaceIdentityChecker(BaseIdentityChecker):
         # Debug: Log the key diagnostic info
         pass_fail = "PASS" if result == IdentityCheckResult.MATCH else "FAIL"
         logger.info(
-            f"  Identity: {similarity:.4f} vs threshold {self.threshold:.2f} → {pass_fail} "
+            f"  Identity: {similarity:.4f} vs threshold {self.threshold:.2f} â†’ {pass_fail} "
             f"(faces: {source_faces.face_count} vs {target_faces.face_count})"
         )
         
@@ -730,6 +737,260 @@ class ArcFaceIdentityChecker(BaseIdentityChecker):
             target_faces=target_faces,
             matched_pairs=[(0, 0, similarity)],  # Primary face indices
             message=message,
+            comparison_time_sec=elapsed,
+        )
+
+
+# =============================================================================
+# CLIP IMPLEMENTATION (Anime/Stylized Content)
+# =============================================================================
+
+class CLIPIdentityChecker(BaseIdentityChecker):
+    """
+    CLIP-based identity checker for anime/stylized content.
+    
+    Unlike ArcFace which relies on facial geometry, CLIP uses semantic
+    similarity to determine if two images show the "same character".
+    This works for anime, webtoons, and other stylized art where
+    facial proportions don't match real human anatomy.
+    
+    Why CLIP works for anime:
+    - Trained on diverse image-text pairs including illustrations
+    - Captures semantic "same character" concept, not facial geometry
+    - Generalizes across art styles and proportions
+    
+    Requires: pip install transformers torch pillow
+    
+    Usage:
+        checker = CLIPIdentityChecker(threshold=0.85)
+        await checker.initialize()
+        
+        result = await checker.compare(frame_a, frame_b)
+        print(f"Similarity: {result.similarity}")
+        print(f"Passed: {result.passed}")
+    
+    Architecture Reference:
+        See ARCHITECTURE.md Section 16 (Multi-Format Output Strategy)
+        and ANIME_PIVOT_SILO_HANDOFF.md for design rationale.
+    """
+    
+    # Default CLIP model - ViT-B/32 is a good balance of speed/quality
+    DEFAULT_CLIP_MODEL = "openai/clip-vit-base-patch32"
+    DEFAULT_CLIP_THRESHOLD = 0.85
+    
+    def __init__(
+        self,
+        threshold: float = DEFAULT_CLIP_THRESHOLD,
+        model_name: str = DEFAULT_CLIP_MODEL,
+        device: Optional[str] = None,
+    ):
+        """
+        Initialize CLIP identity checker.
+        
+        Args:
+            threshold: Similarity threshold for MATCH (default 0.85)
+            model_name: HuggingFace model name for CLIP
+            device: Device to run on ("cuda", "cpu", or None for auto)
+        """
+        # Note: detection_threshold not used for CLIP (no face detection)
+        super().__init__(threshold, detection_threshold=0.0)
+        self.model_name = model_name
+        self._device = device
+        self._model = None
+        self._processor = None
+        self._initialized = False
+    
+    async def initialize(self) -> None:
+        """
+        Load the CLIP model.
+        
+        Called automatically on first use, but can be called explicitly
+        to pre-warm the model.
+        """
+        if self._initialized:
+            return
+        
+        try:
+            # Import here to avoid hard dependency
+            import torch
+            from transformers import CLIPProcessor, CLIPModel
+            
+            # Auto-detect device if not specified
+            if self._device is None:
+                self._device = "cuda" if torch.cuda.is_available() else "cpu"
+            
+            # Load model and processor
+            self._model = CLIPModel.from_pretrained(self.model_name)
+            self._processor = CLIPProcessor.from_pretrained(self.model_name)
+            
+            # Move to device
+            self._model = self._model.to(self._device)
+            self._model.eval()  # Set to evaluation mode
+            
+            self._initialized = True
+            logger.info(
+                f"CLIP model '{self.model_name}' loaded successfully on {self._device}"
+            )
+            
+        except ImportError:
+            raise ModelLoadError(
+                "transformers or torch not installed. "
+                "Run: pip install transformers torch"
+            )
+        except Exception as e:
+            raise ModelLoadError(f"Failed to load CLIP model: {e}")
+    
+    async def health_check(self) -> bool:
+        """Check if model is loaded and ready."""
+        try:
+            if not self._initialized:
+                await self.initialize()
+            return self._model is not None and self._processor is not None
+        except Exception as e:
+            logger.error(f"CLIP health check failed: {e}")
+            return False
+    
+    async def _get_image_embedding(self, image_path: Path) -> np.ndarray:
+        """
+        Extract CLIP embedding from an image.
+        
+        Args:
+            image_path: Path to image file
+            
+        Returns:
+            Normalized embedding vector (512-dim for ViT-B/32)
+        """
+        import torch
+        from PIL import Image
+        
+        if not self._initialized:
+            await self.initialize()
+        
+        # Load image
+        try:
+            image = Image.open(image_path).convert("RGB")
+        except Exception as e:
+            raise ImageLoadError(f"Failed to load {image_path}: {e}")
+        
+        # Process and extract embedding
+        try:
+            inputs = self._processor(images=image, return_tensors="pt")
+            inputs = {k: v.to(self._device) for k, v in inputs.items()}
+            
+            with torch.no_grad():
+                image_features = self._model.get_image_features(**inputs)
+            
+            # Normalize embedding
+            embedding = image_features.cpu().numpy().flatten()
+            embedding = embedding / np.linalg.norm(embedding)
+            
+            return embedding
+            
+        except Exception as e:
+            raise ExtractionError(f"CLIP embedding extraction failed: {e}")
+    
+    async def extract_faces(self, frame_path: Path) -> FrameFaces:
+        """
+        Extract "face" data from frame using CLIP.
+        
+        Note: CLIP doesn't actually detect faces - it embeds the whole image.
+        This method exists to satisfy the BaseIdentityChecker interface.
+        We store the CLIP embedding in the FaceEmbedding structure for
+        compatibility with existing code paths.
+        """
+        import time
+        start_time = time.time()
+        
+        try:
+            embedding = await self._get_image_embedding(frame_path)
+            
+            # Wrap in FaceEmbedding for interface compatibility
+            # bbox covers full image since CLIP embeds the whole image
+            face_embedding = FaceEmbedding(
+                embedding=embedding,
+                bbox=(0, 0, 1, 1),  # Normalized full-image bbox
+                confidence=1.0,     # CLIP always "detects" the image
+                frame_path=frame_path,
+            )
+            
+            elapsed = time.time() - start_time
+            
+            return FrameFaces(
+                frame_path=frame_path,
+                faces=[face_embedding],  # Single "face" = whole image embedding
+                extraction_time_sec=elapsed,
+            )
+            
+        except (ImageLoadError, ExtractionError):
+            raise
+        except Exception as e:
+            raise ExtractionError(f"CLIP extraction failed for {frame_path}: {e}")
+    
+    async def compare(
+        self,
+        source_frame: Path,
+        target_frame: Path,
+        character_hint: Optional[str] = None,
+    ) -> IdentityComparison:
+        """
+        Compare identity between two frames using CLIP similarity.
+        
+        This compares the semantic content of two images to determine
+        if they show the "same character" in an anime/stylized context.
+        """
+        import time
+        start_time = time.time()
+        
+        logger.debug(
+            f"CLIP identity compare: {source_frame.name} vs {target_frame.name}"
+            f"{f' (hint: {character_hint})' if character_hint else ''}"
+        )
+        
+        # Extract embeddings from both frames
+        try:
+            source_faces = await self.extract_faces(source_frame)
+            target_faces = await self.extract_faces(target_frame)
+            
+        except (ImageLoadError, ExtractionError) as e:
+            logger.warning(f"  CLIP extraction failed: {e}")
+            return IdentityComparison(
+                result=IdentityCheckResult.ERROR,
+                similarity=None,
+                threshold=self.threshold,
+                source_faces=FrameFaces(source_frame, []),
+                target_faces=FrameFaces(target_frame, []),
+                message=str(e),
+            )
+        
+        elapsed = time.time() - start_time
+        
+        # Compute cosine similarity
+        source_embedding = source_faces.faces[0].embedding
+        target_embedding = target_faces.faces[0].embedding
+        
+        similarity = self.compute_similarity(source_embedding, target_embedding)
+        
+        # Determine result
+        result = (
+            IdentityCheckResult.MATCH
+            if similarity >= self.threshold
+            else IdentityCheckResult.MISMATCH
+        )
+        
+        # Log diagnostic info
+        pass_fail = "PASS" if result == IdentityCheckResult.MATCH else "FAIL"
+        logger.info(
+            f"  CLIP Identity: {similarity:.4f} vs threshold {self.threshold:.2f} → {pass_fail}"
+        )
+        
+        return IdentityComparison(
+            result=result,
+            similarity=similarity,
+            threshold=self.threshold,
+            source_faces=source_faces,
+            target_faces=target_faces,
+            matched_pairs=[(0, 0, similarity)],
+            message=f"CLIP semantic comparison: {similarity:.3f} (threshold: {self.threshold})",
             comparison_time_sec=elapsed,
         )
 
@@ -863,28 +1124,84 @@ class MockIdentityChecker(BaseIdentityChecker):
 
 
 # =============================================================================
+# STYLE-BASED CHECKER REGISTRY
+# =============================================================================
+
+# Maps StyleType to the appropriate checker class
+# This enables easy extension: add a new style by adding one entry here
+STYLE_CHECKERS: Dict[StyleType, type] = {
+    StyleType.REALISTIC: ArcFaceIdentityChecker,
+    StyleType.ANIME: CLIPIdentityChecker,
+    StyleType.WEBTOON: CLIPIdentityChecker,  # Webtoon uses same CLIP approach
+}
+
+# Default thresholds per style (can be overridden via config)
+STYLE_DEFAULT_THRESHOLDS: Dict[StyleType, float] = {
+    StyleType.REALISTIC: DEFAULT_IDENTITY_THRESHOLD,  # 0.70 for ArcFace
+    StyleType.ANIME: CLIPIdentityChecker.DEFAULT_CLIP_THRESHOLD,  # 0.85 for CLIP
+    StyleType.WEBTOON: CLIPIdentityChecker.DEFAULT_CLIP_THRESHOLD,
+}
+
+
+# =============================================================================
 # FACTORY FUNCTION
 # =============================================================================
 
 def get_identity_checker(
     use_mock: bool = False,
-    threshold: float = DEFAULT_IDENTITY_THRESHOLD,
+    threshold: Optional[float] = None,
+    style: Optional[StyleType] = None,
     **kwargs
 ) -> BaseIdentityChecker:
     """
     Factory function to get appropriate identity checker.
     
+    Style-aware: Returns ArcFace for realistic, CLIP for anime/stylized.
+    
     Args:
-        use_mock: If True, return mock checker
-        threshold: Similarity threshold
+        use_mock: If True, return mock checker (ignores style)
+        threshold: Similarity threshold (if None, uses style-appropriate default)
+        style: Visual style (if None, defaults to REALISTIC for backward compat)
         **kwargs: Passed to checker constructor
         
     Returns:
-        Identity checker instance
+        Identity checker instance appropriate for the style
+        
+    Usage:
+        # Backward compatible - returns ArcFace
+        checker = get_identity_checker()
+        
+        # Explicit realistic
+        checker = get_identity_checker(style=StyleType.REALISTIC)
+        
+        # Anime style - returns CLIP checker
+        checker = get_identity_checker(style=StyleType.ANIME)
+        
+        # With custom threshold
+        checker = get_identity_checker(style=StyleType.ANIME, threshold=0.90)
     """
+    # Mock takes precedence (for testing)
     if use_mock:
-        return MockIdentityChecker(threshold=threshold, **kwargs)
-    return ArcFaceIdentityChecker(threshold=threshold, **kwargs)
+        effective_threshold = threshold or DEFAULT_IDENTITY_THRESHOLD
+        return MockIdentityChecker(threshold=effective_threshold, **kwargs)
+    
+    # Default to realistic for backward compatibility
+    effective_style = style or StyleType.REALISTIC
+    
+    # Get style-appropriate threshold if not specified
+    effective_threshold = threshold or STYLE_DEFAULT_THRESHOLDS.get(
+        effective_style, DEFAULT_IDENTITY_THRESHOLD
+    )
+    
+    # Get the checker class for this style
+    checker_class = STYLE_CHECKERS.get(effective_style, ArcFaceIdentityChecker)
+    
+    logger.debug(
+        f"Creating {checker_class.__name__} for style={effective_style.value} "
+        f"with threshold={effective_threshold}"
+    )
+    
+    return checker_class(threshold=effective_threshold, **kwargs)
 
 
 # =============================================================================
@@ -923,8 +1240,8 @@ async def verify_bridge_frame(
     Verify identity is preserved across a bridge.
     
     Checks:
-    1. Shot A â†’ Bridge Frame (bridge should match source)
-    2. Bridge Frame â†’ Shot B (shot B should match bridge)
+    1. Shot A Ã¢â€ â€™ Bridge Frame (bridge should match source)
+    2. Bridge Frame Ã¢â€ â€™ Shot B (shot B should match bridge)
     
     Returns:
         Dict with "source_to_bridge" and "bridge_to_target" comparisons

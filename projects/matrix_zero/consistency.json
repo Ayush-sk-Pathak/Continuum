@@ -1,57 +1,70 @@
 {
   "characters": {
-    "ayush": {
-      "entity_id": "ayush",
+    "goku": {
+      "entity_id": "goku",
       "entity_type": "character",
-      "name": "Ayush",
-      "description": "ayush, a man with black hair and beard, confident mysterious presence",
-      "lora_path": "/workspace/runpod-slim/ComfyUI/models/loras/ayush_wan21_i2v_v1.safetensors",
-      "lora_strength": 0.85,
+      "name": "Goku",
+      "description": "goku, anime style, spiky black hair, orange gi martial arts uniform, muscular build, confident warrior energy",
+      "lora_path": null,
+      "lora_strength": 0.0,
       "face_refs": [
-        "/workspace/runpod-slim/ComfyUI/input/ayush_ref.png"
+        "Goku0.png",
+        "Goku1.png",
+        "Goku2.png"
       ],
-      "style_notes": "cinematic lighting, 4k quality",
-      "voice_id": null,
-      "tags": ["founder", "main_character"],
+      "style_notes": "anime style, high quality anime art, dramatic lighting",
+      "voice_id": "onyx",
+      "tags": ["main_character", "anime", "dragon_ball"],
       "metadata": {
-        "trigger_phrase": "ayush, a man with black hair and beard"
+        "trigger_phrase": "goku, anime style, spiky black hair, orange gi"
+      }
+    },
+    "naruto": {
+      "entity_id": "naruto",
+      "entity_type": "character",
+      "name": "Naruto",
+      "description": "naruto uzumaki, anime style, spiky blonde hair, blue eyes, orange and black ninja outfit, leaf headband, whisker marks on cheeks",
+      "lora_path": null,
+      "lora_strength": 0.0,
+      "face_refs": [
+        "Naruto0.png",
+        "Naruto1.png",
+        "Naruto2.png"
+      ],
+      "style_notes": "anime style, high quality anime art, warm lighting",
+      "voice_id": "echo",
+      "tags": ["main_character", "anime", "naruto_series"],
+      "metadata": {
+        "trigger_phrase": "naruto uzumaki, anime style, spiky blonde hair, orange ninja outfit"
       }
     }
   },
   "locations": {
-    "office": {
-      "entity_id": "office",
+    "cosmic_void": {
+      "entity_id": "cosmic_void",
       "entity_type": "location",
-      "name": "Modern Office",
-      "description": "Modern minimalist office with soft window lighting, clean professional space",
+      "name": "Cosmic Void",
+      "description": "Deep space with swirling blue and purple energy, stars and galaxies in background, ethereal atmosphere",
       "ref_images": [],
-      "style_notes": "soft natural lighting, shallow depth of field"
+      "style_notes": "anime style, epic cosmic background, dramatic lighting"
     },
-    "matrix_desert": {
-      "entity_id": "matrix_desert",
+    "hidden_leaf_rooftop": {
+      "entity_id": "hidden_leaf_rooftop",
       "entity_type": "location",
-      "name": "Matrix Desert",
-      "description": "Vast orange desert with geometric grid pattern on horizon, Matrix aesthetic, golden hour lighting",
+      "name": "Hidden Leaf Rooftop",
+      "description": "Traditional Japanese rooftop overlooking a ninja village, orange sunset sky, distant mountains",
       "ref_images": [],
-      "style_notes": "epic wide shots, golden rim lighting, surreal atmosphere"
+      "style_notes": "anime style, warm sunset lighting, panoramic village view"
     },
-    "tropical_beach": {
-      "entity_id": "tropical_beach",
+    "crossover_dimension": {
+      "entity_id": "crossover_dimension",
       "entity_type": "location",
-      "name": "Tropical Beach",
-      "description": "Paradise beach with crystal blue water, white sand, golden sunset",
+      "name": "Crossover Dimension",
+      "description": "Epic dimensional rift where two worlds meet, golden energy beams, dramatic clouds, heroic atmosphere",
       "ref_images": [],
-      "style_notes": "warm sunset lighting, relaxed atmosphere"
+      "style_notes": "anime style, epic crossover aesthetic, dramatic backlighting"
     }
   },
-  "props": {
-    "cocktail": {
-      "entity_id": "cocktail",
-      "entity_type": "prop",
-      "name": "Tropical Cocktail",
-      "description": "Colorful tropical cocktail in a fancy glass with umbrella",
-      "ref_images": []
-    }
-  },
-  "updated_at": "2026-01-03T20:00:00Z"
+  "props": {},
+  "updated_at": "2026-01-18T00:50:00Z"
 }

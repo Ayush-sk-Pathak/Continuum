@@ -234,6 +234,48 @@
     }
   },
 
+  "styles": {
+    "_description": "Style-specific configurations for identity checking and model selection. See ARCHITECTURE.md Section 16.",
+    "_usage": "Style determines which identity checker (ArcFace vs CLIP) and which SDXL checkpoint for bridge frames.",
+    
+    "realistic": {
+      "_description": "Photorealistic human faces - uses ArcFace for identity verification",
+      "identity_checker": "arcface",
+      "identity_threshold": 0.50,
+      "hero_checkpoint": "sd_xl_base_1.0.safetensors",
+      "recommended_video_model": "wan21",
+      "_note": "Default style. ArcFace requires real human facial geometry."
+    },
+    
+    "anime": {
+      "_description": "Japanese animation style - uses CLIP for semantic identity matching",
+      "identity_checker": "clip",
+      "identity_threshold": 0.85,
+      "hero_checkpoint": "animagine-xl-3.1.safetensors",
+      "alt_checkpoints": [
+        "ponyDiffusionV6XL.safetensors",
+        "counterfeitV30_v30.safetensors",
+        "anything-v5.safetensors"
+      ],
+      "recommended_video_model": "wan21",
+      "clip_model": "openai/clip-vit-base-patch32",
+      "_note": "CLIP works for stylized faces where ArcFace fails. Threshold higher due to semantic similarity."
+    },
+    
+    "webtoon": {
+      "_description": "Korean webtoon style - uses CLIP for semantic identity matching",
+      "identity_checker": "clip",
+      "identity_threshold": 0.85,
+      "hero_checkpoint": "animagine-xl-3.1.safetensors",
+      "alt_checkpoints": [
+        "ponyDiffusionV6XL.safetensors"
+      ],
+      "recommended_video_model": "wan21",
+      "clip_model": "openai/clip-vit-base-patch32",
+      "_note": "Similar to anime but optimized for vertical scroll format. Uses same CLIP approach."
+    }
+  },
+
   "_quality_tiers": {
     "1": "Development - fast iteration, lower quality",
     "2": "Production - balanced quality/performance", 

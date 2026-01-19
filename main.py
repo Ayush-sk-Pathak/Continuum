@@ -750,12 +750,16 @@ class ContinuumOrchestrator:
         # 7. Initialize Audit System (Reviewer)
         # -----------------------------------------------------------------
         if self.pipeline_config.enable_audit:
+            # Get style from scene graph (anime uses CLIP, realistic uses ArcFace)
+            project_style = self.scene_graph.style
+            logger.info(f"Project style: {project_style.value}")
+
             if self.pipeline_config.dry_run:
                 logger.info("DRY RUN: Using mock reviewer")
-                self.reviewer = get_reviewer(use_mock=True)
+                self.reviewer = get_reviewer(use_mock=True, style=project_style)
             else:
                 logger.info("Initializing full audit system")
-                self.reviewer = get_reviewer(use_mock=False)
+                self.reviewer = get_reviewer(use_mock=False, style=project_style)
             
             # CRITICAL: Verify audit system is ready (fail-fast)
             # Per ARCHITECTURE.md Section 3F: "ArcFace embedding on frame 1 
@@ -767,11 +771,17 @@ class ContinuumOrchestrator:
             
             if not health.get("identity", False):
                 # Identity check is non-negotiable - this is the core value proposition
+                from src.core.config import StyleType
+                if project_style == StyleType.ANIME:
+                    fix_cmd = "pip install transformers torch pillow"
+                else:
+                    fix_cmd = "pip install insightface onnxruntime"
+
                 error_msg = (
-                    "Identity checker failed to initialize.\n"
+                    f"Identity checker failed to initialize (style={project_style.value}).\n"
                     "The audit system cannot verify character consistency.\n\n"
                     "To fix:\n"
-                    "  pip install insightface onnxruntime\n\n"
+                    f"  {fix_cmd}\n\n"
                     "Or disable audit (not recommended for production):\n"
                     "  python main.py --project <file> --no-audit"
                 )
@@ -789,11 +799,14 @@ class ContinuumOrchestrator:
         # -----------------------------------------------------------------
         gen_config = self.pipeline_config.to_generation_config()
         gen_config.output_dir = (
-            self.pipeline_config.output_dir or 
+            self.pipeline_config.output_dir or
             self.config.paths.output_dir / self.scene_graph.project_id / "pass1"
         )
         gen_config.output_dir.mkdir(parents=True, exist_ok=True)
-        
+
+        # Pass style from scene_graph to GenerationConfig for hero/bridge frame checkpoint selection
+        gen_config.style = self.scene_graph.style.value
+
         self.pass1_generator = Pass1Generator(
             renderer=self.renderer,
             bridge_engine=self.bridge_engine,

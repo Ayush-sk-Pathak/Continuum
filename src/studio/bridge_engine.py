@@ -52,8 +52,9 @@ from ..comfy_client import (
     WorkflowLoader,
     GenerationParams,
 )
-from ..core.config import get_config
+from ..core.config import get_config, StyleType
 from ..core.error_recovery import retry_async, RetryConfig
+from ..core.model_loader import get_style_config
 
 logger = logging.getLogger(__name__)
 
@@ -65,15 +66,17 @@ logger = logging.getLogger(__name__)
 def _is_remote_path(path: Optional[Path]) -> bool:
     """
     Check if a path exists on the remote ComfyUI server (not locally).
-    
+
     Per Architecture: Mac orchestrates, RunPod renders. Paths starting with
     /workspace/ exist on RunPod but not on Mac. We skip local existence checks
     for these paths since they'll be validated when ComfyUI tries to load them.
-    
+
+    Also accepts bare filenames (no directory) with image extensions - these
+    are assumed to be in ComfyUI's input folder (uploaded via API).
+
     Remote path prefixes (RunPod/cloud):
         - /workspace/     (RunPod persistent storage)
-        - /comfyui/       (ComfyUI container paths)
-        - /models/        (Model storage)
+        - /comfyui/       (ComfyUI container paths)        - /models/        (Model storage)
         
     Args:
         path: Path to check
@@ -83,10 +86,22 @@ def _is_remote_path(path: Optional[Path]) -> bool:
     """
     if path is None:
         return False
-    
+
     path_str = str(path)
+
+    # Check for explicit remote path prefixes
     remote_prefixes = ("/workspace/", "/comfyui/", "/models/", "/root/")
-    return any(path_str.startswith(prefix) for prefix in remote_prefixes)
+    if any(path_str.startswith(prefix) for prefix in remote_prefixes):
+        return True
+
+    # Check for bare filename with image extension (uploaded to ComfyUI input)
+    # e.g., "Goku0.png", "naruto_ref.jpg" - no directory separators
+    image_extensions = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
+    if "/" not in path_str and "\\" not in path_str:
+        if path_str.lower().endswith(image_extensions):
+            return True
+
+    return False
 
 
 def _path_exists_or_remote(path: Optional[Path]) -> bool:
@@ -170,12 +185,12 @@ class PoseData:
 class BridgeSpec:
     """
     Specification for generating a bridge frame.
-    
+
     This is the input to the Bridge Engine. It combines:
     - Source information (last frame of Shot A)
     - Target information (what Shot B needs)
     - Transition metadata
-    
+
     Attributes:
         source_frame: Path to last frame of Shot A
         target_prompt: Prompt for Shot B
@@ -183,6 +198,7 @@ class BridgeSpec:
         location: Location/environment reference
         camera_transition: How camera angle changes
         target_shot_type: Camera framing for Shot B (wide, close, etc.)
+        style: Visual style (anime/realistic/webtoon) - determines checkpoint selection
         emotion_note: Emotional continuity hint
         pose_data: Pre-extracted pose (optional, will extract if missing)
         seed: Random seed for reproducibility
@@ -190,34 +206,37 @@ class BridgeSpec:
     # Required
     source_frame: Path
     target_prompt: str
-    
+
     # Identity
     characters: List[CharacterRef] = field(default_factory=list)
     location: Optional[LocationRef] = None
-    
+
     # Camera
     camera_transition: CameraTransition = CameraTransition.SAME
     target_shot_type: str = "medium"  # Maps to ShotType
     camera_notes: str = ""
-    
+
+    # Style (determines which SDXL checkpoint to use - see ARCHITECTURE.md Section 16)
+    style: StyleType = StyleType.REALISTIC
+
     # Continuity hints
     emotion_note: str = ""           # e.g., "character is now angry"
     prop_positions: Dict[str, Any] = field(default_factory=dict)  # From World State
-    
+
     # Pre-extracted data (optional)
     pose_data: Optional[PoseData] = None
-    
+
     # Generation params
     seed: int = -1
     quality: RenderQuality = RenderQuality.STANDARD
     width: int = 1280
     height: int = 720
-    
+
     # Hero frame strategy: use canonical frame for img2img source (preserves background/identity)
     # If provided, this is used for SOURCE_IMAGE instead of source_frame
     # source_frame is still used for pose/depth extraction
     identity_source_frame: Optional[Path] = None
-    
+
     # Renderer-specific overrides
     config_overrides: Dict[str, Any] = field(default_factory=dict)
     
@@ -309,51 +328,55 @@ class BridgeSpec:
 class HeroFrameSpec:
     """
     Specification for generating a Hero Frame (Shot 1 init frame).
-    
+
     Per ARCHITECTURE.md Section 7A.3-7A.5:
-    
+
         "Shot 1 uses Hero Frame (SDXL + IP-Adapter) --> I2V"
-        
+
     The Hero Frame is fundamentally different from Bridge Frame:
     - Bridge Frame: img2img (transforms existing frame from Shot A)
     - Hero Frame: txt2img (generates from noise with identity lock)
-    
+
     This is the input to generate_hero_frame(). It provides:
     - Character identity refs for IP-Adapter
     - Prompt for scene description
     - Optional face reference for stronger identity lock
-    
+
     Attributes:
         prompt: Scene description for Shot 1
         characters: Characters that must appear (for identity injection)
         face_ref_path: Primary face reference for IP-Adapter (optional but recommended)
         location: Location/environment reference
         shot_type: Camera framing (wide, medium, close, etc.)
+        style: Visual style (anime/realistic/webtoon) - determines checkpoint selection
         seed: Random seed for reproducibility
         width: Output width
         height: Output height
     """
     # Required
     prompt: str
-    
+
     # Identity (critical for hero frame purpose)
     characters: List[CharacterRef] = field(default_factory=list)
     face_ref_path: Optional[Path] = None  # Primary face for IP-Adapter
     location: Optional[LocationRef] = None
-    
+
     # Composition
     shot_type: str = "medium"
     composition_notes: str = ""  # e.g., "character on left, looking right"
-    
+
+    # Style (determines which SDXL checkpoint to use - see ARCHITECTURE.md Section 16)
+    style: StyleType = StyleType.REALISTIC
+
     # Generation params
     seed: int = -1
     quality: RenderQuality = RenderQuality.STANDARD
     width: int = 1280
     height: int = 720
-    
+
     # Strength controls
     ipadapter_strength: float = 0.75  # Identity lock strength (0.7-0.85 typical)
-    
+
     # Renderer-specific overrides
     config_overrides: Dict[str, Any] = field(default_factory=dict)
     
@@ -1141,16 +1164,35 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
     ) -> Dict[str, Any]:
         """
         Build parameter dict for hero_frame.json workflow.
-        
+
         Key parameters:
+        - CHECKPOINT: SDXL checkpoint selected based on style (anime/realistic/webtoon)
         - PROMPT: Scene description with shot type hints
         - FACE_REF_IMAGE: Character face for IP-Adapter identity lock
         - IPADAPTER_STRENGTH: How strongly to enforce identity (0.7-0.85)
         - EmptyLatentImage params (WIDTH, HEIGHT) for txt2img
+
+        Style-Aware Checkpoint Selection (Per ARCHITECTURE.md Section 16):
+        - REALISTIC → sd_xl_base_1.0.safetensors (ArcFace identity)
+        - ANIME → animagine-xl-3.1.safetensors (CLIP semantic identity)
+        - WEBTOON → animagine-xl-3.1.safetensors (CLIP semantic identity)
         """
+        # Load style-specific configuration from models.json
+        try:
+            style_config = get_style_config(spec.style)
+            checkpoint = style_config["hero_checkpoint"]
+            logger.info(f"Selected hero checkpoint for style '{spec.style.value}': {checkpoint}")
+        except (ValueError, KeyError) as e:
+            # Graceful fallback to realistic if style config missing
+            logger.warning(
+                f"Could not load style config for '{spec.style.value}': {e}. "
+                f"Falling back to realistic checkpoint."
+            )
+            checkpoint = "sd_xl_base_1.0.safetensors"
+
         # Build prompt with shot type context
         prompt_parts = [spec.prompt]
-        
+
         shot_type_hints = {
             "wide": "wide shot, full body visible",
             "medium": "medium shot, waist up",
@@ -1160,18 +1202,19 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
         }
         if spec.shot_type in shot_type_hints:
             prompt_parts.append(shot_type_hints[spec.shot_type])
-        
+
         if spec.composition_notes:
             prompt_parts.append(spec.composition_notes)
-        
+
         prompt = ", ".join(prompt_parts)
-        
+
         # Build negative prompt
         negative = "blurry, low quality, distorted, disfigured"
         if len(spec.characters) == 1:
             negative += ", multiple people, crowd"
-        
+
         params = {
+            "CHECKPOINT": checkpoint,  # Style-aware checkpoint selection
             "PROMPT": prompt,
             "NEGATIVE_PROMPT": negative,
             "WIDTH": spec.width,
@@ -1180,15 +1223,15 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
             "STEPS": 25 if spec.quality == RenderQuality.STANDARD else 35,
             "CFG": 7.5,  # Slightly higher CFG for txt2img
         }
-        
+
         # Add IP-Adapter face reference if available
         if remote_face_ref:
             params["FACE_REF_IMAGE"] = remote_face_ref
             params["IPADAPTER_STRENGTH"] = spec.ipadapter_strength
-        
+
         # Apply any overrides
         params.update(spec.config_overrides)
-        
+
         return params
 
     def _build_generation_params(
@@ -1200,14 +1243,32 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
         remote_depth: Optional[str],
         remote_face_refs: List[str],
     ) -> Dict[str, Any]:
-        """Build parameter dict for workflow injection."""
-        
+        """
+        Build parameter dict for workflow injection.
+
+        Style-Aware Checkpoint Selection (Per ARCHITECTURE.md Section 16):
+        Bridge frames use the same SDXL checkpoints as hero frames for consistency.
+        """
+        # Load style-specific configuration from models.json
+        try:
+            style_config = get_style_config(spec.style)
+            checkpoint = style_config["hero_checkpoint"]
+            logger.info(f"Selected bridge checkpoint for style '{spec.style.value}': {checkpoint}")
+        except (ValueError, KeyError) as e:
+            # Graceful fallback to realistic if style config missing
+            logger.warning(
+                f"Could not load style config for '{spec.style.value}': {e}. "
+                f"Falling back to realistic checkpoint."
+            )
+            checkpoint = "sd_xl_base_1.0.safetensors"
+
         # Build prompt with camera transition context
         prompt = self._enhance_prompt(spec)
-        
+
         params = {
+            "CHECKPOINT": checkpoint,  # Style-aware checkpoint selection
             "PROMPT": prompt,
-            "NEGATIVE_PROMPT": "blurry, low quality, distorted, disfigured, multiple people" 
+            "NEGATIVE_PROMPT": "blurry, low quality, distorted, disfigured, multiple people"
                               if len(spec.characters) == 1 else "blurry, low quality, distorted",
             "SOURCE_IMAGE": remote_source,
             "WIDTH": spec.width,
@@ -1217,29 +1278,29 @@ class ComfyUIBridgeEngine(BaseBridgeEngine):
             "CFG": 7.0,
             "DENOISE": 0.35,  # Low denoise to preserve background (ControlNet handles pose)
         }
-        
+
         # Add pose/depth conditioning
         if remote_pose and method in (BridgeMethod.CONTROLNET_FULL, BridgeMethod.CONTROLNET_POSE):
             params["POSE_IMAGE"] = remote_pose
             params["CONTROLNET_POSE_STRENGTH"] = 0.8
-        
+
         if remote_depth and method == BridgeMethod.CONTROLNET_FULL:
             params["DEPTH_IMAGE"] = remote_depth
             params["CONTROLNET_DEPTH_STRENGTH"] = 0.5
-        
+
         # Add identity conditioning
         if remote_face_refs:
             params["FACE_REF_IMAGE"] = remote_face_refs[0]  # Primary face ref
             params["IPADAPTER_STRENGTH"] = 0.7
-        
+
         # Add LoRA if available
         if spec.characters and spec.characters[0].has_lora():
             params["LORA_PATH"] = str(spec.characters[0].lora_path)
             params["LORA_STRENGTH"] = spec.characters[0].lora_strength
-        
+
         # Apply any overrides
         params.update(spec.config_overrides)
-        
+
         return params
     
     def _enhance_prompt(self, spec: BridgeSpec) -> str:

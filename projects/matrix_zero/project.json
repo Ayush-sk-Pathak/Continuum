@@ -1,77 +1,109 @@
 {
   "project_id": "matrix_zero",
-  "title": "Matrix Zero - Welcome to Continuum",
-  "description": "6-shot, 30-second demo showcasing identity preservation across scene changes and framing cuts",
+  "title": "Matrix Zero - Enter the Anime Multiverse",
+  "description": "6-shot, 30-second anime demo showcasing identity preservation across scene changes with two iconic characters",
+  "style": "anime",
   "target_resolution": [832, 480],
   "target_fps": 16,
+
   "bible": {
-    "dict_id": "matrix_zero",
-    "title": "Matrix Zero Bible",
+    "dict_id": "matrix_zero_anime",
+    "title": "Matrix Zero Anime Bible",
+
     "characters": {
-      "ayush": {
-        "entity_id": "ayush",
-        "name": "Ayush",
-        "description": "Man with black hair and beard, confident mysterious presence",
+      "goku": {
+        "entity_id": "goku",
+        "name": "Goku",
+        "description": "Spiky black hair, orange gi martial arts uniform, muscular build, confident warrior energy",
         "face_refs": [
-          "/workspace/runpod-slim/ComfyUI/input/ayush_ref.png"
+          "Goku0.png",
+          "Goku1.png",
+          "Goku2.png"
         ],
-        "lora_path": "/workspace/runpod-slim/ComfyUI/models/loras/ayush_wan21_i2v_v1.safetensors",
-        "lora_strength": 0.85
+        "lora_path": null,
+        "lora_strength": 0.0,
+        "voice_config": {
+          "voice_id": "onyx",
+          "provider": "openai",
+          "speaking_rate": 1.1,
+          "pitch": 0.0
+        }
+      },
+      "naruto": {
+        "entity_id": "naruto",
+        "name": "Naruto",
+        "description": "Spiky blonde hair, blue eyes, orange and black ninja outfit, headband with leaf symbol, whisker marks on cheeks",
+        "face_refs": [
+          "Naruto0.png",
+          "Naruto1.png",
+          "Naruto2.png"
+        ],
+        "lora_path": null,
+        "lora_strength": 0.0,
+        "voice_config": {
+          "voice_id": "echo",
+          "provider": "openai",
+          "speaking_rate": 1.15,
+          "pitch": 0.1
+        }
       }
     },
+
     "locations": {
-      "office": {
-        "entity_id": "office",
-        "name": "Modern Office",
-        "description": "Modern minimalist office with soft window lighting"
+      "cosmic_void": {
+        "entity_id": "cosmic_void",
+        "name": "Cosmic Void",
+        "description": "Deep space with swirling blue and purple energy, stars and galaxies in background, ethereal atmosphere"
       },
-      "matrix_desert": {
-        "entity_id": "matrix_desert",
-        "name": "Matrix Desert",
-        "description": "Vast orange desert with geometric grid pattern on horizon, Matrix aesthetic"
+      "hidden_leaf_rooftop": {
+        "entity_id": "hidden_leaf_rooftop",
+        "name": "Hidden Leaf Rooftop",
+        "description": "Traditional Japanese rooftop overlooking a ninja village, orange sunset sky, distant mountains"
       },
-      "tropical_beach": {
-        "entity_id": "tropical_beach",
-        "name": "Tropical Beach",
-        "description": "Paradise beach with crystal blue water, golden sunset"
+      "crossover_dimension": {
+        "entity_id": "crossover_dimension",
+        "name": "Crossover Dimension",
+        "description": "Epic dimensional rift where two worlds meet, golden energy beams, dramatic clouds, heroic atmosphere"
       }
     },
+
     "props": {}
   },
+
   "scenes": [
     {
-      "scene_id": "scene_office",
+      "scene_id": "scene_goku_call",
       "index": 0,
-      "title": "The Invitation",
-      "description": "Office scene - mysterious invitation gesture",
+      "title": "The Call",
+      "description": "Goku in cosmic void - the legendary warrior's invitation",
       "location": {
-        "entity_id": "office",
+        "entity_id": "cosmic_void",
         "entity_type": "location",
-        "display_name": "Modern Office"
+        "display_name": "Cosmic Void"
       },
-      "time_of_day": "day",
+      "time_of_day": "night",
       "characters": [
         {
-          "entity_id": "ayush",
+          "entity_id": "goku",
           "entity_type": "character",
-          "display_name": "Ayush"
+          "display_name": "Goku"
         }
       ],
       "shots": [
         {
           "shot_id": "shot_01",
-          "scene_id": "scene_office",
+          "scene_id": "scene_goku_call",
           "index": 0,
           "duration_sec": 5.0,
-          "description": "Wide shot - standing in office, begins raising hand",
-          "prompt": "ayush, a man with black hair and beard, standing in modern minimalist office, full body wide shot, centered in frame, soft window lighting, looks directly at camera with mysterious expression, slowly begins raising right hand toward camera, weight shifts forward, cinematic wide angle, 4k, smooth motion",
-          "negative_prompt": "blurry, distorted, ugly, watermark, deformed face, bad anatomy, extra limbs, low quality, amateur, shaky camera",
+          "description": "Wide shot - Goku floating in cosmic void, energy swirling around him",
+          "prompt": "goku, anime style, spiky black hair, orange gi, floating in deep space cosmic void, swirling blue and purple energy around him, stars and galaxies background, full body wide shot, arms crossed confidently, powerful aura glowing, epic anime scene, high quality anime art, dramatic lighting, 4k",
+          "negative_prompt": "realistic, 3d render, photo, blurry, deformed, bad anatomy, extra limbs, watermark, text, low quality",
           "shot_type": "wide",
           "characters": [
             {
-              "entity_id": "ayush",
+              "entity_id": "goku",
               "entity_type": "character",
-              "display_name": "Ayush"
+              "display_name": "Goku"
             }
           ],
           "props": [],
@@ -79,58 +111,67 @@
         },
         {
           "shot_id": "shot_02",
-          "scene_id": "scene_office",
+          "scene_id": "scene_goku_call",
           "index": 1,
           "duration_sec": 5.0,
-          "description": "Close-up - face and hand, hand rises toward camera",
-          "prompt": "ayush, a man with black hair and beard, close-up portrait in modern office, face and hand in frame, soft window lighting, intense mysterious gaze at camera, hand rises up toward camera lens, fingers spread open, offering gesture, shallow depth of field, cinematic close-up, 4k, smooth motion",
-          "negative_prompt": "blurry, distorted, ugly, watermark, deformed face, bad anatomy, extra limbs, low quality, amateur, shaky camera",
+          "description": "Close-up - Goku's confident smile, reaching out hand",
+          "prompt": "goku, anime style, spiky black hair, close-up portrait, cosmic void background blurred, confident smile, reaching hand toward camera, inviting gesture, glowing aura, dynamic anime expression, high quality anime art, dramatic rim lighting, 4k",
+          "negative_prompt": "realistic, 3d render, photo, blurry, deformed, bad anatomy, extra limbs, watermark, text, low quality",
           "shot_type": "close",
           "characters": [
             {
-              "entity_id": "ayush",
+              "entity_id": "goku",
               "entity_type": "character",
-              "display_name": "Ayush"
+              "display_name": "Goku"
             }
           ],
           "props": [],
-          "dialogue": []
+          "dialogue": [
+            {
+              "line_id": "line_01",
+              "character_id": "goku",
+              "text": "Hey! You feel that power? Come with me!",
+              "start_time_sec": 1.0,
+              "estimated_duration_sec": 3.0,
+              "emotion": "excited"
+            }
+          ]
         }
       ]
     },
     {
-      "scene_id": "scene_desert",
+      "scene_id": "scene_naruto_path",
       "index": 1,
-      "title": "The Desert",
-      "description": "Matrix desert - reality bending revealed",
+      "title": "The Path",
+      "description": "Naruto on rooftop - the ninja's determination",
       "location": {
-        "entity_id": "matrix_desert",
+        "entity_id": "hidden_leaf_rooftop",
         "entity_type": "location",
-        "display_name": "Matrix Desert"
+        "display_name": "Hidden Leaf Rooftop"
       },
-      "time_of_day": "golden_hour",
+      "time_of_day": "sunset",
       "characters": [
         {
-          "entity_id": "ayush",
+          "entity_id": "naruto",
           "entity_type": "character",
-          "display_name": "Ayush"
+          "display_name": "Naruto"
         }
       ],
       "shots": [
         {
           "shot_id": "shot_03",
-          "scene_id": "scene_desert",
+          "scene_id": "scene_naruto_path",
           "index": 2,
           "duration_sec": 5.0,
-          "description": "Wide shot - standing in desert, walks forward beckoning",
-          "prompt": "ayush, a man with black hair and beard, standing in vast orange desert, full body wide shot, geometric grid on horizon, confident powerful stance, walks forward toward camera, extends arm in beckoning follow-me gesture, golden hour lighting, matrix aesthetic, epic cinematic wide, 4k, smooth motion",
-          "negative_prompt": "blurry, distorted, ugly, watermark, deformed face, bad anatomy, extra limbs, low quality, amateur, shaky camera",
+          "description": "Wide shot - Naruto standing on rooftop overlooking village",
+          "prompt": "naruto uzumaki, anime style, spiky blonde hair, blue eyes, orange and black ninja outfit, leaf headband, standing on traditional japanese rooftop, overlooking ninja village, orange sunset sky, wind blowing hair, full body wide shot, heroic pose, high quality anime art, warm sunset lighting, 4k",
+          "negative_prompt": "realistic, 3d render, photo, blurry, deformed, bad anatomy, extra limbs, watermark, text, low quality",
           "shot_type": "wide",
           "characters": [
             {
-              "entity_id": "ayush",
+              "entity_id": "naruto",
               "entity_type": "character",
-              "display_name": "Ayush"
+              "display_name": "Naruto"
             }
           ],
           "props": [],
@@ -138,95 +179,140 @@
         },
         {
           "shot_id": "shot_04",
-          "scene_id": "scene_desert",
+          "scene_id": "scene_naruto_path",
           "index": 3,
           "duration_sec": 5.0,
-          "description": "Close-up - reaches dramatically toward camera",
-          "prompt": "ayush, a man with black hair and beard, dramatic close-up in orange desert, face and arm in frame, blurred desert background, reaches hand dramatically toward camera lens, fingers spread wide grabbing at reality, intense focused expression, golden rim lighting, cinematic close-up, matrix style, 4k, smooth motion",
-          "negative_prompt": "blurry, distorted, ugly, watermark, deformed face, bad anatomy, extra limbs, low quality, amateur, shaky camera",
+          "description": "Close-up - Naruto's determined expression, fist raised",
+          "prompt": "naruto uzumaki, anime style, spiky blonde hair, blue eyes, whisker marks on cheeks, leaf headband, close-up portrait, sunset sky background blurred, determined expression, raising fist toward camera, confident grin, high quality anime art, golden hour lighting, 4k",
+          "negative_prompt": "realistic, 3d render, photo, blurry, deformed, bad anatomy, extra limbs, watermark, text, low quality",
           "shot_type": "close",
           "characters": [
             {
-              "entity_id": "ayush",
+              "entity_id": "naruto",
               "entity_type": "character",
-              "display_name": "Ayush"
+              "display_name": "Naruto"
             }
           ],
           "props": [],
-          "dialogue": []
+          "dialogue": [
+            {
+              "line_id": "line_02",
+              "character_id": "naruto",
+              "text": "Believe it! This is just the beginning!",
+              "start_time_sec": 1.0,
+              "estimated_duration_sec": 2.5,
+              "emotion": "determined"
+            }
+          ]
         }
       ]
     },
     {
-      "scene_id": "scene_beach",
+      "scene_id": "scene_convergence",
       "index": 2,
-      "title": "The Reward",
-      "description": "Beach paradise - the payoff",
+      "title": "The Convergence",
+      "description": "Both heroes unite - the ultimate crossover",
       "location": {
-        "entity_id": "tropical_beach",
+        "entity_id": "crossover_dimension",
         "entity_type": "location",
-        "display_name": "Tropical Beach"
+        "display_name": "Crossover Dimension"
       },
-      "time_of_day": "sunset",
+      "time_of_day": "golden_hour",
       "characters": [
         {
-          "entity_id": "ayush",
+          "entity_id": "goku",
           "entity_type": "character",
-          "display_name": "Ayush"
+          "display_name": "Goku"
+        },
+        {
+          "entity_id": "naruto",
+          "entity_type": "character",
+          "display_name": "Naruto"
         }
       ],
       "shots": [
         {
           "shot_id": "shot_05",
-          "scene_id": "scene_beach",
+          "scene_id": "scene_convergence",
           "index": 4,
           "duration_sec": 5.0,
-          "description": "Medium shot - sitting in beach chair, sips cocktail",
-          "prompt": "ayush, a man with black hair and beard, medium shot in beach lounge chair, upper body visible, tropical paradise background, crystal blue water, reaches for colorful cocktail drink, picks it up, brings to lips, takes sip, relaxed satisfied expression, golden sunset lighting, cinematic, 4k, smooth motion",
-          "negative_prompt": "blurry, distorted, ugly, watermark, deformed face, bad anatomy, extra limbs, low quality, amateur, shaky camera",
+          "description": "Medium shot - Both characters standing side by side",
+          "prompt": "goku and naruto uzumaki standing side by side, anime style, goku with spiky black hair orange gi on left, naruto with spiky blonde hair orange ninja outfit on right, epic dimensional rift background, golden energy beams, dramatic clouds, both in heroic battle stance, medium shot showing upper body, high quality anime art, epic crossover scene, dramatic backlighting, 4k",
+          "negative_prompt": "realistic, 3d render, photo, blurry, deformed, bad anatomy, extra limbs, watermark, text, low quality, merged faces, wrong colors",
           "shot_type": "medium",
           "characters": [
             {
-              "entity_id": "ayush",
+              "entity_id": "goku",
               "entity_type": "character",
-              "display_name": "Ayush"
-            }
-          ],
-          "props": [
+              "display_name": "Goku"
+            },
             {
-              "entity_id": "cocktail",
-              "entity_type": "prop",
-              "display_name": "Cocktail"
+              "entity_id": "naruto",
+              "entity_type": "character",
+              "display_name": "Naruto"
             }
           ],
+          "props": [],
           "dialogue": []
         },
         {
           "shot_id": "shot_06",
-          "scene_id": "scene_beach",
+          "scene_id": "scene_convergence",
           "index": 5,
           "duration_sec": 5.0,
-          "description": "Close-up - lowers drink, knowing nod to camera",
-          "prompt": "ayush, a man with black hair and beard, close-up portrait on tropical beach, face filling frame, warm sunset lighting, lowers cocktail glass from lips, looks directly at camera with knowing confident expression, slight approving nod, the look says welcome to my world, shallow depth of field, cinematic, 4k, smooth motion",
-          "negative_prompt": "blurry, distorted, ugly, watermark, deformed face, bad anatomy, extra limbs, low quality, amateur, shaky camera",
+          "description": "Close-up - Both looking at camera, final heroic moment",
+          "prompt": "goku and naruto uzumaki close-up portrait together, anime style, goku spiky black hair on left looking at camera with confident smirk, naruto spiky blonde hair blue eyes on right looking at camera with determined grin, epic dimensional background blurred, golden light between them, both characters clearly distinct, high quality anime art, dramatic anime finale shot, 4k",
+          "negative_prompt": "realistic, 3d render, photo, blurry, deformed, bad anatomy, extra limbs, watermark, text, low quality, merged faces, wrong hair colors",
           "shot_type": "close",
           "characters": [
             {
-              "entity_id": "ayush",
+              "entity_id": "goku",
               "entity_type": "character",
-              "display_name": "Ayush"
-            }
-          ],
-          "props": [
+              "display_name": "Goku"
+            },
             {
-              "entity_id": "cocktail",
-              "entity_type": "prop",
-              "display_name": "Cocktail"
+              "entity_id": "naruto",
+              "entity_type": "character",
+              "display_name": "Naruto"
             }
           ],
-          "dialogue": []
+          "props": [],
+          "dialogue": [
+            {
+              "line_id": "line_03",
+              "character_id": "goku",
+              "text": "Ready?",
+              "start_time_sec": 1.0,
+              "estimated_duration_sec": 1.0,
+              "emotion": "confident"
+            },
+            {
+              "line_id": "line_04",
+              "character_id": "naruto",
+              "text": "Let's go!",
+              "start_time_sec": 2.5,
+              "estimated_duration_sec": 1.0,
+              "emotion": "excited"
+            }
+          ]
         }
       ]
     }
-  ]
+  ],
+
+  "audio": {
+    "global_ambience": {
+      "ambience_id": "epic_atmosphere",
+      "type": "cinematic",
+      "prompt": "epic orchestral ambient atmosphere, heroic tension, anime battle preparation mood",
+      "volume_db": -15
+    },
+    "music_track": null
+  },
+
+  "_meta": {
+    "created": "2026-01-18",
+    "version": "2.0.0",
+    "notes": "Anime pivot - Goku & Naruto dual character demo for VC presentation. Tests multi-character identity consistency with CLIP checker at 0.85 threshold."
+  }
 }

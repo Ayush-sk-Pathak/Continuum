@@ -25,6 +25,8 @@ from typing import Any, Dict, List, Optional, Set, Iterator
 import hashlib
 import uuid
 
+from src.core.config import StyleType
+
 logger = logging.getLogger(__name__)
 
 
@@ -487,26 +489,28 @@ class Scene:
 class SceneGraph:
     """
     Complete hierarchical representation of a video project.
-    
+
     This is the master blueprint that contains:
     - All scenes in order
     - All shots within scenes
     - All chunks within shots
     - All entity references
-    
+    - Visual style configuration (anime/realistic/webtoon)
+
     The Director Agent builds this from a script, and the renderers
-    consume it to generate the actual video.
-    
+    consume it to generate the actual video. The style field determines
+    which identity checker and model checkpoints are used (see ARCHITECTURE.md Section 16).
+
     Usage:
         # Create from scratch
-        graph = SceneGraph(project_id="my_film", title="My Film")
+        graph = SceneGraph(project_id="my_film", title="My Film", style=StyleType.ANIME)
         scene = Scene(scene_id="scene_01", ...)
         graph.add_scene(scene)
-        
+
         # Save and load
         graph.save(Path("project.json"))
         graph = SceneGraph.load(Path("project.json"))
-        
+
         # Iterate for rendering
         for chunk in graph.iter_chunks():
             result = await renderer.generate(chunk_to_job(chunk))
@@ -525,7 +529,8 @@ class SceneGraph:
     # Global settings
     target_fps: int = 24
     target_resolution: tuple = (1280, 720)
-    
+    style: StyleType = StyleType.REALISTIC  # Visual style lane (anime/realistic/webtoon)
+
     metadata: Dict[str, Any] = field(default_factory=dict)
     
     # -------------------------------------------------------------------------
@@ -697,6 +702,7 @@ class SceneGraph:
             "author": self.author,
             "target_fps": self.target_fps,
             "target_resolution": list(self.target_resolution),
+            "style": self.style.value,  # Serialize enum to string
             "metadata": self.metadata,
         }
     
@@ -716,7 +722,15 @@ class SceneGraph:
         """Create from dict."""
         scenes = [Scene.from_dict(s) for s in data.get("scenes", [])]
         resolution = data.get("target_resolution", [1280, 720])
-        
+
+        # Parse style with backward compatibility (defaults to realistic)
+        style_str = data.get("style", "realistic")
+        try:
+            style = StyleType(style_str)
+        except ValueError:
+            logger.warning(f"Unknown style '{style_str}', defaulting to realistic")
+            style = StyleType.REALISTIC
+
         return cls(
             project_id=data["project_id"],
             title=data["title"],
@@ -728,6 +742,7 @@ class SceneGraph:
             author=data.get("author", ""),
             target_fps=data.get("target_fps", 24),
             target_resolution=tuple(resolution),
+            style=style,
             metadata=data.get("metadata", {}),
         )
     

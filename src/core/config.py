@@ -18,6 +18,25 @@ import os
 
 from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from enum import Enum
+
+
+# =============================================================================
+# STYLE ENUM (For multi-format output strategy - See ARCHITECTURE.md Section 16)
+# =============================================================================
+
+class StyleType(str, Enum):
+    """
+    Visual style lanes for the Continuum Engine.
+    
+    Each style uses different identity checkers and model checkpoints.
+    - REALISTIC: Photorealistic faces (ArcFace identity checking)
+    - ANIME: Japanese animation style (CLIP semantic similarity)
+    - WEBTOON: Korean webtoon style (CLIP semantic similarity)
+    """
+    REALISTIC = "realistic"
+    ANIME = "anime"
+    WEBTOON = "webtoon"
 
 
 # =============================================================================
@@ -64,7 +83,17 @@ class AuditConfig(BaseModel):
         default=0.50,  # Relaxed from 0.70 - TODO: tighten once DWPreprocessor is working
         ge=0.0,
         le=1.0,
-        description="ArcFace similarity threshold (below = FAIL)"
+        description="ArcFace similarity threshold for realistic style (below = FAIL)"
+    )
+    clip_identity_threshold: float = Field(
+        default=0.85,
+        ge=0.0,
+        le=1.0,
+        description="CLIP similarity threshold for anime/stylized styles (below = FAIL)"
+    )
+    style: StyleType = Field(
+        default=StyleType.REALISTIC,
+        description="Visual style lane - determines which identity checker to use"
     )
     flicker_threshold: float = Field(
         default=0.05,
@@ -84,6 +113,26 @@ class AuditConfig(BaseModel):
         le=1.0,
         description="CLIP embedding similarity threshold"
     )
+    
+    def get_identity_threshold_for_style(self, style: Optional[StyleType] = None) -> float:
+        """
+        Get the appropriate identity threshold for a given style.
+        
+        Args:
+            style: Style to get threshold for (uses self.style if None)
+            
+        Returns:
+            Threshold value for the style's identity checker
+        """
+        effective_style = style or self.style
+        
+        if effective_style == StyleType.REALISTIC:
+            return self.identity_threshold
+        elif effective_style in (StyleType.ANIME, StyleType.WEBTOON):
+            return self.clip_identity_threshold
+        else:
+            # Safe fallback to realistic/ArcFace threshold
+            return self.identity_threshold
 
 
 class SonicConfig(BaseModel):
@@ -187,9 +236,9 @@ class ComfyUIConfig(BaseModel):
         description="ComfyUI WebSocket endpoint"
     )
     timeout_sec: int = Field(
-        default=900,    # Changed from 500 for longer clips
+        default=1500,   # Increased from 900 for 1280x720 anime generation (~18-20 min)
         ge=30,
-        description="Timeout for generation jobs (500s needed for HunyuanCustom first run)"
+        description="Timeout for generation jobs (1500s needed for full resolution anime)"
     )
     poll_interval_sec: float = Field(
         default=1.0,

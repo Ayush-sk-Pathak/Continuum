@@ -274,6 +274,10 @@ class GenerationConfig:
     base_seed: int = -1
     quality: str = "standard"
     output_dir: Optional[Path] = None
+
+    # Style (anime/realistic/webtoon) - determines SDXL checkpoint for hero/bridge frames
+    # Imported at runtime to avoid circular imports
+    style: Optional[str] = None  # StyleType value as string, e.g., "anime", "realistic"
     
     # Shot 1 strategy (per ARCHITECTURE.md Section 7A.5, MODEL_PIVOT.md Section 2.2)
     # - HERO_FRAME: Generate via SDXL + IP-Adapter (Wan, legacy models)
@@ -1112,9 +1116,18 @@ class Pass1Generator:
             # Step 6: Generate via bridge_engine's ComfyUI client
             # We reuse the bridge_engine infrastructure but with hero_frame.json workflow
             from ..studio.bridge_engine import HeroFrameSpec
-            
+            from ..core.config import StyleType
+
             seed = self.config.get_seed_for_attempt(chunk_id, 1)
-            
+
+            # Determine style (anime/realistic/webtoon) for checkpoint selection
+            style = StyleType.REALISTIC  # Default fallback
+            if self.config.style:
+                try:
+                    style = StyleType(self.config.style)
+                except ValueError:
+                    logger.warning(f"Unknown style '{self.config.style}', using realistic")
+
             spec = HeroFrameSpec(
                 prompt=prompt,
                 characters=character_refs,
@@ -1122,6 +1135,7 @@ class Pass1Generator:
                 seed=seed,
                 width=1280,  # TODO: Get from config
                 height=720,
+                style=style,
             )
             
             hero_result = await self.bridge_engine.generate_hero_frame(spec)
