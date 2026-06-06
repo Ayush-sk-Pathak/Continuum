@@ -35,3 +35,7 @@ logs/
 *.safetensors
 *.ckpt
 *.bin
+
+# Local-only docs (kept on disk, excluded from the public repo)
+docs/Marketing+Strategy/
+docs/SILOS/
